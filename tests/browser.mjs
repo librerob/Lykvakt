@@ -167,6 +167,7 @@ try {
       .click();
     await screenshot("accounts-light");
     const results = await new AxeBuilder({ page })
+      .setLegacyMode()
       .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
       .analyze();
     await writeFile(
@@ -184,6 +185,7 @@ try {
         .click();
       await screenshot("accounts-" + theme);
       const results = await new AxeBuilder({ page })
+        .setLegacyMode()
         .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
         .analyze();
       await writeFile(
