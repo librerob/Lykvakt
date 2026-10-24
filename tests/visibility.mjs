@@ -1,3 +1,4 @@
+import { extensionId } from "./extension-id.mjs";
 import { chromium, expect } from "@playwright/test";
 import { mkdtemp } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -13,13 +14,9 @@ const context = await chromium.launchPersistentContext(profile, {
   ],
 });
 try {
-  const worker =
-    context.serviceWorkers()[0] ??
-    (await context.waitForEvent("serviceworker"));
+  const id = await extensionId(context);
   const page = await context.newPage();
-  await page.goto(
-    `chrome-extension://${new URL(worker.url()).hostname}/index.html?window`,
-  );
+  await page.goto(`chrome-extension://${id}/index.html?window`);
   await page
     .getByLabel("Create a master password")
     .fill("synthetic visibility test password");

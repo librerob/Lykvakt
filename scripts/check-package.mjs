@@ -8,16 +8,13 @@ assert.deepEqual(manifest.permissions, [
   "clipboardWrite",
   "scripting",
 ]);
-assert.deepEqual(manifest.optional_permissions, ["tabs"]);
+assert.equal(manifest.optional_permissions, undefined);
+assert.equal(manifest.background, undefined);
 assert.equal(manifest.host_permissions, undefined);
 assert.equal(manifest.content_scripts, undefined);
 assert.equal(manifest.externally_connectable, undefined);
 assert.equal(manifest.web_accessible_resources, undefined);
-for (const path of [
-  "index.html",
-  "background.js",
-  ...Object.values(manifest.icons),
-])
+for (const path of ["index.html", ...Object.values(manifest.icons)])
   assert((await stat("dist/" + path)).isFile());
 async function scan(dir) {
   let bytes = 0;

@@ -63,26 +63,6 @@ export function createSettings(ctx: AppContext) {
       session.timeout = Number(timeout.control.value);
       localStorage.setItem("timeout", String(session.timeout));
     });
-    const automatic = el("input", { type: "checkbox", id: "automatic" });
-    if (isExtension) {
-      void chrome.storage.local.get("automatic").then((p) => {
-        automatic.checked = !!p.automatic;
-      });
-      automatic.addEventListener("change", () =>
-        run(async () => {
-          if (automatic.checked) {
-            const allowed = await chrome.permissions.request({
-              permissions: ["tabs"],
-            });
-            automatic.checked = allowed;
-            await chrome.storage.local.set({ automatic: allowed });
-          } else {
-            await chrome.storage.local.set({ automatic: false });
-            await chrome.permissions.remove({ permissions: ["tabs"] });
-          }
-        }),
-      );
-    } else automatic.disabled = true;
     return el(
       "section",
       { class: "content stack" },
@@ -108,22 +88,6 @@ export function createSettings(ctx: AppContext) {
           "Change master password",
           () => changePassword(),
           "button tonal",
-        ),
-      ),
-      el(
-        "div",
-        { class: "settings-section stack" },
-        el("h2", {}, "Website awareness"),
-        el(
-          "label",
-          { class: "switch-label", for: "automatic" },
-          automatic,
-          "Automatic toolbar indicators",
-        ),
-        el(
-          "p",
-          { class: "hint" },
-          "Optional tabs permission gives access to the URLs of all open tabs. Addresses are checked against the bundled directory on this device. No visits are stored or sent. Manual checks use activeTab when you open the popup. No notifications or page injection.",
         ),
       ),
       el(

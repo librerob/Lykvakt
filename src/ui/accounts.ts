@@ -1,6 +1,5 @@
 import { button, el, input } from "../dom";
 import { codeFor } from "../otp";
-import { loadDirectory, lookup, safeLink } from "../directory";
 import { createEnrollment } from "./enrollment";
 import { currentWebsite, unchangedWebsite, captureWebsite } from "../tab";
 import { fillCode } from "../fill";
@@ -143,63 +142,6 @@ export function createAccounts(ctx: AppContext) {
       ),
     );
     drawAccounts();
-    if (isExtension) {
-      const site = el("aside", { class: "site-note" });
-      section.append(site);
-      void run(async () => {
-        const [tab] = await chrome.tabs.query({
-          active: true,
-          currentWindow: true,
-        });
-        const found = tab?.url
-          ? lookup(tab.url, await loadDirectory())
-          : undefined;
-        if (!site.isConnected) return;
-        if (!found) {
-          site.textContent =
-            "Website check: no directory match for this tab. This does not prove 2FA is unavailable.";
-          return;
-        }
-        site.append(
-          el("strong", {}, `${found.domain} lists 2FA support`),
-          el(
-            "p",
-            {},
-            found.entry.methods
-              .map(
-                (m) =>
-                  ({
-                    totp: "Authenticator codes",
-                    u2f: "Security keys",
-                    sms: "SMS",
-                    email: "Email",
-                    call: "Phone call",
-                    "custom-software": "Other software",
-                    "custom-hardware": "Other hardware",
-                  })[m] ?? m,
-              )
-              .join(" · "),
-          ),
-        );
-        const link = safeLink(found.entry.documentation);
-        if (link)
-          site.append(
-            el(
-              "a",
-              { href: link, target: "_blank", rel: "noopener noreferrer" },
-              "View setup instructions ↗",
-            ),
-          );
-        site.append(
-          el(
-            "p",
-            { class: "hint" },
-            "Support does not mean your account is enrolled. Prefer phishing-resistant passkeys or security keys where available.",
-          ),
-          el("small", {}, "Data sourced from 2FA Directory by 2factorauth."),
-        );
-      });
-    }
     return section;
   }
 

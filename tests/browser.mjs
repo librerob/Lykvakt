@@ -1,3 +1,4 @@
+import { extensionId } from "./extension-id.mjs";
 import { chromium, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
@@ -23,9 +24,7 @@ const launch = (directory = profile) =>
     ],
   });
 let context = await launch();
-let worker =
-  context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
-const id = new URL(worker.url()).hostname;
+const id = await extensionId(context);
 let page = await context.newPage();
 const errors = [],
   network = [];
@@ -382,9 +381,6 @@ try {
     async () => {
       await context.close();
       context = await launch();
-      worker =
-        context.serviceWorkers()[0] ??
-        (await context.waitForEvent("serviceworker"));
       page = await context.newPage();
       await page.goto(base);
       await expect(
@@ -444,9 +440,6 @@ try {
     await context.close();
     const recoveredProfile = await mkdtemp(join(tmpdir(), "otp-recovery-"));
     context = await launch(recoveredProfile);
-    worker =
-      context.serviceWorkers()[0] ??
-      (await context.waitForEvent("serviceworker"));
     page = await context.newPage();
     page.on("pageerror", (error) => errors.push(error.message));
     context.on("request", (request) => {
