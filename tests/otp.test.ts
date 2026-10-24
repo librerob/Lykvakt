@@ -189,10 +189,15 @@ describe("import safety", () => {
       previewImport([{ ...account, label: "different" }], [account]).conflicts,
     ).toBe(1);
   });
-  it("fails all imports on any bad line", () =>
-    expect(() => parseImport(toURI(account) + "\ninvalid", "uri")).toThrow(
-      "Account 2",
-    ));
+  it("reports a bad line while retaining a valid account", () => {
+    const result = parseImport(toURI(account) + "\ninvalid", "uri");
+    expect(result.accounts).toHaveLength(1);
+    expect(result.accounts[0]).toMatchObject({
+      ...account,
+      id: expect.any(String),
+    });
+    expect(result.skipped).toEqual([{ index: 2, reason: expect.any(String) }]);
+  });
   it("reads documented unencrypted Aegis fields", () => {
     const result = parseImport(
       JSON.stringify({
@@ -212,7 +217,7 @@ describe("import safety", () => {
       }),
       "aegis",
     );
-    expect(result[0]).toMatchObject({
+    expect(result.accounts[0]).toMatchObject({
       issuer: "Aegis test",
       type: "hotp",
       algorithm: "SHA-256",
@@ -240,7 +245,7 @@ describe("import safety", () => {
       }),
       "2fas",
     );
-    expect(result[0]).toMatchObject({
+    expect(result.accounts[0]).toMatchObject({
       label: "user",
       algorithm: "SHA-1",
       period: 30,

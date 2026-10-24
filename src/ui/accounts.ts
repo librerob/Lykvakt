@@ -40,7 +40,8 @@ export function createAccounts(ctx: AppContext) {
       throw new Error(
         "A QR on this page is not an authenticator setup code. Use a cropped image of the intended OTP QR.",
       );
-    await preview(parseImport(values.join("\n"), "uri"));
+    const imported = parseImport(values.join("\n"), "uri");
+    await preview(imported.accounts, imported.skipped);
   }
   async function fillAccount(id: string): Promise<void> {
     session.check();

@@ -64,7 +64,7 @@ describe("Google Authenticator transfer import", () => {
   });
   it("imports a complete batch in order and accepts text transfer links", () => {
     expect(
-      parseImport(fixture(2, 1) + "\n" + fixture(2, 0), "uri"),
+      parseImport(fixture(2, 1) + "\n" + fixture(2, 0), "uri").accounts,
     ).toHaveLength(2);
   });
   it("refuses incomplete, repeated and unrelated batches", () => {

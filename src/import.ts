@@ -1,4 +1,10 @@
-import { parseMigrationBatch } from "./migration";
+import {
+  collectImport,
+  requireAccounts,
+  type ImportResult,
+} from "./import-result";
+export type { ImportResult, SkippedEntry } from "./import-result";
+import { parseMigrationImport } from "./migration";
 import {
   identity,
   MAX_ACCOUNTS,
@@ -129,14 +135,15 @@ export function previewImport(
 export function parseImport(
   input: string,
   format: "uri" | "aegis" | "2fas",
-): Account[] {
+): ImportResult {
   if (new TextEncoder().encode(input).length > MAX_FILE_BYTES)
     throw new Error("Import is too large.");
   if (format === "uri") {
-    const lines = input
+    const entries = input
       .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean);
+      .map((line, i) => ({ value: line.trim(), index: i + 1 }))
+      .filter((line) => line.value);
+    const lines = entries.map((line) => line.value);
     if (!lines.length || lines.length > MAX_ACCOUNTS)
       throw new Error("Supply 1–2000 OTP URIs.");
     const migrations = lines.filter((line) =>
@@ -147,18 +154,18 @@ export function parseImport(
         throw new Error(
           "Import Google transfers separately from standard OTP links.",
         );
-      return parseMigrationBatch(migrations);
+      return parseMigrationImport(migrations);
     }
-    return lines.map((line, i) => {
-      try {
-        return parseURI(line);
-      } catch {
-        throw new Error(
-          `Account ${i + 1} is invalid or unsupported. Nothing was imported.`,
-        );
-      }
-    });
+    return requireAccounts(
+      collectImport(
+        lines,
+        parseURI,
+        "Invalid or unsupported OTP URI.",
+        entries.map((line) => line.index),
+      ),
+    );
   }
+
   const parsed = record(JSON.parse(input));
   let rows: unknown[];
   if (format === "aegis") {
@@ -187,8 +194,8 @@ export function parseImport(
   }
   if (!rows.length || rows.length > MAX_ACCOUNTS)
     throw new Error("Unsupported import size.");
-  return rows.map((row, index) => {
-    try {
+  return requireAccounts(
+    collectImport(rows, (row) => {
       const item = record(row),
         otp = record(format === "aegis" ? item.info : item.otp);
       const hash = String(otp.algo ?? otp.algorithm)
@@ -227,12 +234,8 @@ export function parseImport(
         group: "",
         favorite: false,
       });
-    } catch {
-      throw new Error(
-        `Account ${index + 1} is invalid or unsupported. Nothing was imported.`,
-      );
-    }
-  });
+    }),
+  );
 }
 export async function verifyBackup(
   input: unknown,

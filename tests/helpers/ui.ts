@@ -3,6 +3,7 @@ import type { Session } from "../../src/session";
 type Action = () => void | Promise<void>;
 type Submit = (data: FormData, form: HTMLFormElement) => Promise<void>;
 export const ui = {
+  dialog: undefined as Node | undefined,
   buttons: new Map<string, Action>(),
   fields: new Map<string, { value: string }>(),
   submit: undefined as Submit | undefined,
@@ -55,6 +56,7 @@ export function download(contents: string, filename: string) {
   ui.downloads.push({ contents, filename });
 }
 export function resetUI() {
+  ui.dialog = undefined;
   ui.buttons.clear();
   ui.fields.clear();
   ui.submit = undefined;
@@ -72,7 +74,9 @@ export function context(session: Session): AppContext {
     announce: (message) => {
       ui.messages.push(message);
     },
-    modal() {},
+    modal(_title, content) {
+      ui.dialog = content;
+    },
     closeDialog() {},
     render() {},
     confirmAction(_title, _message, label, action) {

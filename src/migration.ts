@@ -1,3 +1,9 @@
+import {
+  collectImport,
+  requireAccounts,
+  type ImportResult,
+  type SkippedEntry,
+} from "./import-result";
 // Google Authenticator transfer wire schema, independently bounded and validated.
 // Reference: beemdevelopment/Aegis app/src/main/proto/google_auth.proto.
 import { encodeBase32 } from "./otp";
@@ -72,11 +78,13 @@ function string(f: Fields, key: number): string {
 }
 export interface Transfer {
   accounts: Account[];
+  skipped: SkippedEntry[];
+  entryCount: number;
   batchSize: number;
   batchIndex: number;
   batchId: string;
 }
-export function parseMigration(input: string): Transfer {
+export function parseMigration(input: string, partial = false): Transfer {
   if (input.length > MAX_FILE_BYTES || /[\r\n\u0000]/.test(input))
     throw new Error("Invalid Google transfer URI.");
   const url = new URL(input);
@@ -117,53 +125,62 @@ export function parseMigration(input: string): Transfer {
   const entries = fields.get(1);
   if (!entries?.length || entries.length > MAX_ACCOUNTS)
     throw new Error("Empty or oversized Google transfer.");
-  const accounts = entries.map((entry) => {
-    if (!(entry instanceof Uint8Array))
-      throw new Error("Invalid transfer account.");
-    const f = new Reader(entry).fields();
-    const algorithm = (
-      { 1: "SHA-1", 2: "SHA-256", 3: "SHA-512" } as Record<string, string>
-    )[num(f, 4).toString()];
-    const digits = num(f, 5),
-      type = num(f, 6),
-      issuer = string(f, 3),
-      name = string(f, 2);
-    if (![1n, 2n].includes(digits) || ![1n, 2n].includes(type))
-      throw new Error("Unsupported Google transfer OTP settings.");
-    const counter = num(f, 7, 0n);
-    // The transfer schema uses signed int64 counters, unlike standard HOTP's uint64.
-    if (counter > 0x7fffffffffffffffn || (type === 2n && counter !== 0n))
-      throw new Error("Invalid Google transfer counter.");
-    const label =
-      issuer && name.startsWith(issuer + ":")
-        ? name.slice(issuer.length + 1).trim()
-        : name;
-    return validateAccount({
-      id: crypto.randomUUID(),
-      issuer,
-      label,
-      secret: encodeBase32(bytes(f, 1)),
-      algorithm,
-      digits: digits === 1n ? 6 : 8,
-      type: type === 1n ? "hotp" : "totp",
-      counter: counter.toString(),
-      period: 30,
-      favorite: false,
-      group: "",
+  try {
+    const result = collectImport(entries, (entry) => {
+      if (!(entry instanceof Uint8Array))
+        throw new Error("Invalid transfer account.");
+      const f = new Reader(entry).fields();
+      const algorithm = (
+        { 0: "SHA-1", 1: "SHA-1", 2: "SHA-256", 3: "SHA-512" } as Record<
+          string,
+          string
+        >
+      )[num(f, 4, 0n).toString()];
+      const digits = num(f, 5, 0n),
+        type = num(f, 6),
+        issuer = string(f, 3),
+        name = string(f, 2);
+      if (![0n, 1n, 2n].includes(digits) || ![1n, 2n].includes(type))
+        throw new Error("Unsupported Google transfer OTP settings.");
+      const counter = num(f, 7, 0n);
+      // The transfer schema uses signed int64 counters, unlike standard HOTP's uint64.
+      if (counter > 0x7fffffffffffffffn || (type === 2n && counter !== 0n))
+        throw new Error("Invalid Google transfer counter.");
+      const label =
+        issuer && name.startsWith(issuer + ":")
+          ? name.slice(issuer.length + 1).trim()
+          : name;
+      return validateAccount({
+        id: crypto.randomUUID(),
+        issuer,
+        label,
+        secret: encodeBase32(bytes(f, 1)),
+        algorithm,
+        digits: digits === 2n ? 8 : 6,
+        type: type === 1n ? "hotp" : "totp",
+        counter: counter.toString(),
+        period: 30,
+        favorite: false,
+        group: "",
+      });
     });
-  });
-  raw.fill(0);
-  return {
-    accounts,
-    batchSize: Number(size),
-    batchIndex: Number(index),
-    batchId,
-  };
+    if (!partial && result.skipped.length)
+      throw new Error(result.skipped[0]!.reason);
+    return {
+      ...result,
+      entryCount: entries.length,
+      batchSize: Number(size),
+      batchIndex: Number(index),
+      batchId,
+    };
+  } finally {
+    raw.fill(0);
+  }
 }
-export function parseMigrationBatch(inputs: string[]): Account[] {
+function migrationBatch(inputs: string[], partial: boolean): ImportResult {
   if (!inputs.length || inputs.length > 100)
     throw new Error("Invalid transfer batch size.");
-  const transfers = inputs.map(parseMigration),
+  const transfers = inputs.map((input) => parseMigration(input, partial)),
     first = transfers[0]!;
   if (
     transfers.some(
@@ -177,10 +194,26 @@ export function parseMigrationBatch(inputs: string[]): Account[] {
     throw new Error(
       `This transfer needs all ${first.batchSize} QR codes. Select all transfer images together or paste every transfer URI on a separate line.`,
     );
-  const accounts = transfers
-    .sort((a, b) => a.batchIndex - b.batchIndex)
-    .flatMap((t) => t.accounts);
-  if (accounts.length > MAX_ACCOUNTS)
-    throw new Error("Too many transferred accounts.");
-  return accounts;
+  const result: ImportResult = { accounts: [], skipped: [] };
+  let offset = 0;
+  for (const transfer of transfers.sort(
+    (a, b) => a.batchIndex - b.batchIndex,
+  )) {
+    result.accounts.push(...transfer.accounts);
+    result.skipped.push(
+      ...transfer.skipped.map((entry) => ({
+        ...entry,
+        index: offset + entry.index,
+      })),
+    );
+    offset += transfer.entryCount;
+  }
+  if (offset > MAX_ACCOUNTS) throw new Error("Too many transferred accounts.");
+  return requireAccounts(result);
+}
+export function parseMigrationBatch(inputs: string[]): Account[] {
+  return migrationBatch(inputs, false).accounts;
+}
+export function parseMigrationImport(inputs: string[]): ImportResult {
+  return migrationBatch(inputs, true);
 }

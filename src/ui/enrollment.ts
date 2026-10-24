@@ -10,7 +10,12 @@ import {
 } from "../dom";
 import { codeFor } from "../otp";
 import { validateAccount, type Account } from "../model";
-import { parseImport, previewImport, toURI } from "../import";
+import {
+  parseImport,
+  previewImport,
+  toURI,
+  type SkippedEntry,
+} from "../import";
 import type { AppContext } from "./context";
 export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
   const { session, run, announce, modal, closeDialog, render, confirmAction } =
@@ -91,7 +96,10 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     );
   }
 
-  async function preview(accounts: Account[]): Promise<void> {
+  async function preview(
+    accounts: Account[],
+    skipped: SkippedEntry[] = [],
+  ): Promise<void> {
     session.check();
     const previewEpoch = session.epoch();
     const result = previewImport(accounts, session.accounts().accounts);
@@ -127,13 +135,22 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         el(
           "p",
           {},
-          `${result.accounts.length} new account(s). ${result.duplicates} exact duplicate(s) will be skipped.`,
+          `${result.accounts.length} new account(s). ${result.duplicates} exact duplicate(s) will be skipped. ${skipped.length} skipped entry(s).`,
         ),
         el(
           "p",
           { class: "hint" },
           "Compare codes with your existing authenticator before removing it. A preview does not verify acceptance by the service.",
         ),
+        skipped.length
+          ? el(
+              "ul",
+              {},
+              ...skipped.map((entry) =>
+                el("li", {}, `Account ${entry.index}: ${entry.reason}`),
+              ),
+            )
+          : null,
         rows,
         result.accounts.length
           ? button(
@@ -157,6 +174,10 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           : null,
       ),
     );
+    if (skipped.length)
+      announce(
+        `${skipped.length} skipped. Account ${skipped[0]!.index}: ${skipped[0]!.reason} Review all reasons before importing.`,
+      );
   }
 
   function importAccounts(): void {
@@ -199,7 +220,8 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           for (const f of files) values.push(...(await readQRs(f)));
           session.check();
           if (epoch !== session.epoch()) return;
-          await preview(parseImport(values.join("\n"), "uri"));
+          const imported = parseImport(values.join("\n"), "uri");
+          await preview(imported.accounts, imported.skipped);
         }
       }),
     );
@@ -213,11 +235,11 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
             const payload = f ? await readText(f) : String(data.get("payload"));
             session.check();
             if (epoch !== session.epoch()) return;
-            const accounts = parseImport(
+            const imported = parseImport(
               payload,
               String(data.get("format")) as "uri" | "aegis" | "2fas",
             );
-            await preview(accounts);
+            await preview(imported.accounts, imported.skipped);
           }),
         format.wrapper,
         el(
@@ -231,7 +253,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         el(
           "p",
           { class: "hint" },
-          "All parsing happens on this device. For Google Authenticator, choose Transfer accounts → Export accounts on your phone, then select images of every transfer QR together. Encrypted third-party exports are not supported. Invalid, incomplete or conflicting imports save nothing.",
+          "All parsing happens on this device. For Google Authenticator, choose Transfer accounts → Export accounts on your phone, then select images of every transfer QR together. Encrypted third-party exports are not supported. Invalid entries are listed for review before saving valid accounts. Incomplete batches and conflicting imports save nothing.",
         ),
         submit("Preview import"),
       ),
