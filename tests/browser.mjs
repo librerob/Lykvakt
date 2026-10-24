@@ -497,4 +497,3 @@ try {
 } finally {
   await context.close();
 }
-
