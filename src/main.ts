@@ -120,6 +120,16 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) session.lock();
 });
 window.addEventListener("pagehide", () => session.lock());
+if (isExtension) {
+  void chrome.tabs.getCurrent().then((current) => {
+    if (current?.id === undefined) return;
+    chrome.tabs.onActivated.addListener((active) => {
+      if (active.windowId === current.windowId && active.tabId !== current.id)
+        session.lock();
+    });
+  });
+}
+
 for (const event of ["pointerdown", "keydown"])
   document.addEventListener(
     event,

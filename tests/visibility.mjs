@@ -30,15 +30,14 @@ try {
     .getByRole("button", { name: "Create encrypted vault", exact: true })
     .click();
   await expect(page.getByText("A fresh start.")).toBeVisible();
-  const other = await context.newPage();
-  await other.goto("about:blank");
-  await other.bringToFront();
-  await expect.poll(() => page.evaluate(() => document.hidden)).toBe(true);
+  await page.evaluate(async () => {
+    await chrome.tabs.create({ url: "about:blank", active: true });
+  });
   await page.bringToFront();
   await expect(
     page.getByRole("heading", { name: "Welcome back." }),
   ).toBeVisible();
-  console.log("PASS actual headed Chromium tab visibility locks the vault");
+  console.log("PASS actual headed Chromium tab activation locks the vault");
 } finally {
   await context.close();
 }
