@@ -411,6 +411,12 @@ nav {
   padding-top: 16px;
 }
 .otp {
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
   font-family: "Cascadia Mono", "Consolas", monospace;
   font-size: 30px;
   font-variant-numeric: tabular-nums;

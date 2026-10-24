@@ -66,6 +66,7 @@ async function screenshot(name) {
   });
 }
 try {
+  await page.clock.install();
   await page.goto(base);
   await check("MV3 setup screen", async () => {
     await expect(
@@ -86,8 +87,33 @@ try {
       page.getByRole("heading", { name: "GitHub", exact: true }),
     ).toBeVisible();
   });
+  await check(
+    "codes start hidden; copy does not reveal; keyboard reveal expires",
+    async () => {
+      const code = page.locator(".account .otp");
+      await expect(code).toHaveText("••• •••");
+      await expect(code).toHaveAccessibleName(
+        "Reveal code for GitHub demo@example.test (hidden)",
+      );
+      await click("Copy");
+      await expect(page.getByRole("status")).toContainText("Code copied");
+      await expect(code).toHaveText("••• •••");
+      await code.focus();
+      await page.keyboard.press("Enter");
+      await expect(code).toHaveText(/\d{3} \d{3}/);
+      // A browser clock advances the reveal timer without a real 30-second wait.
+      await code.click();
+      await expect(code).toHaveText("••• •••");
+      await code.click();
+      await expect(code).toHaveText(/\d{3} \d{3}/);
+      await page.clock.runFor(30_001);
+      await expect(code).toHaveText("••• •••");
+      await page.clock.resume();
+    },
+  );
   await check("independent TOTP reference", async () => {
-    const seconds = Math.floor(Date.now() / 1000),
+    await page.locator(".account .otp").click();
+    const seconds = await page.evaluate(() => Math.floor(Date.now() / 1000)),
       counter = BigInt(Math.floor(seconds / 30));
     const msg = Buffer.alloc(8);
     msg.writeBigUInt64BE(counter);
@@ -250,11 +276,14 @@ try {
     const row = page.locator(".account").filter({
       has: page.getByRole("heading", { name: "Counter", exact: true }),
     });
+    await row.locator(".otp").click();
     await expect(row.locator(".otp")).toHaveText("755 224");
     await row
       .getByRole("button", { name: "Advance counter…", exact: true })
       .click();
     await click("Advance once");
+    await expect(row.locator(".otp")).toHaveText("••• •••");
+    await row.locator(".otp").click();
     await expect(row.locator(".otp")).toHaveText("287 082");
   });
   await check(
@@ -414,6 +443,7 @@ try {
       const row = page.locator(".account").filter({
         has: page.getByRole("heading", { name: "Counter", exact: true }),
       });
+      await row.locator(".otp").click();
       await expect(row.locator(".otp")).toHaveText("287 082");
     },
   );
@@ -486,9 +516,41 @@ try {
     const row = page.locator(".account").filter({
       has: page.getByRole("heading", { name: "Counter", exact: true }),
     });
+    await row.locator(".otp").click();
     await expect(row.locator(".otp")).toHaveText("287 082");
     await screenshot("recovered-fresh-profile");
   });
+  await check(
+    "reveal clears on view changes and lock; always-show preference persists",
+    async () => {
+      await click("Authenticator");
+      const codes = page.locator(".account .otp");
+      await expect(codes.first()).toHaveText("••• •••");
+      await codes.first().click();
+      await expect(codes.first()).toHaveText(/\d{3} \d{3}/);
+      await click("Settings");
+      const preference = page.getByLabel("Always show codes", { exact: true });
+      await expect(preference).not.toBeChecked();
+      await click("Authenticator");
+      await expect(codes.first()).toHaveText("••• •••");
+      await codes.first().click();
+      await click("Lock");
+      await unlock();
+      await expect(codes.first()).toHaveText("••• •••");
+      await click("Settings");
+      await preference.check();
+      await click("Authenticator");
+      await expect(codes.first()).toHaveText(/\d{3} \d{3}/);
+      await page.reload();
+      await unlock();
+      await expect(codes.first()).toHaveText(/\d{3} \d{3}/);
+      await click("Settings");
+      await expect(preference).toBeChecked();
+      await preference.uncheck();
+      await click("Authenticator");
+      await expect(codes.first()).toHaveText("••• •••");
+    },
+  );
   await check("eight-digit codes fit narrow and medium layouts", async () => {
     await importURI(
       "otpauth://totp/Eight:synthetic?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA&issuer=Eight&digits=8&algorithm=SHA256&period=45",
