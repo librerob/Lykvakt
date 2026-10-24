@@ -361,13 +361,25 @@ try {
       .fill(password);
     await click("Test & recover accounts");
     await expect(page.locator(".account")).toHaveCount(3);
-    const row = page
-      .locator(".account")
-      .filter({
-        has: page.getByRole("heading", { name: "Counter", exact: true }),
-      });
+    const row = page.locator(".account").filter({
+      has: page.getByRole("heading", { name: "Counter", exact: true }),
+    });
     await expect(row.locator(".otp")).toHaveText("287 082");
     await screenshot("recovered-fresh-profile");
+  });
+  await check("eight-digit codes fit narrow and medium layouts", async () => {
+    await importURI(
+      "otpauth://totp/Eight:synthetic?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA&issuer=Eight&digits=8&algorithm=SHA256&period=45",
+    );
+    for (const width of [360, 600, 760, 1200]) {
+      await page.setViewportSize({ width, height: 760 });
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    }
+    await screenshot("desktop-eight-digit");
   });
   await check("no external requests during vault workflows", async () =>
     expect(network).toEqual([]),

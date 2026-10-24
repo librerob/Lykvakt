@@ -35,7 +35,7 @@ export function createAccounts(ctx: AppContext) {
       add,
     );
     const searchInput = input("search", "Search accounts", "search", search);
-    searchInput.control.placeholder = "Search accounts or groups";
+    searchInput.control.placeholder = "Search accounts�";
     searchInput.control.addEventListener("input", () => {
       search = searchInput.control.value;
       drawAccounts();
