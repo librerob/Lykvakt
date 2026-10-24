@@ -1,65 +1,49 @@
 # Lykvakt
 
-An offline browser authenticator with a password-encrypted local vault and a backup restoration test.
+A small offline TOTP/HOTP authenticator with a password-encrypted local vault.
 
-**Unaudited development preview. Use dedicated test accounts. Keep your existing authenticator.**
+**Unaudited development preview. Use test accounts and keep your existing authenticator and recovery codes.**
 
-Lykvakt is a coined, Nordic-inspired working name. A preliminary exact-name web search found no matching authenticator; formal name clearance is pending. This repository contains original GPL-3.0-or-later code; bundled third-party components retain their licenses.
+## Features
 
-![Actual Chromium interface with synthetic accounts](docs/screenshots/desktop-eight-digit.png)
+- RFC 4226 HOTP and RFC 6238 TOTP, SHA-1/256/512, six/eight digits and custom periods.
+- Password unlock, authenticated encryption, idle/page locking and atomic revision-checked saves.
+- Fresh vault-key rotation on password change; separate encrypted backup passphrases.
+- Setup keys, standard OTP links, user-selected QR images, Google Authenticator transfer batches, and supported plaintext Aegis/2FAS exports.
+- Import preview with explicit skipped-entry reports; incomplete batches and conflicting configurations are refused.
+- Search, favorites, groups, editing and confirmed deletion.
+- Clicked code copying; password re-authentication before plaintext OTP export or transfer QR reveal.
+- Encrypted backups with restoration testing against the actual saved file.
+- System, light, dark and true-black AMOLED themes with pink accents by default.
 
-[Light, dark, AMOLED and recovery screenshots](docs/screenshots.md). All accounts shown are synthetic.
+The only manifest permission is **`clipboardWrite`**, for copying a selected code. There are no optional or host permissions, background worker, directory lookups, website filling, tab capture, passkeys, cloud sync, telemetry or server.
 
-## What works
+## Build and test
 
-- RFC 4226 HOTP and RFC 6238 TOTP, SHA-1/256/512, six or eight digits, custom periods.
-- Password-required setup, authenticated encryption, real locking, encrypted metadata.
-- Manual setup keys, standard OTP links, Google Authenticator transfer QR batches, and local QR images; preview before atomic import.
-- Search, favorites, groups, account editing and confirmed deletion.
-- Explicit Scan this tab with local QR decoding after toolbar invocation.
-- Explicit filling on approved exact HTTPS origins into one empty `autocomplete="one-time-code"` input.
-- Standard per-account transfer QR and confirmed bulk plaintext OTP-link export.
-- Light, dark, system and true-black AMOLED themes; pink is the default of seven accent options.
-- Encrypted file backups and isolated restoration testing against the actual saved file.
-- Manual local website lookup; optional automatic toolbar indicators using a bundled 2FA Directory snapshot.
-- Experimental WebAuthn PRF key unwrapping. No physical authenticator compatibility is certified.
-
-No server, account, sync, telemetry, remote executable code, or subscription. There is a defensive 2,000-record / 8 MB input bound, not a paid account limit.
-
-## Try it
-
-Use Node 24 and npm. All dependencies are pinned in `package-lock.json`.
+Use Node 24 and the pinned npm lockfile:
 
 ```sh
 npm ci --ignore-scripts
-npm test
+npm run build
 npm run lint
 npm run format:check
-npm run build
+npm test
 npm run test:browser
 npm run package
 ```
 
-In Chrome, open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the built `dist/` directory. To install a release ZIP, extract it first and select the extracted directory. A ZIP is an unpacked development distribution, not a signed CRX or a Web Store listing.
+Load `dist/` through `chrome://extensions` → Developer mode → Load unpacked. Extract a packaged ZIP before loading it. This is an unpacked development distribution, not a signed CRX or a Web Store listing.
 
-Opening a full window from the popup locks the popup first. Unlock again there for imports, exports and passkey experiments. The vault also locks whenever its page is hidden or closed; there is no shared unlocked session across windows.
+Browser tests use an actual unpacked extension and synthetic accounts. Install Playwright Chromium with `npx playwright install chromium`, or set `CHROMIUM_PATH` to a compatible Chrome for Testing executable. CI also runs a headed tab-switch lock check.
 
-The build uses Vite with WebAssembly tooling aliases so it does not need native bundler modules. The extension itself contains no WebAssembly or cryptographic package. For local browser tests, set `CHROMIUM_PATH` to a compatible Chrome for Testing executable, or install Playwright Chromium with `npx playwright install chromium`.
+## Recovery and compatibility
 
-## Recovery comes first
+Save an encrypted backup outside the browser, then use Recovery → Verify or restore a backup to test that exact file. Keep its passphrase separately. There is no password reset or recovery server. Plaintext OTP links and transfer QRs expose setup secrets; compare codes and settings in the destination app before removing another authenticator.
 
-Create a backup, save it outside this browser, then open **Recovery → Verify or restore a backup** and select that exact saved file. Enter its passphrase. Verification authenticates and decrypts the archive, validates all accounts, generates test codes, and compares the complete account snapshot. It does not replace your accounts or prove a website accepts its codes.
+Password unlock remains compatible with older vaults and backups. The authenticated `passkeys` field is retained: new writes require `[]`. On password unlock, legacy vault slots are stripped through a revision-checked reseal. A failed strip does not block password unlock and a later save retries. Passkey unlock/enrollment is removed. Legacy `origins` metadata stays in the encrypted schema for compatibility and has no website functionality.
 
-If the browser profile is lost, choose **Restore an encrypted backup** during initial setup. If a vault already exists, unlock it and use the previewed merge. There is no silent replacement or password reset. Losing both the usable vault password and every readable backup can mean account loss.
+Encrypted third-party exports and proprietary Steam/Battle.net formats are unsupported. Google transfers must include every batch part. There is a defensive 2,000-account / 8 MB text-import bound; image imports have separate size/dimension bounds. No independent audit or exhaustive phone interoperability certification has occurred. TOTP is phishable; a compromised browser or device can read unlocked secrets.
 
-## Limits before everyday use
+See [architecture](docs/architecture.md), [cryptography](docs/cryptography.md), [threat model](docs/threat-model.md) and [privacy](PRIVACY.md). Older release notes and research describe earlier previews and their removed features.
 
-No independent security audit has occurred. A compromised browser, device, dependency or extension update can steal secrets while unlocked. Keeping passwords and second factors on one device reduces separation. TOTP remains vulnerable to phishing.
-
-Encrypted third-party formats, Steam/Battle.net, automatic filling, segmented or unmarked OTP fields, notifications, native messaging, cloud sync, independent recovery-key slots and explicit vault-key rotation are deferred. Plain Aegis v1/database v3 and 2FAS schema 4 adapters have synthetic fixture tests, not migration certification against every app version. Passkeys require usable PRF output and a stable extension ID; passwords and backups remain available.
-
-Validation: see the current [validation record](docs/validation.md) for unit tests, browser checks (including virtual PRF, tab locking, capture and filling), see the linked validation record for environment and remaining manual work. No physical biometric support is certified.
-
-Read [architecture](docs/architecture.md), [cryptography](docs/cryptography.md), [threat model](docs/threat-model.md), [recovery](docs/recovery.md), [research](docs/research.md), [compatibility](docs/compatibility.md) and [validation](docs/validation.md).
-
-Data sourced from 2FA Directory by 2factorauth. Dataset provenance and license notices are bundled in `public/`. This snapshot is checked locally; visiting documentation links is an explicit browser navigation.
+Original code is GPL-3.0-or-later. The coined name Lykvakt remains a working name; no trademark clearance is claimed. Bundled QR components retain their license notices.
