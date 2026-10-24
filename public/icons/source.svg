@@ -1,7 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect x="8" y="8" width="496" height="496" rx="146" fill="#245b43"/>
-  <rect x="112" y="102" width="124" height="212" rx="56" fill="#d4ead6"/>
-  <rect x="276" y="198" width="124" height="212" rx="56" fill="#d4ead6"/>
-  <circle cx="338" cy="162" r="54" fill="#8fbd9a"/>
-  <circle cx="174" cy="358" r="54" fill="#8fbd9a"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><title>Lykvakt</title><rect width="128" height="128" rx="28" fill="#080608"/><path d="M39 53V34L52 21H76L89 34V53H78V39L71 32H57L50 39V53Z" fill="#ff1683"/><path fill="#ff1683" fill-rule="evenodd" d="M27 51H101V94L87 108H41L27 94ZM52 65L64 77L76 65V78L68 86V98H60V86L52 78Z"/><path d="M27 51H39V61H27Z" fill="#ff1683"/></svg>

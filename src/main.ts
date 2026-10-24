@@ -164,7 +164,7 @@ function render(): void {
     el(
       "div",
       {},
-      el("strong", {}, "OTP Vault"),
+      el("strong", {}, "Lykvakt"),
       el("span", { class: "preview" }, "DEVELOPMENT PREVIEW"),
     ),
   );

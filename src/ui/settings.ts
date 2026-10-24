@@ -15,7 +15,7 @@ export function createSettings(ctx: AppContext) {
     confirmAction,
   } = ctx;
   let theme = localStorage.getItem("theme") ?? "system";
-  let accent = localStorage.getItem("accent") ?? "green";
+  let accent = localStorage.getItem("accent") ?? "pink";
   function setTheme() {
     document.documentElement.dataset.theme = theme;
     document.documentElement.dataset.accent = accent;
@@ -43,6 +43,7 @@ export function createSettings(ctx: AppContext) {
       "accent",
       "Accent",
       {
+        pink: "Shock pink · default",
         green: "Forest",
         blue: "Blue",
         violet: "Violet",

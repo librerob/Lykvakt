@@ -87,7 +87,7 @@ it("clears indicators on permission revocation and preference disabling", async 
   await vi.waitFor(() =>
     expect(action.setTitle).toHaveBeenLastCalledWith({
       tabId: 1,
-      title: "OTP Vault",
+      title: "Lykvakt",
     }),
   );
   vi.unstubAllGlobals();

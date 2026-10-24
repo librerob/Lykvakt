@@ -10,7 +10,7 @@ A successful test authenticates/decrypts the actual file, validates every record
 
 During setup, a readable backup can create a fresh vault under a new master password. If a vault already exists, backup recovery offers a previewed merge only. Matching seed/type with different settings is a conflict and blocks import. HOTP counters are never reset, inferred or automatically advanced. A stale HOTP backup requires careful service-side resynchronization; do not blindly advance many counters.
 
-Supported: version-1 OTP Vault encrypted backups, standard `otpauth://totp` / `hotp` lines and images containing one such URI. Synthetic adapter fixtures cover unencrypted Aegis envelope v1/database v3 and unencrypted 2FAS schema 4. Check every count and configuration after using either adapter. No encrypted Aegis/2FAS, Google transfer batches, Authenticator-Extension encrypted backup, CXF or proprietary Steam/Battle.net migration is advertised.
+Supported: version-1 Lykvakt encrypted backups, standard `otpauth://totp` / `hotp` lines and images containing one such URI. Synthetic adapter fixtures cover unencrypted Aegis envelope v1/database v3 and unencrypted 2FAS schema 4. Check every count and configuration after using either adapter. No encrypted Aegis/2FAS, Google transfer batches, Authenticator-Extension encrypted backup, CXF or proprietary Steam/Battle.net migration is advertised.
 
 Single-account plaintext URI export is behind a warning. It carries the seed and must be handled as a password. Plain third-party export files and QR images also contain secrets; delete/move them securely according to your device policy after verifying migration.
 

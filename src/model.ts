@@ -13,9 +13,10 @@ export interface Account {
   counter: string;
   favorite: boolean;
   group: string;
+  origins: string[];
 }
 export interface VaultData {
-  version: 1;
+  version: 2;
   accounts: Account[];
   verifiedAt: string | null;
   verifiedSnapshot: string | null;
@@ -81,30 +82,63 @@ export function validateAccount(value: unknown): Account {
     counter: validateCounter(a.counter),
     favorite: a.favorite,
     group: text(a.group, 80),
+    origins: validateOrigins(a.origins ?? []),
   };
 }
 export function validateData(value: unknown): VaultData {
   const d = record(value);
   if (
-    d.version !== 1 ||
+    (d.version !== 1 && d.version !== 2) ||
     !Array.isArray(d.accounts) ||
     d.accounts.length > MAX_ACCOUNTS
   )
     throw new Error("Unsupported vault schema or too many accounts.");
-  const accounts = d.accounts.map(validateAccount);
+  const accounts = d.accounts.map((a) =>
+    validateAccount(d.version === 1 ? { ...record(a), origins: [] } : a),
+  );
   if (new Set(accounts.map((a) => a.id)).size !== accounts.length)
     throw new Error("Duplicate record identifiers.");
   return {
-    version: 1,
+    version: 2,
     accounts,
-    verifiedAt: d.verifiedAt === null ? null : text(d.verifiedAt, 40),
+    verifiedAt:
+      d.version === 1 || d.verifiedAt === null ? null : text(d.verifiedAt, 40),
     verifiedSnapshot:
-      d.verifiedSnapshot === null ? null : text(d.verifiedSnapshot, 100),
+      d.version === 1 || d.verifiedSnapshot === null
+        ? null
+        : text(d.verifiedSnapshot, 100),
   };
 }
 export function emptyVault(): VaultData {
-  return { version: 1, accounts: [], verifiedAt: null, verifiedSnapshot: null };
+  return { version: 2, accounts: [], verifiedAt: null, verifiedSnapshot: null };
 }
 export function identity(a: Account): string {
   return JSON.stringify([a.type, a.secret]);
+}
+
+export function siteOrigin(value: unknown): string {
+  const raw = text(value, 2048, false);
+  const url = new URL(raw);
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.origin === "null"
+  )
+    throw new Error("Filling requires an HTTPS website.");
+  return url.origin;
+}
+function validateOrigins(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length > 20)
+    throw new Error("Invalid website associations.");
+  return [
+    ...new Set(
+      value.map((origin) => {
+        const normalized = siteOrigin(origin);
+        if (origin !== normalized)
+          throw new Error("Associations must be exact HTTPS origins.");
+        return normalized;
+      }),
+    ),
+  ];
 }

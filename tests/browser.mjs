@@ -145,6 +145,71 @@ try {
     await click("Import 1 account(s)");
     await expect(page.locator(".account")).toHaveCount(2);
   });
+  await check(
+    "Google transfer QR batches require every part before preview",
+    async () => {
+      const transfers = [
+        "otpauth-migration://offline?data=Cj4KFDEyMzQ1Njc4OTAxMjM0NTY3ODkwEhhHaXRIdWI6ZGVtb0BleGFtcGxlLnRlc3QaBkdpdEh1YiABKAEwAhABGAIgACh7",
+        "otpauth-migration://offline?data=CiQKCkhlbGxvId6tvu8SDFFSOnN5bnRoZXRpYxoCUVIgASgBMAIQARgCIAEoew%3D%3D",
+      ];
+      const images = await Promise.all(
+        transfers.map((uri, index) =>
+          QRCode.toBuffer(uri).then((buffer) => ({
+            name: `google-${index}.png`,
+            mimeType: "image/png",
+            buffer,
+          })),
+        ),
+      );
+      await click("Import accounts");
+      await page.getByLabel("Read a QR image locally").setInputFiles(images[0]);
+      await expect(page.getByRole("status")).toContainText("all 2 QR codes");
+      await expect(page.locator(".account")).toHaveCount(2);
+      await page.getByLabel("Read a QR image locally").setInputFiles(images);
+      await expect(page.getByRole("dialog")).toContainText(
+        "2 exact duplicate(s)",
+      );
+      await expect(page.getByRole("dialog")).toContainText("0 new account(s)");
+      await click("Close");
+    },
+  );
+  await check("account QR export round trip", async () => {
+    const row = page
+      .locator(".account")
+      .filter({ has: page.getByRole("heading", { name: "QR", exact: true }) });
+    await row.getByRole("button", { name: "Edit", exact: true }).click();
+    await click("Show transfer QR…");
+    await click("Reveal QR");
+    const source = await page.locator(".transfer-qr").getAttribute("src");
+    expect(source).toMatch(/^data:image\/png;base64,/);
+    await click("Close");
+    await click("Import accounts");
+    await page.getByLabel("Read a QR image locally").setInputFiles({
+      name: "roundtrip.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(source.split(",")[1], "base64"),
+    });
+    await expect(page.getByRole("dialog")).toContainText(
+      "1 exact duplicate(s)",
+    );
+    await click("Close");
+  });
+  await check(
+    "portable bulk export includes precise OTP settings",
+    async () => {
+      await click("Recovery");
+      await click("Export plaintext OTP links…");
+      const waiting = page.waitForEvent("download");
+      await click("Export all OTP links");
+      const download = await waiting;
+      const path = resolve("artifacts/synthetic-otp-links.txt");
+      await download.saveAs(path);
+      const content = await readFile(path, "utf8");
+      expect(content.trim().split("\n")).toHaveLength(2);
+      expect(content).toContain("secret=" + secret);
+      await click("Authenticator");
+    },
+  );
   await check("HOTP explicit advancement", async () => {
     await importURI(
       `otpauth://hotp/Counter:synthetic?secret=${secret}&counter=0&issuer=Counter`,
@@ -432,3 +497,4 @@ try {
 } finally {
   await context.close();
 }
+

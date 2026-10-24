@@ -10,7 +10,7 @@ import {
 } from "../dom";
 import { codeFor } from "../otp";
 import { validateAccount, type Account } from "../model";
-import { parseImport, parseURI, previewImport, toURI } from "../import";
+import { parseImport, previewImport, toURI } from "../import";
 import type { AppContext } from "./context";
 export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
   const { session, run, announce, modal, closeDialog, render, confirmAction } =
@@ -92,6 +92,8 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
   }
 
   async function preview(accounts: Account[]): Promise<void> {
+    session.check();
+    const previewEpoch = session.epoch();
     const result = previewImport(accounts, session.accounts().accounts);
     if (result.conflicts)
       throw new Error(
@@ -116,6 +118,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
       );
     }
     session.check();
+    if (previewEpoch !== session.epoch()) return;
     modal(
       "Review import",
       el(
@@ -161,7 +164,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
       "format",
       "Import format",
       {
-        uri: "Standard otpauth URIs",
+        uri: "OTP links / Google Authenticator transfer",
         aegis: "Aegis · unencrypted v1 / database v3",
         "2fas": "2FAS · unencrypted schema 4",
       },
@@ -178,12 +181,25 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     file.control.accept = ".txt,.json";
     const qr = input("qr", "Read a QR image locally", "file");
     qr.control.accept = "image/png,image/jpeg,image/webp";
+    qr.control.multiple = true;
     qr.control.addEventListener("change", () =>
       run(async () => {
-        const f = qr.control.files?.[0];
-        if (f) {
-          const { readQR } = await import("../qr");
-          await preview([parseURI(await readQR(f))]);
+        const epoch = session.epoch();
+        const files = [...(qr.control.files ?? [])];
+        if (
+          files.length > 100 ||
+          files.reduce((n, f) => n + f.size, 0) > 24_000_000
+        )
+          throw new Error(
+            "Choose up to 100 QR images, at most 24 MB in total.",
+          );
+        if (files.length) {
+          const { readQRs } = await import("../qr");
+          const values: string[] = [];
+          for (const f of files) values.push(...(await readQRs(f)));
+          session.check();
+          if (epoch !== session.epoch()) return;
+          await preview(parseImport(values.join("\n"), "uri"));
         }
       }),
     );
@@ -192,8 +208,11 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
       form(
         async (data) =>
           run(async () => {
+            const epoch = session.epoch();
             const f = file.control.files?.[0];
             const payload = f ? await readText(f) : String(data.get("payload"));
+            session.check();
+            if (epoch !== session.epoch()) return;
             const accounts = parseImport(
               payload,
               String(data.get("format")) as "uri" | "aegis" | "2fas",
@@ -212,7 +231,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         el(
           "p",
           { class: "hint" },
-          "All parsing happens on this device. Google transfer QR codes and encrypted third-party exports are not supported in this preview. Invalid or conflicting records block the whole import.",
+          "All parsing happens on this device. For Google Authenticator, choose Transfer accounts → Export accounts on your phone, then select images of every transfer QR together. Encrypted third-party exports are not supported. Invalid, incomplete or conflicting imports save nothing.",
         ),
         submit("Preview import"),
       ),
@@ -247,6 +266,88 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           `${a.type.toUpperCase()} · ${a.algorithm} · ${a.digits} digits. OTP settings are preserved.`,
         ),
         submit("Save changes"),
+        el(
+          "p",
+          { class: "hint" },
+          a.origins.length
+            ? "Approved fill websites: " + a.origins.join(", ")
+            : "No websites approved for filling.",
+        ),
+        a.origins.length
+          ? button(
+              "Remove website approvals",
+              () =>
+                run(async () => {
+                  const data = session.accounts();
+                  data.accounts.find((x) => x.id === id)!.origins = [];
+                  await session.save(data);
+                  closeDialog();
+                  drawAccounts();
+                  announce("Website approvals removed.");
+                }),
+              "button text",
+            )
+          : null,
+        button(
+          "Show transfer QR…",
+          () => {
+            modal(
+              "Reveal account QR?",
+              el(
+                "div",
+                { class: "stack" },
+                el(
+                  "p",
+                  {},
+                  "This QR contains the setup secret. Anyone who scans it can generate codes. Scan it in the destination app, compare codes, then close this dialog.",
+                ),
+                button(
+                  "Reveal QR",
+                  () =>
+                    run(async () => {
+                      const epoch = session.epoch();
+                      const entry = session
+                        .accounts()
+                        .accounts.find((x) => x.id === id)!;
+                      const QRCode = await import("qrcode");
+                      const uri = toURI(entry);
+                      if (uri.length > 1500)
+                        throw new Error(
+                          "This setup key is too large for a practical QR. Export its OTP link instead.",
+                        );
+                      const image = await QRCode.toDataURL(uri, {
+                        width: 320,
+                        margin: 4,
+                        errorCorrectionLevel: "M",
+                      });
+                      session.check();
+                      if (epoch !== session.epoch()) return;
+                      modal(
+                        "Account transfer QR",
+                        el(
+                          "div",
+                          { class: "stack" },
+                          el("p", {}, entry.issuer + " · " + entry.label),
+                          el("img", {
+                            src: image,
+                            alt: "Secret account transfer QR",
+                            class: "transfer-qr",
+                          }),
+                          el(
+                            "p",
+                            { class: "hint" },
+                            "Standard otpauth QR. Check algorithm, digits, period and counter support in the destination app. Favorites, groups and website approvals are not transferred.",
+                          ),
+                        ),
+                      );
+                    }),
+                  "button primary",
+                ),
+              ),
+            );
+          },
+          "button text",
+        ),
         button(
           "Export plaintext OTP URI…",
           () =>

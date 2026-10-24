@@ -8,7 +8,7 @@ Offline authenticator with an encrypted local vault and encrypted backups you ca
 
 ## Description
 
-OTP Vault is an open-source development preview for dedicated test accounts. Generate TOTP and HOTP codes offline, organize accounts, and save encrypted backups protected by a passphrase you choose. Open the actual saved file to test restoration without replacing your active accounts.
+Lykvakt is an open-source development preview for dedicated test accounts. Generate TOTP and HOTP codes offline, organize accounts, and save encrypted backups protected by a passphrase you choose. Open the actual saved file to test restoration without replacing your active accounts.
 
 Secrets and account metadata stay encrypted in the local browser profile. The extension has no developer backend, telemetry, advertising, account registration or paid tier. Website-support checks use bundled 2FA Directory data. Optional automatic toolbar indicators require access to open-tab addresses and check those addresses locally.
 
@@ -20,7 +20,7 @@ No independent security audit has occurred. Keep your existing authenticator, se
 
 Use PRIVACY.md as the authoritative policy. Locally processed authentication information is sensitive even when it is never sent to the developer. Store questionnaire answers must accurately distinguish local handling from collection/transmission; verify the live dashboard wording before submission.
 
-Required permissions: activeTab for a user-triggered current-site check, storage for one local feature preference, clipboardWrite for a clicked code. Optional tabs grants URL visibility for all open tabs, used only for local support badges. No host/content-script/camera/clipboard-read permission is requested.
+Required permissions: activeTab for user-triggered site lookup, visible-tab QR capture and filling; scripting for an explicitly selected OTP filled into an approved origin; storage for one local feature preference; clipboardWrite for a clicked code. Optional tabs grants URL visibility for all open tabs, used only for local support badges. No standing host access, automatically registered content scripts, camera or clipboard-read permission is requested. Captures stay local; a selected OTP is disclosed to the approved website on an explicit Fill click.
 
 ## Assets and remaining portal work
 

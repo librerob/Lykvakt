@@ -3,48 +3,48 @@
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
-  --bg: #f7faf6;
+  --bg: #fff8fa;
   --surface: #ffffff;
-  --surface-alt: #edf3ed;
-  --text: #202923;
-  --muted: #536157;
-  --line: #c3cec4;
-  --primary: #245b43;
+  --surface-alt: #f6eaf0;
+  --text: #251a20;
+  --muted: #695761;
+  --line: #d4bdc9;
+  --primary: #a90052;
   --on-primary: #ffffff;
-  --tonal: #dcecdf;
-  --on-tonal: #153e2a;
+  --tonal: #ffd9e8;
+  --on-tonal: #490020;
   --danger: #9a2525;
   --focus: #1566b0;
   color-scheme: light;
 }
 :root[data-theme="dark"],
 :root[data-theme="amoled"] {
-  --bg: #121713;
-  --surface: #1c231e;
-  --surface-alt: #263028;
-  --text: #e2ebe1;
-  --muted: #b5c5b8;
-  --line: #64746a;
-  --primary: #acd7b6;
-  --on-primary: #103722;
-  --tonal: #2e4635;
-  --on-tonal: #c9eace;
+  --bg: #151114;
+  --surface: #211b20;
+  --surface-alt: #30262d;
+  --text: #f3e1e9;
+  --muted: #d1bbc7;
+  --line: #806c77;
+  --primary: #ff79af;
+  --on-primary: #390019;
+  --tonal: #582039;
+  --on-tonal: #ffd9e8;
   --danger: #ffb4ab;
   --focus: #9ccaff;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
   :root[data-theme="system"] {
-    --bg: #121713;
-    --surface: #1c231e;
-    --surface-alt: #263028;
-    --text: #e2ebe1;
-    --muted: #b5c5b8;
-    --line: #64746a;
-    --primary: #acd7b6;
-    --on-primary: #103722;
-    --tonal: #2e4635;
-    --on-tonal: #c9eace;
+    --bg: #151114;
+    --surface: #211b20;
+    --surface-alt: #30262d;
+    --text: #f3e1e9;
+    --muted: #d1bbc7;
+    --line: #806c77;
+    --primary: #ff79af;
+    --on-primary: #390019;
+    --tonal: #582039;
+    --on-tonal: #ffd9e8;
     --danger: #ffb4ab;
     --focus: #9ccaff;
     color-scheme: dark;
@@ -52,8 +52,8 @@
 }
 :root[data-theme="amoled"] {
   --bg: #000000;
-  --surface: #0c0e0d;
-  --surface-alt: #171c19;
+  --surface: #0e0b0d;
+  --surface-alt: #21191e;
 }
 :root[data-accent="blue"] {
   --primary: #225b95;
@@ -629,4 +629,26 @@ dialog::backdrop {
   .selected {
     outline: 2px solid Highlight;
   }
+}
+
+:root[data-accent="green"] {
+  --primary: #245b43;
+  --on-primary: #fff;
+  --tonal: #dcecdf;
+  --on-tonal: #153e2a;
+}
+
+.import-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.transfer-qr {
+  width: min(320px, 100%);
+  align-self: center;
+  border-radius: 16px;
+}
+.code-row {
+  flex-wrap: wrap;
 }

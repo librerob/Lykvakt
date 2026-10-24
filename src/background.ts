@@ -26,7 +26,7 @@ async function update(id: number, url?: string): Promise<void> {
       tabId: id,
       title: found
         ? "This website lists two-factor authentication support"
-        : "OTP Vault",
+        : "Lykvakt",
     });
   } catch {
     /* Closed and restricted tabs need no badge. */

@@ -1,3 +1,4 @@
+import { parseMigrationBatch } from "./migration";
 import {
   identity,
   MAX_ACCOUNTS,
@@ -138,6 +139,16 @@ export function parseImport(
       .filter(Boolean);
     if (!lines.length || lines.length > MAX_ACCOUNTS)
       throw new Error("Supply 1–2000 OTP URIs.");
+    const migrations = lines.filter((line) =>
+      line.startsWith("otpauth-migration:"),
+    );
+    if (migrations.length) {
+      if (migrations.length !== lines.length)
+        throw new Error(
+          "Import Google transfers separately from standard OTP links.",
+        );
+      return parseMigrationBatch(migrations);
+    }
     return lines.map((line, i) => {
       try {
         return parseURI(line);

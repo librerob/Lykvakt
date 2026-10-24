@@ -1,10 +1,10 @@
-# OTP Vault
+# Lykvakt
 
 An offline browser authenticator with a password-encrypted local vault and a backup restoration test.
 
 **Unaudited development preview. Use dedicated test accounts. Keep your existing authenticator.**
 
-The product name is provisional. This repository contains original GPL-3.0-or-later code; bundled third-party components retain their licenses.
+Lykvakt is a coined, Nordic-inspired working name. A preliminary exact-name web search found no matching authenticator; formal name clearance is pending. This repository contains original GPL-3.0-or-later code; bundled third-party components retain their licenses.
 
 ![Actual Chromium interface with synthetic accounts](docs/screenshots/desktop-eight-digit.png)
 
@@ -14,9 +14,12 @@ The product name is provisional. This repository contains original GPL-3.0-or-la
 
 - RFC 4226 HOTP and RFC 6238 TOTP, SHA-1/256/512, six or eight digits, custom periods.
 - Password-required setup, authenticated encryption, real locking, encrypted metadata.
-- Manual setup keys, standard OTP URIs and local QR images; preview before atomic import.
+- Manual setup keys, standard OTP links, Google Authenticator transfer QR batches, and local QR images; preview before atomic import.
 - Search, favorites, groups, account editing and confirmed deletion.
-- Light, dark, system and true-black AMOLED themes with six accent options.
+- Explicit Scan this tab with local QR decoding after toolbar invocation.
+- Explicit filling on approved exact HTTPS origins into one empty `autocomplete="one-time-code"` input.
+- Standard per-account transfer QR and confirmed bulk plaintext OTP-link export.
+- Light, dark, system and true-black AMOLED themes; pink is the default of seven accent options.
 - Encrypted file backups and isolated restoration testing against the actual saved file.
 - Manual local website lookup; optional automatic toolbar indicators using a bundled 2FA Directory snapshot.
 - Experimental WebAuthn PRF key unwrapping. No physical authenticator compatibility is certified.
@@ -53,9 +56,9 @@ If the browser profile is lost, choose **Restore an encrypted backup** during in
 
 No independent security audit has occurred. A compromised browser, device, dependency or extension update can steal secrets while unlocked. Keeping passwords and second factors on one device reduces separation. TOTP remains vulnerable to phishing.
 
-Google Authenticator transfer QR batches, encrypted third-party formats, Steam/Battle.net, autofill, notifications, native messaging, cloud sync, independent recovery-key slots and explicit vault-key rotation are deferred. Plain Aegis v1/database v3 and 2FAS schema 4 adapters have synthetic fixture tests, not migration certification against every app version. Passkeys require usable PRF output and a stable extension ID; passwords and backups remain available.
+Encrypted third-party formats, Steam/Battle.net, automatic filling, segmented or unmarked OTP fields, notifications, native messaging, cloud sync, independent recovery-key slots and explicit vault-key rotation are deferred. Plain Aegis v1/database v3 and 2FAS schema 4 adapters have synthetic fixture tests, not migration certification against every app version. Passkeys require usable PRF output and a stable extension ID; passwords and backups remain available.
 
-Validation: 94 unit tests and 32 browser checks (including virtual PRF and a headed tab switch); see the linked validation record for environment and remaining manual work. No physical biometric support is certified.
+Validation: see the current [validation record](docs/validation.md) for unit tests, browser checks (including virtual PRF, tab locking, capture and filling), see the linked validation record for environment and remaining manual work. No physical biometric support is certified.
 
 Read [architecture](docs/architecture.md), [cryptography](docs/cryptography.md), [threat model](docs/threat-model.md), [recovery](docs/recovery.md), [research](docs/research.md), [compatibility](docs/compatibility.md) and [validation](docs/validation.md).
 

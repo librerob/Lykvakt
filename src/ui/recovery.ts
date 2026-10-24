@@ -1,7 +1,7 @@
 import { button, el, input, form, submit, download, readText } from "../dom";
 import { load } from "../storage";
 import { createEnvelope, snapshot } from "../crypto";
-import { verifyBackup } from "../import";
+import { toURI, verifyBackup } from "../import";
 import type { Account } from "../model";
 import type { AppContext } from "./context";
 export function createRecovery(
@@ -61,6 +61,33 @@ export function createRecovery(
         "A backup is useful when you know it restores.",
       ),
       health,
+      el(
+        "div",
+        { class: "settings-section" },
+        el("h2", {}, "Move to another authenticator"),
+        el(
+          "p",
+          {},
+          "Export every account as standard OTP links. For a scannable QR, open an account’s Edit menu. Destination apps may support different OTP settings.",
+        ),
+        button(
+          "Export plaintext OTP links…",
+          () =>
+            ctx.confirmAction(
+              "Export every setup secret?",
+              "This unencrypted file lets anyone generate your codes. It excludes favorites, groups and website approvals. Keep it private, verify the destination app, then remove the file.",
+              "Export all OTP links",
+              async () => {
+                session.check();
+                download(
+                  session.accounts().accounts.map(toURI).join("\n") + "\n",
+                  "lykvakt-otp-links.txt",
+                );
+              },
+            ),
+          "button text",
+        ),
+      ),
       el(
         "div",
         { class: "settings-section" },

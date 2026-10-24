@@ -1,11 +1,11 @@
-# OTP Vault 0.1.0-rc.1
+# Lykvakt 0.2.0-rc.1 — unaudited preview
 
-Unaudited development preview for dedicated test accounts. Keep your existing authenticator and independent service recovery codes.
+A coined Nordic-inspired name, an original angular lock icon in shock pink and black, and pink Material-inspired accents by default. The repository remains `librerob/otp-vault`.
 
-Includes an encrypted local vault, RFC TOTP/HOTP generation, previewed URI/manual/QR imports, search/favorites/groups, themes, encrypted backups and an isolated saved-file restoration test. The package has no backend, telemetry, host permissions or content scripts.
+- Import Google Authenticator version-1 transfer QR batches, with complete-batch validation and atomic preview.
+- Scan a visible HTTPS tab explicitly from the toolbar popup; QR decoding stays local.
+- Fill a selected OTP into one empty, marked code field after exact-origin approval. No automatic filling or form submission.
+- Reveal individual standard transfer QRs and export all accounts as plaintext OTP links after confirmation.
+- Encrypted website approvals and backwards reading of payload schema 1; new saves use schema 2. Existing vault database/envelope identity stays stable. Older previews cannot read new payloads.
 
-Experimental passkey unlock uses actual WebAuthn PRF-derived key unwrapping. Physical Windows Hello, Touch ID and FIDO2 hardware remain unverified. Password unlock and passkey-independent backups are retained. Website support is checked locally against a bundled 2FA Directory snapshot; automatic badges request optional tabs permission explicitly.
-
-See docs/validation.md for executed checks and docs/compatibility.md for limits. Google transfer QR batches, encrypted third-party migrations, proprietary OTP formats, autofill, cloud sync, native integration and vault-key rotation remain deferred.
-
-Extract the Chrome ZIP, then use chrome://extensions → Developer mode → Load unpacked. This is an unpacked development distribution, not a signed CRX or a Chrome Web Store approval. Verify the companion SHA-256 file. Do not reinstall or remove a working vault before testing a separately saved backup.
+Keep existing authenticators and verified encrypted backups. Physical phone migration and real biometric providers still require manual validation. No independent security audit or Web Store submission has occurred. See `docs/validation.md` for measured results and `docs/migration-and-fill.md` for compatibility limits.

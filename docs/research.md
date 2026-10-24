@@ -37,6 +37,12 @@ Native messaging would require a signed per-OS companion, installer, origin allo
 
 ## Naming
 
-Preliminary public searches considered OTP Vault, Vellum OTP and Tessera. “OTP vault” is descriptive and already appears in other products; [Tessera](https://github.com/privum-cloud/tessera-mfa-app) is already an authenticator name. No final distinctive name or trademark ownership is selected. An empty search result for a candidate is not legal clearance. Formal register searches in intended markets, package/store/domain checks and legal review remain necessary before committing to a brand. The original geometric icon is provisional and uses no service logos.
+Preliminary public searches considered Lykvakt, Vellum OTP and Tessera. “OTP vault” is descriptive and already appears in other products; [Tessera](https://github.com/privum-cloud/tessera-mfa-app) is already an authenticator name. No final distinctive name or trademark ownership is selected. An empty search result for a candidate is not legal clearance. Formal register searches in intended markets, package/store/domain checks and legal review remain necessary before committing to a brand. The original geometric icon is provisional and uses no service logos.
 
 The implemented differentiation is transparent local architecture and an explicit file-based restoration rehearsal. Whether users prefer it, or whether its security is superior, remains unproven.
+
+## Lykvakt working identity, 24 October 2026
+
+The user selected Lykvakt, a coined Nordic-inspired name. Exact-name web searches for Lykvakt with app/software/authenticator terms surfaced no matching product in this preliminary screen. This is not exhaustive trademark clearance. Vardr and Runvakt were avoided because existing software/security uses surfaced. The original angular lock uses a split keyhole, shock pink #ff1683 and near-black #080608. Material-inspired light/dark/system/AMOLED surfaces use readable pink accent variants.
+
+Google transfer decoding follows [Aegis’s published proto schema](https://github.com/beemdevelopment/Aegis/blob/master/app/src/main/proto/google_auth.proto). Chrome’s [tabs API](https://developer.chrome.com/docs/extensions/reference/api/tabs#method-captureVisibleTab) and [activeTab permission](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab) describe the temporary access used for explicit capture and filling. No cryptographic primitives were added.

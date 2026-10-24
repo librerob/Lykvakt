@@ -21,7 +21,7 @@ files["LICENSE"] = [
   { mtime: new Date("2026-01-01T00:00:00Z") },
 ];
 await mkdir("artifacts", { recursive: true });
-const path = "artifacts/otp-vault-0.1.0-rc.1-chrome.zip";
+const path = "artifacts/lykvakt-0.2.0-rc.1-chrome.zip";
 const zip = zipSync(files, { level: 9 });
 await writeFile(path, zip);
 await writeFile(

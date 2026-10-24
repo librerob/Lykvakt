@@ -128,7 +128,7 @@ export async function enroll(
   const credential = await navigator.credentials.create({
     publicKey: {
       challenge,
-      rp: { name: "OTP Vault (development preview)" },
+      rp: { name: "Lykvakt (development preview)" },
       user: {
         id: random(32),
         name: "local-vault",

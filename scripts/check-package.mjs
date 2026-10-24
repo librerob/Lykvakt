@@ -6,6 +6,7 @@ assert.deepEqual(manifest.permissions, [
   "activeTab",
   "storage",
   "clipboardWrite",
+  "scripting",
 ]);
 assert.deepEqual(manifest.optional_permissions, ["tabs"]);
 assert.equal(manifest.host_permissions, undefined);
