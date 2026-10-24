@@ -4,7 +4,7 @@
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | Manifest V3 / Chromium 120+ APIs               | Build target; real integration results recorded separately in validation                                                   |
 | Windows host                                   | Type checking, unit tests and build executed; local Chrome for Testing launch was blocked by OS application-control policy |
-| Linux Playwright Chromium                      | CI target; do not infer success until its workflow is green                                                                |
+| Linux Playwright Chromium                      | Passed 25 core checks, six virtual PRF checks and a headed tab-activation lock test                                        |
 | macOS / Touch ID                               | Not physically tested                                                                                                      |
 | Windows 10 / 11 Hello fingerprint, face or PIN | Not physically tested; PRF capability must actually yield a usable secret                                                  |
 | FIDO2 keys / third-party passkey providers     | Not physically tested; user verification plus PRF required                                                                 |

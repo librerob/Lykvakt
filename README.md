@@ -51,6 +51,8 @@ No independent security audit has occurred. A compromised browser, device, depen
 
 Google Authenticator transfer QR batches, encrypted third-party formats, Steam/Battle.net, autofill, notifications, native messaging, cloud sync, independent recovery-key slots and explicit vault-key rotation are deferred. Plain Aegis v1/database v3 and 2FAS schema 4 adapters have synthetic fixture tests, not migration certification against every app version. Passkeys require usable PRF output and a stable extension ID; passwords and backups remain available.
 
+Validation: 94 unit tests and 32 browser checks (including virtual PRF and a headed tab switch); see the linked validation record for environment and remaining manual work. No physical biometric support is certified.
+
 Read [architecture](docs/architecture.md), [cryptography](docs/cryptography.md), [threat model](docs/threat-model.md), [recovery](docs/recovery.md), [research](docs/research.md), [compatibility](docs/compatibility.md) and [validation](docs/validation.md).
 
 Data sourced from 2FA Directory by 2factorauth. Dataset provenance and license notices are bundled in `public/`. This snapshot is checked locally; visiting documentation links is an explicit browser navigation.
