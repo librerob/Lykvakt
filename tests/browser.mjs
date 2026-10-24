@@ -359,6 +359,24 @@ try {
     ),
   );
   console.log(`${checks} browser checks passed.`);
+} catch (error) {
+  await page.screenshot({
+    path: "artifacts/screenshots/failure.png",
+    fullPage: true,
+  });
+  await writeFile(
+    "artifacts/browser-failure.txt",
+    JSON.stringify(
+      {
+        error: String(error),
+        body: await page.locator("body").innerText(),
+        errors,
+      },
+      null,
+      2,
+    ),
+  );
+  throw error;
 } finally {
   await context.close();
 }

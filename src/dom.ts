@@ -37,7 +37,12 @@ export function input(
   });
   control.value = value;
   return {
-    wrapper: el("label", { class: "field" }, el("span", {}, label), control),
+    wrapper: el(
+      "label",
+      { class: "field" },
+      el("span", { id: `label-${name}` }, label),
+      control,
+    ),
     control,
   };
 }
@@ -47,12 +52,17 @@ export function select(
   options: Record<string, string>,
   selected: string,
 ): { wrapper: HTMLLabelElement; control: HTMLSelectElement } {
-  const control = el("select", { name });
+  const control = el("select", { name, "aria-labelledby": `label-${name}` });
   for (const [value, title] of Object.entries(options))
     control.append(el("option", { value }, title));
   control.value = selected;
   return {
-    wrapper: el("label", { class: "field" }, el("span", {}, label), control),
+    wrapper: el(
+      "label",
+      { class: "field" },
+      el("span", { id: `label-${name}` }, label),
+      control,
+    ),
     control,
   };
 }
