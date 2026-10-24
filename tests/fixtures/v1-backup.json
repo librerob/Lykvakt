@@ -1,0 +1,20 @@
+{
+  "format": "otp-vault",
+  "version": 1,
+  "kind": "backup",
+  "id": "585c51a7-e3a1-432d-a153-433f93125883",
+  "revision": 0,
+  "password": {
+    "kdf": "PBKDF2-SHA256",
+    "iterations": 600000,
+    "salt": "eaxm2QaYQIq+NLJTu+mlUaGlPwdoyGbK8tRYA7pUkN8=",
+    "iv": "6PMdsHwDE6tDUlPq",
+    "wrapped": "uV78s3UMicK10Qy1Q9qB5S7/bC41P/UeekMg1JUa07o1gIkPsyXuuXsFvkqW+hXM"
+  },
+  "passkeys": [],
+  "payload": {
+    "key": "9NURIw5ItMEAu+XkR72kJdj8WGJ7gh9Uzk4dhHHfY1CUH4yyiG3Guw==",
+    "iv": "JecGGV5gxDWluLbZ",
+    "ciphertext": "0xU5Se5qjsln466zZOpwAinIqFN8BA7L5Bcmv/GQaE2UO57in4ADxzGywJxRHIVh3kiVSgG8u7pkBEgm686WcNOxbefXmS6A5V2mPpXLJOAS95ZzqZeam5jFpe/OfW5X/ZyzLjdD63Vt83OxW3GI2Xqoyyuw/tU5E1uPsetHXaT31f/PdiIXY85D/0F55+7q575i3OvOb7R/27Hl4GS3B3Ns4//DfZatIe0jI+QhJBiR3PRX7+4XtyR53ynXKx96rOVEzDeQDz6zn0Xv0rtGRYuB4nLPGta86aLGIWDOc3vGrIm5IsPK2b/DwlvEutMHjXD8sTrBPiP+ELQUAl5JVW/mubteLqDAxuQFv/C415wIXSryNFZFIURLVJRac5mXaV/LdWnDJcxdk4azH4uPOhyEzaOB6ZMxWxvlkkoHXC7SL+NBG69SpVVAPE6OQ7yui1Zw4WHCS0vsx516gphiVmRnI2NWEGoI1CVRN2WEbsQwp5eLA4g="
+  }
+}

@@ -42,6 +42,8 @@ try {
     .getByRole("button", { name: "Create encrypted vault", exact: true })
     .click();
   await expect(setup.getByText("A fresh start.")).toBeVisible();
+  await setup.getByRole("button", { name: "Settings", exact: true }).click();
+  await setup.getByLabel("Appearance", { exact: true }).selectOption("amoled");
   await setup.close();
   const qr = await QRCode.toDataURL(
     `otpauth://totp/Screen:synthetic?secret=${secret}&issuer=Screen`,
@@ -84,23 +86,47 @@ try {
         : waiter.resolve(response.result);
     }
   });
-  async function evaluate(expression) {
+  async function protocol(method, params = {}) {
     const request = ++requestId;
-    const response = new Promise((resolve, reject) =>
-      pending.set(request, { resolve, reject }),
-    );
-    await cdp.send("Target.sendMessageToTarget", {
-      sessionId,
-      message: JSON.stringify({
-        id: request,
-        method: "Runtime.evaluate",
-        params: { expression, awaitPromise: true, returnByValue: true },
-      }),
+    let timer;
+    const response = new Promise((resolve, reject) => {
+      timer = setTimeout(() => {
+        pending.delete(request);
+        reject(new Error("Popup protocol timeout: " + method));
+      }, 15000);
+      pending.set(request, { resolve, reject });
     });
-    const result = await response;
+    try {
+      await cdp.send("Target.sendMessageToTarget", {
+        sessionId,
+        message: JSON.stringify({ id: request, method, params }),
+      });
+      return await response;
+    } finally {
+      clearTimeout(timer);
+      pending.delete(request);
+    }
+  }
+  async function evaluate(expression) {
+    const result = await protocol("Runtime.evaluate", {
+      expression,
+      awaitPromise: true,
+      returnByValue: true,
+    });
     if (result.exceptionDetails)
       throw new Error(JSON.stringify(result.exceptionDetails));
     return result.result?.value;
+  }
+  async function screenshot(name) {
+    await protocol("Page.enable");
+    const result = await protocol("Page.captureScreenshot", {
+      format: "png",
+      captureBeyondViewport: true,
+    });
+    await writeFile(
+      `artifacts/screenshots/${name}.png`,
+      Buffer.from(result.data, "base64"),
+    );
   }
   const text = () => evaluate("document.body.innerText");
   const click = (label) =>
@@ -117,11 +143,7 @@ try {
   await expect.poll(text, { timeout: 15000 }).toContain("Review import");
   await expect.poll(text).toContain("Screen");
   await mkdir("artifacts/screenshots", { recursive: true });
-  const shot = await cdp.send("Target.sendMessageToTarget", {
-    sessionId,
-    message: JSON.stringify({ id: ++requestId, method: "Page.enable" }),
-  });
-  void shot;
+  await screenshot("tab-scan-preview");
   await click("Import 1 account(s)");
   await expect.poll(text).toContain("synthetic");
   checks++;
@@ -135,6 +157,7 @@ try {
   await expect.poll(text).toContain("Code filled");
   await expect(website.getByLabel("One-time code")).toHaveValue(/^\d{6}$/);
   expect(await website.evaluate(() => !!window.submitted)).toBe(false);
+  await screenshot("tab-fill-approved");
   checks++;
   console.log(
     "PASS approved exact-origin fill via actual chrome.scripting, no submit",

@@ -136,7 +136,7 @@ export function createAccounts(ctx: AppContext) {
         "div",
         { class: "import-actions" },
         button("Import accounts", () => importAccounts(), "button text"),
-        isExtension
+        isExtension && !ctx.fullWindow
           ? button("Scan this tab", () => run(scanTab), "button tonal")
           : null,
       ),
@@ -267,7 +267,7 @@ export function createAccounts(ctx: AppContext) {
           { class: "code-row" },
           code,
           remaining,
-          isExtension
+          isExtension && !ctx.fullWindow
             ? button("Fill", () => run(() => fillAccount(a.id)), "button text")
             : null,
           button(
