@@ -19,7 +19,7 @@ passkeys: credential IDs, PRF salts, IDs, IVs, wrapped vault keys
 payload: wrapped content key, IV, authenticated ciphertext
 ```
 
-Unknown envelope fields/versions/KDFs, wrong lengths and noncanonical Base64 are rejected. PBKDF2 iterations must be between 600,000 and 2,000,000 to reject downgrades and bound hostile-file work. Password strings are encoded as UTF-8 without normalization. New master/backup passphrases require 14–1024 characters. No password or derived key is persisted.
+Unknown envelope fields/versions/KDFs, wrong lengths and noncanonical Base64 are rejected. PBKDF2 iterations must be between the fixed compatibility minimum of 600,000 and maximum of 5,000,000 to reject downgrades and bound hostile-file work. Password strings are encoded as UTF-8 without normalization. New master/backup passphrases require 14–1024 characters. No password or derived key is persisted.
 
 ## Why PBKDF2 in this preview
 
@@ -40,3 +40,5 @@ Credentials are bound to this extension’s origin/ID. Development directory cha
 Temporary byte arrays are overwritten where practical. JavaScript strings, garbage collection, browser internals and OS paging prevent guaranteed zeroization. CryptoKey nonextractability reduces accidental export; it cannot protect against hostile code executing in the unlocked extension.
 
 There is no password reset, escrow or weak bypass. A compromised device, provider or approved extension update can defeat runtime protections. Strong independent service recovery remains essential.
+
+The new-slot default is separate from these validation bounds and is currently 600,000. Successful password unlock upgrades a weaker accepted slot to the configured default and reseals/commits the authenticated header before opening the session. This rewrap preserves the vault key and passkey slots; password changes separately rotate the vault key. Existing backups remain accepted when the default increases, and backup verification does not write upgrades.

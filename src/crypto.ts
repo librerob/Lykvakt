@@ -7,7 +7,9 @@ import {
   type VaultData,
 } from "./model";
 
-export const ITERATIONS = 600_000;
+export const MIN_ITERATIONS = 600_000;
+export const DEFAULT_ITERATIONS = 600_000;
+export const MAX_ITERATIONS = 5_000_000;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
 export const random = (length: number): Uint8Array<ArrayBuffer> =>
@@ -105,7 +107,7 @@ export function validateEnvelope(
     throw new Error("Unsupported archive format or purpose.");
   if (p.kdf !== "PBKDF2-SHA256")
     throw new Error("Unsupported password derivation.");
-  integer(p.iterations, ITERATIONS, 2_000_000);
+  integer(p.iterations, MIN_ITERATIONS, MAX_ITERATIONS);
   exact(p.salt, 32);
   exact(p.iv, 12);
   exact(p.wrapped, 48);
@@ -185,11 +187,12 @@ export async function makePasswordSlot(
   password: string,
   id: string,
   kind: Header["kind"],
+  iterations = DEFAULT_ITERATIONS,
 ): Promise<PasswordSlot> {
   requireStrongPassword(password);
   const slot: PasswordSlot = {
     kdf: "PBKDF2-SHA256",
-    iterations: ITERATIONS,
+    iterations: integer(iterations, MIN_ITERATIONS, MAX_ITERATIONS),
     salt: base64(random(32)),
     iv: base64(random(12)),
     wrapped: "",
@@ -359,12 +362,38 @@ export async function decryptEnvelope(
   input: unknown,
   password: string,
   kind?: Header["kind"],
+  upgradeIterations?: number,
 ): Promise<{ envelope: Envelope; key: CryptoKey; data: VaultData }> {
   const envelope = validateEnvelope(input, kind);
+  if (upgradeIterations !== undefined)
+    integer(upgradeIterations, MIN_ITERATIONS, MAX_ITERATIONS);
   const raw = await unwrapPassword(envelope, password);
   try {
     const key = await importVaultKey(raw);
-    return { envelope, key, data: await open(envelope, key) };
+    const data = await open(envelope, key);
+    if (
+      upgradeIterations !== undefined &&
+      envelope.password.iterations < upgradeIterations
+    ) {
+      const passwordSlot = await makePasswordSlot(
+        raw,
+        password,
+        envelope.id,
+        envelope.kind,
+        upgradeIterations,
+      );
+      const upgraded = await seal(
+        {
+          ...headerOf(envelope),
+          revision: envelope.revision + 1,
+          password: passwordSlot,
+        },
+        key,
+        data,
+      );
+      return { envelope: upgraded, key, data };
+    }
+    return { envelope, key, data };
   } finally {
     raw.fill(0);
   }

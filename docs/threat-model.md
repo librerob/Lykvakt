@@ -22,3 +22,5 @@ Review findings addressed during implementation: stale writes are rejected; late
 Before important-account use: independent cryptographic/extension review, physical PRF tests on intended platforms, adversarial malformed-file fuzzing, Store origin migration rehearsal, supervised clipboard/permission testing and long-running failure/recovery exercises.
 
 Changing the master password rotates the random vault key and removes every passkey wrapper in the same revision-checked save. A key recovered from an old envelope and its old password cannot open later vault documents. Failed commits retain the previous session key and document. Older snapshots and separately exported backups remain readable with their original credentials; rotation is not retroactive erasure or an anti-rollback anchor.
+
+KDF validation accepts 600,000–5,000,000 PBKDF2 iterations independently of the current new-slot default. The maximum bounds hostile-file derivation work. A successful password unlock upgrades a weaker accepted slot using a revision-checked commit; failure leaves the original document and the session locked. Raising the default does not invalidate older accepted archives.

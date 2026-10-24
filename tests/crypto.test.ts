@@ -1,5 +1,7 @@
 import { it, expect, beforeAll } from "vitest";
 import {
+  MIN_ITERATIONS,
+  MAX_ITERATIONS,
   createEnvelope,
   decryptEnvelope,
   headerOf,
@@ -145,7 +147,8 @@ it("rejects malformed format and unbounded KDF work before deriving", () => {
     { version: 2 },
     { extra: "x" },
     { password: { ...e.password, iterations: 5 } },
-    { password: { ...e.password, iterations: 2_000_001 } },
+    { password: { ...e.password, iterations: MAX_ITERATIONS + 1 } },
+    { password: { ...e.password, iterations: MIN_ITERATIONS - 1 } },
     { payload: { ...e.payload, key: "bad!" } },
     { passkeys: Array(6).fill({}) },
   ])

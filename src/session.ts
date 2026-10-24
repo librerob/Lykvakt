@@ -1,4 +1,5 @@
 import {
+  DEFAULT_ITERATIONS,
   createEnvelope,
   decryptEnvelope,
   headerOf,
@@ -65,11 +66,22 @@ export class Session {
     this.envelope = result.envelope;
     this.touch();
   }
-  async unlock(password: string): Promise<void> {
+  async unlock(
+    password: string,
+    defaultIterations = DEFAULT_ITERATIONS,
+  ): Promise<void> {
     const epoch = this.generation;
     const saved = await storage.load();
     if (!saved) throw new Error("No vault exists.");
-    const result = await decryptEnvelope(saved, password, "vault");
+    const result = await decryptEnvelope(
+      saved,
+      password,
+      "vault",
+      defaultIterations,
+    );
+    if (epoch !== this.generation) throw new Error("Unlock cancelled.");
+    if (result.envelope.revision !== saved.revision)
+      await storage.commit(result.envelope, saved);
     if (epoch !== this.generation) throw new Error("Unlock cancelled.");
     this.key = result.key;
     this.data = result.data;
