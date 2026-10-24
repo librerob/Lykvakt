@@ -148,10 +148,13 @@ export function validateEnvelope(
 async function passwordKey(
   password: string,
   p: PasswordSlot,
+  normalize = true,
 ): Promise<CryptoKey> {
   if (!password.length || password.length > 1024)
     throw new Error("Invalid password length.");
-  const bytes = encoder.encode(password);
+  const bytes = encoder.encode(
+    normalize ? password.normalize("NFKC") : password,
+  );
   try {
     const source = await crypto.subtle.importKey(
       "raw",
@@ -219,19 +222,32 @@ export async function unwrapPassword(
   password: string,
 ): Promise<Uint8Array<ArrayBuffer>> {
   validateEnvelope(e);
-  const key = await passwordKey(password, e.password);
-  return new Uint8Array(
-    await crypto.subtle.decrypt(
-      {
-        name: "AES-GCM",
-        iv: exact(e.password.iv, 12),
-        additionalData: passwordAAD(e),
-        tagLength: 128,
-      },
-      key,
-      exact(e.password.wrapped, 48),
-    ),
-  );
+  const unwrap = async (normalize: boolean) => {
+    const key = await passwordKey(password, e.password, normalize);
+    return new Uint8Array(
+      await crypto.subtle.decrypt(
+        {
+          name: "AES-GCM",
+          iv: exact(e.password.iv, 12),
+          additionalData: passwordAAD(e),
+          tagLength: 128,
+        },
+        key,
+        exact(e.password.wrapped, 48),
+      ),
+    );
+  };
+  try {
+    return await unwrap(true);
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      error.name !== "OperationError" ||
+      password.normalize("NFKC") === password
+    )
+      throw error;
+    return await unwrap(false);
+  }
 }
 export async function rotatePassword(
   envelope: Envelope,

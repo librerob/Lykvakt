@@ -19,7 +19,7 @@ passkeys: credential IDs, PRF salts, IDs, IVs, wrapped vault keys
 payload: wrapped content key, IV, authenticated ciphertext
 ```
 
-Unknown envelope fields/versions/KDFs, wrong lengths and noncanonical Base64 are rejected. PBKDF2 iterations must be between the fixed compatibility minimum of 600,000 and maximum of 5,000,000 to reject downgrades and bound hostile-file work. Password strings are encoded as UTF-8 without normalization. New master/backup passphrases require 14–1024 characters. No password or derived key is persisted.
+Unknown envelope fields/versions/KDFs, wrong lengths and noncanonical Base64 are rejected. PBKDF2 iterations must be between the fixed compatibility minimum of 600,000 and maximum of 5,000,000 to reject downgrades and bound hostile-file work. New password slots encode the NFKC-normalized passphrase as UTF-8. Unlock tries NFKC first and retries the original raw string only after an authentication failure when normalization changes the string, preserving legacy raw-encoded slots. Temporary UTF-8 byte arrays are cleared in finally blocks. New master/backup passphrases require 14–1024 characters. No password or derived key is persisted.
 
 ## Why PBKDF2 in this preview
 
