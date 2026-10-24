@@ -68,7 +68,7 @@ export function canonical(value: unknown): string {
     return (
       "{" +
       Object.entries(value)
-        .sort(([a], [b]) => a.localeCompare(b, "en"))
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
         .map(([k, v]) => JSON.stringify(k) + ":" + canonical(v))
         .join(",") +
       "}"
@@ -417,7 +417,9 @@ export async function decryptEnvelope(
 export async function snapshot(data: VaultData): Promise<string> {
   const bytes = encoder.encode(
     canonical(
-      data.accounts.slice().sort((a, b) => a.id.localeCompare(b.id, "en")),
+      data.accounts
+        .slice()
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
     ),
   );
   try {
