@@ -3,6 +3,12 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      prepare_release:
+        description: Prepare an unaudited draft prerelease after validation
+        type: boolean
+        default: false
+        required: true
 permissions:
   contents: read
 jobs:
@@ -42,3 +48,26 @@ jobs:
             artifacts/*.sha256
           if-no-files-found: ignore
           retention-days: 14
+  release:
+    if: github.event_name == 'workflow_dispatch' && inputs.prepare_release && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: synthetic-preview-validation
+          path: release-assets
+      - name: Create draft prerelease without replacing any existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create v0.1.0-rc.1
+          release-assets/*.zip release-assets/*.sha256
+          --target "$GITHUB_SHA"
+          --title "OTP Vault 0.1.0-rc.1 — unaudited preview"
+          --notes-file docs/release-notes.md
+          --prerelease --draft

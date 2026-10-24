@@ -115,7 +115,10 @@ try {
   console.log("PASS non-PRF authenticator refused without changing vault");
   await click("Close");
   await click("Revoke");
-  await click("Revoke");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Revoke", exact: true })
+    .click();
   await expect.poll(async () => (await slots()).count).toBe(0);
   checks++;
   console.log("PASS passkey wrapper revocation");

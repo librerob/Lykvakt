@@ -11,7 +11,6 @@ import {
 import { codeFor } from "../otp";
 import { validateAccount, type Account } from "../model";
 import { parseImport, parseURI, previewImport, toURI } from "../import";
-import { readQR } from "../qr";
 import type { AppContext } from "./context";
 export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
   const { session, run, announce, modal, closeDialog, render, confirmAction } =
@@ -182,7 +181,10 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     qr.control.addEventListener("change", () =>
       run(async () => {
         const f = qr.control.files?.[0];
-        if (f) await preview([parseURI(await readQR(f))]);
+        if (f) {
+          const { readQR } = await import("../qr");
+          await preview([parseURI(await readQR(f))]);
+        }
       }),
     );
     modal(
