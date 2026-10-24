@@ -230,6 +230,27 @@ export async function unwrapPassword(
     ),
   );
 }
+export async function rotatePassword(
+  envelope: Envelope,
+  currentPassword: string,
+  nextPassword: string,
+): Promise<{ key: CryptoKey; password: PasswordSlot }> {
+  const previous = await unwrapPassword(envelope, currentPassword);
+  let raw: Uint8Array<ArrayBuffer> | undefined;
+  try {
+    raw = random(32);
+    const password = await makePasswordSlot(
+      raw,
+      nextPassword,
+      envelope.id,
+      envelope.kind,
+    );
+    return { password, key: await importVaultKey(raw) };
+  } finally {
+    previous.fill(0);
+    raw?.fill(0);
+  }
+}
 export const importVaultKey = (
   raw: Uint8Array<ArrayBuffer>,
 ): Promise<CryptoKey> =>

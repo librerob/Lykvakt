@@ -94,6 +94,7 @@ export class Session {
   async save(
     data: VaultData,
     changeHeader?: (h: Header) => Header,
+    nextKey?: CryptoKey,
   ): Promise<void> {
     this.check();
     if (this.writing) throw new Error("A save is already in progress.");
@@ -105,7 +106,7 @@ export class Session {
       const validated = validateData(data);
       const next = await seal(
         changeHeader ? changeHeader(header) : header,
-        this.key!,
+        nextKey ?? this.key!,
         validated,
       );
       this.check();
@@ -113,6 +114,7 @@ export class Session {
         throw new Error("Save cancelled by locking.");
       await storage.commit(next, previous);
       if (epoch !== this.generation) return;
+      this.key = nextKey ?? this.key;
       this.envelope = next;
       this.data = validated;
     } finally {

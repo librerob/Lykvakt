@@ -25,7 +25,7 @@ Unknown envelope fields/versions/KDFs, wrong lengths and noncanonical Base64 are
 
 Argon2id is preferable for resistance to parallel password guessing. Popout Authenticator demonstrates an MV3 `hash-wasm` implementation (64 MiB, three passes); MV3 is therefore not an inherent obstacle. This preview deliberately uses native Web Crypto PBKDF2 at 600,000 iterations to keep runtime cryptography dependencies and WASM permission surface small. This is an explicit CPU-only trade-off, not an Argon2 equivalence claim. Local measurements are in validation; no broad-device calibration has occurred. A future Argon2 slot must be a versioned, reviewed addition, with no silent downgrade of existing parameters.
 
-Changing the master password unwraps and rewraps the same random vault key with a new salt/IV, then reseals atomically. Existing backup files retain their independent passphrases. Explicit vault-key rotation is not implemented. The safest current migration is a verified backup restored into a separate fresh installation; old copies remain decryptable with their old credentials.
+Changing the master password first verifies the current password, generates a fresh random vault key, creates its new password wrapper, removes every passkey wrapper, and reseals atomically. The session switches to the new key only after a successful revision-checked commit. Old-envelope keys cannot decrypt subsequent saves. Passkeys must be re-enrolled. Existing backup files retain their independent passphrases. Explicit vault-key rotation is not implemented. The safest current migration is a verified backup restored into a separate fresh installation; old copies remain decryptable with their old credentials.
 
 ## Passkeys (experimental)
 

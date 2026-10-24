@@ -1,5 +1,5 @@
 import { button, el, input, select, form, submit } from "../dom";
-import { makePasswordSlot, unwrapPassword } from "../crypto";
+import { rotatePassword, unwrapPassword } from "../crypto";
 import { enroll } from "../passkeys";
 import type { AppContext } from "./context";
 export function createSettings(ctx: AppContext) {
@@ -206,31 +206,31 @@ export function createSettings(ctx: AppContext) {
       form(
         async (_fields, f) =>
           run(async () => {
-            if (next.control.value !== confirm.control.value)
-              throw new Error("Passwords do not match.");
-            const e = session.current(),
-              epoch = session.epoch();
-            const raw = await unwrapPassword(e, current.control.value);
+            const epoch = session.epoch();
             try {
-              const password = await makePasswordSlot(
-                raw,
+              if (next.control.value !== confirm.control.value)
+                throw new Error("Passwords do not match.");
+              const rotation = await rotatePassword(
+                session.current(),
+                current.control.value,
                 next.control.value,
-                e.id,
-                "vault",
               );
               session.check();
               if (epoch !== session.epoch()) return;
-              await session.save(session.accounts(), (h) => ({
-                ...h,
-                password,
-              }));
+              await session.save(
+                session.accounts(),
+                (h) => ({ ...h, password: rotation.password, passkeys: [] }),
+                rotation.key,
+              );
+              session.check();
+              if (epoch !== session.epoch()) return;
             } finally {
-              raw.fill(0);
               f.reset();
             }
             closeDialog();
+            render();
             announce(
-              "Master password changed. Existing backup files still use their original passphrase.",
+              "Master password changed and vault key rotated. All passkeys must be re-enrolled. Existing backup files still use their original passphrase.",
             );
           }),
         current.wrapper,
