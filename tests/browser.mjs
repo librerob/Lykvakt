@@ -111,6 +111,20 @@ try {
       await page.clock.resume();
     },
   );
+  await check(
+    "unverified accounts show a non-blocking Recovery reminder",
+    async () => {
+      await expect(page.locator(".backup-notice")).toContainText(
+        "Your accounts changed since your last verified backup.",
+      );
+      await expect(page.locator(".backup-notice")).toBeVisible();
+      await click("Go to Recovery");
+      await expect(
+        page.getByRole("heading", { name: "Backups & recovery", exact: true }),
+      ).toBeVisible();
+      await click("Authenticator");
+    },
+  );
   await check("independent TOTP reference", async () => {
     await page.locator(".account .otp").click();
     const seconds = await page.evaluate(() => Math.floor(Date.now() / 1000)),
@@ -387,6 +401,26 @@ try {
     await screenshot("backup-verified");
     await click("Done");
   });
+  await check(
+    "a verified snapshot clears the reminder until an account changes",
+    async () => {
+      await click("Authenticator");
+      await expect(page.locator(".backup-notice")).toBeHidden();
+      const star = page.getByRole("button", { name: /favorite: GitHub/ });
+      const original = await star.getAttribute("aria-label");
+      await star.click();
+      await expect(
+        page.getByRole("button", { name: original, exact: true }),
+      ).toHaveCount(0);
+      await expect(page.locator(".backup-notice")).toBeVisible();
+      await star.click();
+      await expect(
+        page.getByRole("button", { name: original, exact: true }),
+      ).toBeVisible();
+      await expect(page.locator(".backup-notice")).toBeHidden();
+      await click("Recovery");
+    },
+  );
   await check("tampered backup refused", async () => {
     const data = JSON.parse(await readFile(backupPath, "utf8"));
     data.payload.ciphertext = "AAAA" + data.payload.ciphertext.slice(4);

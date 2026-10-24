@@ -1,5 +1,6 @@
 import { button, el, input } from "../dom";
 import { codeFor } from "../otp";
+import { needsBackup } from "./recovery";
 import { createEnrollment } from "./enrollment";
 import type { AppContext } from "./context";
 export function createAccounts(ctx: AppContext) {
@@ -8,6 +9,8 @@ export function createAccounts(ctx: AppContext) {
     favorites = false;
   let list: HTMLElement | undefined;
   let displayEpoch = 0;
+  let backupEpoch = 0;
+  let backupNotice: HTMLElement | undefined;
   const revealed = new Map<string, ReturnType<typeof setTimeout>>();
   const alwaysShow = () => localStorage.getItem("alwaysShowCodes") === "true";
   function maskAll() {
@@ -21,6 +24,8 @@ export function createAccounts(ctx: AppContext) {
   );
   function clear() {
     displayEpoch++;
+    backupEpoch++;
+    backupNotice = undefined;
     maskAll();
     codeCache.clear();
     search = "";
@@ -58,10 +63,26 @@ export function createAccounts(ctx: AppContext) {
     );
     filter.setAttribute("aria-pressed", String(favorites));
     list = el("div", { class: "account-list" });
+    backupNotice = el(
+      "aside",
+      { class: "notice backup-notice" },
+      el("p", {}, "Your accounts changed since your last verified backup."),
+      button(
+        "Go to Recovery",
+        () => {
+          ctx.state.view = "backups";
+          clear();
+          ctx.render();
+        },
+        "button text",
+      ),
+    );
+    backupNotice.hidden = true;
     const section = el(
       "section",
       { class: "content" },
       heading,
+      backupNotice,
       el("div", { class: "search-row" }, searchInput.wrapper, filter),
       list,
       button("Import accounts", () => importAccounts(), "button text"),
@@ -73,6 +94,13 @@ export function createAccounts(ctx: AppContext) {
   function drawAccounts(): void {
     if (!list || !session.unlocked) return;
     maskAll();
+    const notice = backupNotice,
+      epoch = ++backupEpoch;
+    if (notice)
+      void run(async () => {
+        const needed = await needsBackup(session.accounts());
+        if (epoch === backupEpoch && session.unlocked) notice.hidden = !needed;
+      });
     const accounts = session
       .accounts()
       .accounts.filter(
