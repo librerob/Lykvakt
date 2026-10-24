@@ -1,0 +1,22 @@
+# Threat model
+
+Protected assets: OTP seeds, HOTP counters, account metadata, unwrapped keys and readable backups. Trusted components: OS, browser/extension isolation, Web Crypto, shipped code and build chain. Physical passkey behavior is not yet validated. Review date: 24 October 2026. This is a first-party engineering review, not an independent audit.
+
+| Scenario                               | Mitigation                                                                                                | Remaining exposure                                                                               |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Stolen closed browser profile / backup | Password KDF, random vault key, authenticated encryption, independent backup password                     | Offline guessing of weak passwords; ciphertext size and envelope metadata                        |
+| Malware or hostile extension debugger  | Browser isolation, no content scripts or exported vault API                                               | OS malware, developer tools, compromised browser or extension update can read unlocked data      |
+| Malicious website                      | No vault messages, no host access, no page injection, strict CSP                                          | User can still paste an OTP into a phishing page; same-device factors reduce separation          |
+| Clipboard reader or history            | Copy only after explicit click; no clipboard-read permission                                              | OS/other apps may retain copied OTPs; no reliable clearing guarantee                             |
+| Hostile import / QR                    | File/dimension/count bounds, strict schema and algorithm validation, text rendering, preview, atomic save | Parser/library defects, image decoder allocation, no comprehensive fuzzing yet                   |
+| Corrupted storage / tampered wrapper   | GCM/AES-KW authentication, schema checks, bounded KDF                                                     | Corruption or deletion can deny service; no trusted anti-rollback anchor                         |
+| Two windows / stale HOTP save          | Revision-based transaction; explicit counter advance confirmation                                         | Another window may show stale codes until locked and reopened; service synchronization is manual |
+| Popup closure / worker termination     | Keys confined to page lifetime; no raw key in worker/session storage                                      | JS cannot guarantee memory erasure; browser-level compromise remains                             |
+| Lost passkey / changed extension ID    | Password wrapper preserved, passkey-free encrypted backups                                                | Losing all readable copies or their passwords can lose accounts                                  |
+| Directory tampering / lookalike host   | Bundled data, recorded hash, PSL-aware exact-label lookup, HTTPS documentation links                      | Snapshot can be stale; upstream compromise could publish a misleading link; PGP not verified     |
+| Dependency / CI / update compromise    | Few runtime deps, exact lockfile, no install scripts, pinned CI actions, limited workflow permissions     | Pinning and an audit feed do not prove safety; maintainers and review still matter               |
+| Accidental delete / uninstall          | Explicit confirmation; backup verification workflow                                                       | No trash, guaranteed media erasure, profile recovery or automatic backup service                 |
+
+Review findings addressed during implementation: stale writes are rejected; late async unlocks are cancelled; passwords are not logged; syntax errors avoid echoing imported data; locking removes dialogs and codes; background processing has no key access; unfamiliar URI parameters fail closed. Encrypted third-party migrations and autofill were deferred rather than accepting ambiguous formats or broad content access.
+
+Before important-account use: independent cryptographic/extension review, physical PRF tests on intended platforms, adversarial malformed-file fuzzing, Store origin migration rehearsal, supervised clipboard/permission testing and long-running failure/recovery exercises.

@@ -1,0 +1,7 @@
+pnpm-lock.yaml
+public/directory.json
+public/licenses/
+LICENSE
+dist/
+node_modules/
+artifacts/

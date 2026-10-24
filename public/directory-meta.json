@@ -1,0 +1,8 @@
+{
+  "source": "https://api.2fa.directory/v4/all.json",
+  "api": 4,
+  "retrieved": "2026-10-24T00:00:49.309Z",
+  "sourceSHA256": "07f4a49621f0ff06880c308583eea48d8d9db3a020a9c2b6be6e6cb222da41f6",
+  "entries": 2450,
+  "verification": "HTTPS retrieval with recorded SHA-256; upstream PGP signature was not verified."
+}

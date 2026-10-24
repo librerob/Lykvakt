@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "OTP Vault — Development Preview",
+  "version": "0.1.0",
+  "version_name": "0.1.0-rc.1 (unaudited)",
+  "description": "Offline authenticator with a password-encrypted local vault and testable encrypted backups. Development preview for test accounts.",
+  "minimum_chrome_version": "120",
+  "permissions": ["activeTab", "storage", "clipboardWrite"],
+  "optional_permissions": ["tabs"],
+  "action": { "default_popup": "index.html", "default_title": "OTP Vault" },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-src 'none'; form-action 'none'"
+  }
+}

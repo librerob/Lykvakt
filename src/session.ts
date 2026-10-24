@@ -1,0 +1,113 @@
+import {
+  createEnvelope,
+  decryptEnvelope,
+  headerOf,
+  seal,
+  type Envelope,
+  type Header,
+} from "./crypto";
+import { emptyVault, validateData, type VaultData } from "./model";
+import * as storage from "./storage";
+
+export class Session {
+  private key?: CryptoKey;
+  private envelope?: Envelope;
+  private data?: VaultData;
+  private generation = 0;
+  private writing = false;
+  private lastActivity = 0;
+  timeout = 5 * 60_000;
+  onlock = () => {};
+  get unlocked(): boolean {
+    return !!this.key;
+  }
+  touch(): void {
+    if (this.key) this.lastActivity = Date.now();
+  }
+  check(): void {
+    if (this.key && Date.now() - this.lastActivity >= this.timeout) this.lock();
+    if (!this.key || !this.data || !this.envelope)
+      throw new Error("Unlock the vault to continue.");
+  }
+  lock(): void {
+    this.generation++;
+    this.key = undefined;
+    this.data = undefined;
+    this.envelope = undefined;
+    this.onlock();
+  }
+  accounts(): VaultData {
+    this.check();
+    return structuredClone(this.data!);
+  }
+  current(): Envelope {
+    this.check();
+    return structuredClone(this.envelope!);
+  }
+  async setup(password: string, data = emptyVault()): Promise<void> {
+    const epoch = this.generation;
+    const result = await createEnvelope(password, data);
+    if (epoch !== this.generation)
+      throw new Error("Setup was cancelled by locking.");
+    await storage.commit(result.envelope);
+    if (epoch !== this.generation) return;
+    this.key = result.key;
+    this.data = data;
+    this.envelope = result.envelope;
+    this.touch();
+  }
+  async unlock(password: string): Promise<void> {
+    const epoch = this.generation;
+    const saved = await storage.load();
+    if (!saved) throw new Error("No vault exists.");
+    const result = await decryptEnvelope(saved, password, "vault");
+    if (epoch !== this.generation) throw new Error("Unlock cancelled.");
+    this.key = result.key;
+    this.data = result.data;
+    this.envelope = result.envelope;
+    this.touch();
+  }
+  async unlockWith(
+    key: CryptoKey,
+    envelope: Envelope,
+    data: VaultData,
+    epoch: number,
+  ): Promise<void> {
+    if (epoch !== this.generation) throw new Error("Unlock cancelled.");
+    this.key = key;
+    this.envelope = envelope;
+    this.data = data;
+    this.touch();
+  }
+  epoch(): number {
+    return this.generation;
+  }
+  async save(
+    data: VaultData,
+    changeHeader?: (h: Header) => Header,
+  ): Promise<void> {
+    this.check();
+    if (this.writing) throw new Error("A save is already in progress.");
+    this.writing = true;
+    const epoch = this.generation,
+      previous = this.envelope!;
+    try {
+      const header = { ...headerOf(previous), revision: previous.revision + 1 };
+      const validated = validateData(data);
+      const next = await seal(
+        changeHeader ? changeHeader(header) : header,
+        this.key!,
+        validated,
+      );
+      this.check();
+      if (epoch !== this.generation)
+        throw new Error("Save cancelled by locking.");
+      await storage.commit(next, previous);
+      if (epoch !== this.generation) return;
+      this.envelope = next;
+      this.data = validated;
+    } finally {
+      this.writing = false;
+    }
+  }
+}
