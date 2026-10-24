@@ -12,6 +12,7 @@ export const ui = {
 };
 export function el(_tag: string, _attributes = {}, ...children: unknown[]) {
   return {
+    attributes: _attributes,
     children,
     isConnected: false,
     append(...nodes: unknown[]) {

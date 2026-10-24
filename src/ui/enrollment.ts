@@ -1,3 +1,4 @@
+import { authenticateAction } from "./reauth";
 import {
   button,
   el,
@@ -312,68 +313,57 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           : null,
         button(
           "Show transfer QR…",
-          () => {
-            modal(
+          () =>
+            authenticateAction(
+              ctx,
               "Reveal account QR?",
-              el(
-                "div",
-                { class: "stack" },
-                el(
-                  "p",
-                  {},
-                  "This QR contains the setup secret. Anyone who scans it can generate codes. Scan it in the destination app, compare codes, then close this dialog.",
-                ),
-                button(
-                  "Reveal QR",
-                  () =>
-                    run(async () => {
-                      const epoch = session.epoch();
-                      const entry = session
-                        .accounts()
-                        .accounts.find((x) => x.id === id)!;
-                      const QRCode = await import("qrcode");
-                      const uri = toURI(entry);
-                      if (uri.length > 1500)
-                        throw new Error(
-                          "This setup key is too large for a practical QR. Export its OTP link instead.",
-                        );
-                      const image = await QRCode.toDataURL(uri, {
-                        width: 320,
-                        margin: 4,
-                        errorCorrectionLevel: "M",
-                      });
-                      session.check();
-                      if (epoch !== session.epoch()) return;
-                      modal(
-                        "Account transfer QR",
-                        el(
-                          "div",
-                          { class: "stack" },
-                          el("p", {}, entry.issuer + " · " + entry.label),
-                          el("img", {
-                            src: image,
-                            alt: "Secret account transfer QR",
-                            class: "transfer-qr",
-                          }),
-                          el(
-                            "p",
-                            { class: "hint" },
-                            "Standard otpauth QR. Check algorithm, digits, period and counter support in the destination app. Favorites, groups and website approvals are not transferred.",
-                          ),
-                        ),
-                      );
+              "This QR contains the setup secret. Anyone who scans it can generate codes. Scan it in the destination app, compare codes, then close this dialog.",
+              "Reveal QR",
+              async () => {
+                const epoch = session.epoch();
+                const entry = session
+                  .accounts()
+                  .accounts.find((x) => x.id === id)!;
+                const QRCode = await import("qrcode");
+                const uri = toURI(entry);
+                if (uri.length > 1500)
+                  throw new Error(
+                    "This setup key is too large for a practical QR. Export its OTP link instead.",
+                  );
+                const image = await QRCode.toDataURL(uri, {
+                  width: 320,
+                  margin: 4,
+                  errorCorrectionLevel: "M",
+                });
+                session.check();
+                if (epoch !== session.epoch()) return;
+                modal(
+                  "Account transfer QR",
+                  el(
+                    "div",
+                    { class: "stack" },
+                    el("p", {}, entry.issuer + " · " + entry.label),
+                    el("img", {
+                      src: image,
+                      alt: "Secret account transfer QR",
+                      class: "transfer-qr",
                     }),
-                  "button primary",
-                ),
-              ),
-            );
-          },
+                    el(
+                      "p",
+                      { class: "hint" },
+                      "Standard otpauth QR. Check algorithm, digits, period and counter support in the destination app. Favorites, groups and website approvals are not transferred.",
+                    ),
+                  ),
+                );
+              },
+            ),
           "button text",
         ),
         button(
           "Export plaintext OTP URI…",
           () =>
-            confirmAction(
+            authenticateAction(
+              ctx,
               "Export secret in plaintext?",
               "Anyone with this file can generate codes for this account. Keep it private and remove the file when migration is complete.",
               "Export this account",

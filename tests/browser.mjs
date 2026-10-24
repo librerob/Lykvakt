@@ -179,6 +179,22 @@ try {
       .filter({ has: page.getByRole("heading", { name: "QR", exact: true }) });
     await row.getByRole("button", { name: "Edit", exact: true }).click();
     await click("Show transfer QR…");
+    const deniedDownloads = [];
+    const recordDenied = (download) => deniedDownloads.push(download);
+    page.on("download", recordDenied);
+    await page
+      .getByLabel("Master password", { exact: true })
+      .fill("wrong synthetic password");
+    await click("Reveal QR");
+    await expect(page.getByRole("status")).toContainText(
+      "Authentication failed",
+    );
+    expect({
+      qrImages: await page.locator(".transfer-qr").count(),
+      downloads: deniedDownloads.length,
+    }).toEqual({ qrImages: 0, downloads: 0 });
+    page.off("download", recordDenied);
+    await page.getByLabel("Master password", { exact: true }).fill(password);
     await click("Reveal QR");
     const source = await page.locator(".transfer-qr").getAttribute("src");
     expect(source).toMatch(/^data:image\/png;base64,/);
@@ -199,6 +215,24 @@ try {
     async () => {
       await click("Recovery");
       await click("Export plaintext OTP links…");
+      const deniedDownloads = [];
+      const recordDenied = (download) => deniedDownloads.push(download);
+      page.on("download", recordDenied);
+      await page
+        .getByLabel("Master password", { exact: true })
+        .fill("wrong synthetic password");
+      await click("Export all OTP links");
+      await expect(page.getByRole("status")).toContainText(
+        "Authentication failed",
+      );
+      expect({
+        passwordPrompt: await page
+          .getByLabel("Master password", { exact: true })
+          .isVisible(),
+        downloads: deniedDownloads.length,
+      }).toEqual({ passwordPrompt: true, downloads: 0 });
+      page.off("download", recordDenied);
+      await page.getByLabel("Master password", { exact: true }).fill(password);
       const waiting = page.waitForEvent("download");
       await click("Export all OTP links");
       const download = await waiting;

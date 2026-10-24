@@ -1,3 +1,4 @@
+import { authenticateAction } from "./reauth";
 import { button, el, input, form, submit, download, readText } from "../dom";
 import { load } from "../storage";
 import { createEnvelope, snapshot } from "../crypto";
@@ -73,7 +74,8 @@ export function createRecovery(
         button(
           "Export plaintext OTP links…",
           () =>
-            ctx.confirmAction(
+            authenticateAction(
+              ctx,
               "Export every setup secret?",
               "This unencrypted file lets anyone generate your codes. It excludes favorites, groups and website approvals. Keep it private, verify the destination app, then remove the file.",
               "Export all OTP links",
