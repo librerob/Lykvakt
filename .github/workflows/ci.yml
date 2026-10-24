@@ -61,13 +61,15 @@ jobs:
         with:
           name: synthetic-preview-validation
           path: release-assets
-      - name: Create draft prerelease without replacing any existing release
+      - name: Prepare the draft without replacing a published release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create v0.1.0-rc.1
-          release-assets/*.zip release-assets/*.sha256
-          --target "$GITHUB_SHA"
-          --title "OTP Vault 0.1.0-rc.1 — unaudited preview"
-          --notes-file docs/release-notes.md
-          --prerelease --draft
+        run: |
+          tag=v0.1.0-rc.1
+          if gh release view "$tag" --json isDraft --jq '.isDraft' > draft-state.txt 2>/dev/null; then
+            test "$(cat draft-state.txt)" = true
+            gh release edit "$tag" --target "$GITHUB_SHA" --notes-file docs/release-notes.md --prerelease --draft
+            gh release upload "$tag" release-assets/*.zip release-assets/*.sha256 --clobber
+          else
+            gh release create "$tag" release-assets/*.zip release-assets/*.sha256 --target "$GITHUB_SHA" --title "OTP Vault 0.1.0-rc.1 - unaudited preview" --notes-file docs/release-notes.md --prerelease --draft
+          fi

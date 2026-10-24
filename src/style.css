@@ -1,7 +1,7 @@
 :root {
   font-family: Roboto, "Segoe UI", system-ui, sans-serif;
-  color: #202923;
-  background: #f7faf6;
+  color: var(--text);
+  background: var(--bg);
   font-synthesis: none;
   --bg: #f7faf6;
   --surface: #ffffff;

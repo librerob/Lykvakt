@@ -183,6 +183,12 @@ try {
       await page
         .getByRole("button", { name: "Authenticator", exact: true })
         .click();
+      if (theme === "amoled")
+        expect(
+          await page.evaluate(
+            () => getComputedStyle(document.documentElement).backgroundColor,
+          ),
+        ).toBe("rgb(0, 0, 0)");
       await screenshot("accounts-" + theme);
       const results = await new AxeBuilder({ page })
         .setLegacyMode()
