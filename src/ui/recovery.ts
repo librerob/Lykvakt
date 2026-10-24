@@ -73,7 +73,7 @@ export function createRecovery(
             authenticateAction(
               ctx,
               "Export every setup secret?",
-              "This unencrypted file lets anyone generate your codes. It excludes favorites, groups and website approvals. Keep it private, verify the destination app, then remove the file.",
+              "This unencrypted file lets anyone generate your codes. It excludes favorites and groups. Keep it private, verify the destination app, then remove the file.",
               "Export all OTP links",
               async () => {
                 session.check();

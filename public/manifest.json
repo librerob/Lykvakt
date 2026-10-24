@@ -5,7 +5,7 @@
   "version_name": "0.2.0-rc.1 (unaudited)",
   "description": "Offline authenticator with a password-encrypted local vault and testable encrypted backups. Development preview for test accounts.",
   "minimum_chrome_version": "120",
-  "permissions": ["activeTab", "storage", "clipboardWrite", "scripting"],
+  "permissions": ["clipboardWrite"],
   "action": {
     "default_popup": "index.html",
     "default_title": "Lykvakt"

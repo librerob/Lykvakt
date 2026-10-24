@@ -257,6 +257,29 @@ try {
     await click("Advance once");
     await expect(row.locator(".otp")).toHaveText("287 082");
   });
+  await check(
+    "removed capabilities are absent from the manifest and settings",
+    async () => {
+      const manifest = await page.evaluate(() => chrome.runtime.getManifest());
+      expect(manifest.permissions).toEqual(["clipboardWrite"]);
+      expect(manifest.optional_permissions).toBeUndefined();
+      expect(manifest.background).toBeUndefined();
+      await expect(
+        page.getByRole("button", { name: "Fill", exact: true }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: "Scan this tab", exact: true }),
+      ).toHaveCount(0);
+      await click("Settings");
+      await expect(
+        page.getByText("Experimental passkey unlock", { exact: true }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("heading", { name: "Website awareness", exact: true }),
+      ).toHaveCount(0);
+      await click("Authenticator");
+    },
+  );
   await check("light appearance and accessible account list", async () => {
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByLabel("Appearance", { exact: true }).selectOption("light");
@@ -394,7 +417,7 @@ try {
       await expect(row.locator(".otp")).toHaveText("287 082");
     },
   );
-  await check("encrypted IndexedDB and no session key storage", async () => {
+  await check("encrypted IndexedDB and minimal permissions", async () => {
     const data = await page.evaluate(async () => {
       const db = await new Promise((resolve, reject) => {
         const r = indexedDB.open("otp-vault", 1);
@@ -408,13 +431,12 @@ try {
       db.close();
       return {
         saved,
-        local: await chrome.storage.local.get(null),
-        session: await chrome.storage.session.get(null),
+        permissions: chrome.runtime.getManifest().permissions,
       };
     });
     expect(JSON.stringify(data)).not.toContain(secret);
     expect(JSON.stringify(data)).not.toContain("demo@example.test");
-    expect(data.session).toEqual({});
+    expect(data.permissions).toEqual(["clipboardWrite"]);
   });
   await check("page reload drops unlocked keys", async () => {
     await page.reload();

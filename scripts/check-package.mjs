@@ -2,12 +2,7 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import assert from "node:assert/strict";
 const manifest = JSON.parse(await readFile("dist/manifest.json", "utf8"));
 assert.equal(manifest.manifest_version, 3);
-assert.deepEqual(manifest.permissions, [
-  "activeTab",
-  "storage",
-  "clipboardWrite",
-  "scripting",
-]);
+assert.deepEqual(manifest.permissions, ["clipboardWrite"]);
 assert.equal(manifest.optional_permissions, undefined);
 assert.equal(manifest.background, undefined);
 assert.equal(manifest.host_permissions, undefined);

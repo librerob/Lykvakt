@@ -30,8 +30,6 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
       - run: xvfb-run -a node tests/visibility.mjs
-      - run: sudo apt-get update && sudo apt-get install -y xdotool
-      - run: xvfb-run -a node tests/tab-actions.mjs
       - run: npm run bench
       - run: npm run package
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -44,8 +42,6 @@ jobs:
             artifacts/browser-results.json
             artifacts/browser-failure.txt
             artifacts/bench.json
-            artifacts/tab-actions-results.json
-            artifacts/tab-actions-failure.txt
             artifacts/*.zip
             artifacts/*.sha256
           if-no-files-found: ignore
