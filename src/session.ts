@@ -86,24 +86,18 @@ export class Session {
       defaultIterations,
     );
     if (epoch !== this.generation) throw new Error("Unlock cancelled.");
-    if (result.envelope.revision !== saved.revision)
-      await storage.commit(result.envelope, saved, signal);
+    if (result.envelope.revision !== saved.revision) {
+      try {
+        await storage.commit(result.envelope, saved, signal);
+      } catch (error) {
+        if (!saved.passkeys.length) throw error;
+        result.envelope = saved;
+      }
+    }
     if (epoch !== this.generation) throw new Error("Unlock cancelled.");
     this.key = result.key;
     this.data = result.data;
     this.envelope = result.envelope;
-    this.touch();
-  }
-  async unlockWith(
-    key: CryptoKey,
-    envelope: Envelope,
-    data: VaultData,
-    epoch: number,
-  ): Promise<void> {
-    if (epoch !== this.generation) throw new Error("Unlock cancelled.");
-    this.key = key;
-    this.envelope = envelope;
-    this.data = data;
     this.touch();
   }
   epoch(): number {
@@ -121,7 +115,11 @@ export class Session {
       signal = this.cancellation.signal,
       previous = this.envelope!;
     try {
-      const header = { ...headerOf(previous), revision: previous.revision + 1 };
+      const header = {
+        ...headerOf(previous),
+        revision: previous.revision + 1,
+        passkeys: [],
+      };
       const validated = validateData(data);
       const next = await seal(
         changeHeader ? changeHeader(header) : header,

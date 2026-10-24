@@ -43,7 +43,8 @@ export interface PasswordSlot {
   iv: string;
   wrapped: string;
 }
-export interface PasskeySlot {
+// Read compatibility only; no new passkey wrappers may be written.
+interface PasskeySlot {
   id: string;
   credential: string;
   salt: string;
@@ -94,6 +95,7 @@ export function headerOf(e: Envelope): Header {
 export function validateEnvelope(
   input: unknown,
   kind?: Header["kind"],
+  legacy = false,
 ): Envelope {
   const e = record(input),
     p = record(e.password),
@@ -118,7 +120,7 @@ export function validateEnvelope(
   if (
     !Array.isArray(e.passkeys) ||
     e.passkeys.length > 5 ||
-    (e.kind === "backup" && e.passkeys.length)
+    ((!legacy || e.kind === "backup") && e.passkeys.length)
   )
     throw new Error("Invalid passkey slots.");
   for (const item of e.passkeys) {
@@ -221,7 +223,7 @@ export async function unwrapPassword(
   e: Envelope,
   password: string,
 ): Promise<Uint8Array<ArrayBuffer>> {
-  validateEnvelope(e);
+  validateEnvelope(e, undefined, true);
   const unwrap = async (normalize: boolean) => {
     const key = await passwordKey(password, e.password, normalize);
     return new Uint8Array(
@@ -303,20 +305,20 @@ export async function seal(
       key,
       "AES-KW",
     );
-    return {
+    return validateEnvelope({
       ...header,
       payload: {
         key: base64(new Uint8Array(wrapped)),
         iv: base64(iv),
         ciphertext: base64(new Uint8Array(ciphertext)),
       },
-    };
+    });
   } finally {
     clear.fill(0);
   }
 }
 export async function open(e: Envelope, key: CryptoKey): Promise<VaultData> {
-  validateEnvelope(e);
+  validateEnvelope(e, undefined, true);
   const contentKey = await crypto.subtle.unwrapKey(
     "raw",
     exact(e.payload.key, 40),
@@ -380,7 +382,7 @@ export async function decryptEnvelope(
   kind?: Header["kind"],
   upgradeIterations?: number,
 ): Promise<{ envelope: Envelope; key: CryptoKey; data: VaultData }> {
-  const envelope = validateEnvelope(input, kind);
+  const envelope = validateEnvelope(input, kind, true);
   if (upgradeIterations !== undefined)
     integer(upgradeIterations, MIN_ITERATIONS, MAX_ITERATIONS);
   const raw = await unwrapPassword(envelope, password);
@@ -389,25 +391,35 @@ export async function decryptEnvelope(
     const data = await open(envelope, key);
     if (
       upgradeIterations !== undefined &&
-      envelope.password.iterations < upgradeIterations
+      (envelope.password.iterations < upgradeIterations ||
+        envelope.passkeys.length)
     ) {
-      const passwordSlot = await makePasswordSlot(
-        raw,
-        password,
-        envelope.id,
-        envelope.kind,
-        upgradeIterations,
-      );
-      const upgraded = await seal(
-        {
-          ...headerOf(envelope),
-          revision: envelope.revision + 1,
-          password: passwordSlot,
-        },
-        key,
-        data,
-      );
-      return { envelope: upgraded, key, data };
+      try {
+        const passwordSlot =
+          envelope.password.iterations < upgradeIterations
+            ? await makePasswordSlot(
+                raw,
+                password,
+                envelope.id,
+                envelope.kind,
+                upgradeIterations,
+              )
+            : envelope.password;
+        const upgraded = await seal(
+          {
+            ...headerOf(envelope),
+            revision: envelope.revision + 1,
+            password: passwordSlot,
+            passkeys: [],
+          },
+          key,
+          data,
+        );
+        return { envelope: upgraded, key, data };
+      } catch (error) {
+        if (!envelope.passkeys.length) throw error;
+        // Legacy slot removal is best effort after authenticated decryption.
+      }
     }
     return { envelope, key, data };
   } finally {

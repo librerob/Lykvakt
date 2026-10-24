@@ -29,7 +29,6 @@ jobs:
       - run: npm audit --audit-level=moderate
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
-      - run: node tests/passkeys.mjs
       - run: xvfb-run -a node tests/visibility.mjs
       - run: sudo apt-get update && sudo apt-get install -y xdotool
       - run: xvfb-run -a node tests/tab-actions.mjs
@@ -45,7 +44,6 @@ jobs:
             artifacts/browser-results.json
             artifacts/browser-failure.txt
             artifacts/bench.json
-            artifacts/passkey-results.json
             artifacts/tab-actions-results.json
             artifacts/tab-actions-failure.txt
             artifacts/*.zip

@@ -1,10 +1,7 @@
 import { button, el, input, form, submit } from "../dom";
-import { load } from "../storage";
-import type { PasskeySlot } from "../crypto";
-import { unlockPasskey } from "../passkeys";
 import type { AppContext } from "./context";
 export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
-  const { session, state, fullWindow, run, render, modal, closeDialog } = ctx;
+  const { session, state, run, render } = ctx;
 
   function locked(): HTMLElement {
     const title = state.exists ? "Welcome back." : "Your codes. Your vault.";
@@ -77,45 +74,6 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
           "Restore an encrypted backup",
           () => recoverySetup(),
           "button text",
-        ),
-      );
-    if (state.exists && fullWindow)
-      panel.append(
-        button(
-          "Try passkey unlock",
-          () =>
-            run(async () => {
-              const epoch = session.epoch(),
-                saved = await load();
-              if (!saved?.passkeys.length)
-                throw new Error(
-                  "No passkey enrolled for this extension. Unlock with your master password.",
-                );
-              const unlock = async (slot: PasskeySlot) => {
-                const result = await unlockPasskey(saved, slot);
-                await session.unlockWith(result.key, saved, result.data, epoch);
-                closeDialog();
-                state.view = "codes";
-                render();
-              };
-              if (saved.passkeys.length === 1) await unlock(saved.passkeys[0]!);
-              else
-                modal(
-                  "Choose a passkey",
-                  el(
-                    "div",
-                    { class: "stack" },
-                    ...saved.passkeys.map((slot, index) =>
-                      button(
-                        `Use passkey ${index + 1}`,
-                        () => run(() => unlock(slot)),
-                        "button tonal",
-                      ),
-                    ),
-                  ),
-                );
-            }),
-          "button tonal",
         ),
       );
     panel.append(
