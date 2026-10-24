@@ -503,6 +503,68 @@ try {
     }
     await screenshot("desktop-eight-digit");
   });
+  await check(
+    "older vault requires explicit recovery confirmation",
+    async () => {
+      const revision = await page.evaluate(async () => {
+        const db = await new Promise((resolve, reject) => {
+          const r = indexedDB.open("otp-vault", 1);
+          r.onsuccess = () => resolve(r.result);
+          r.onerror = reject;
+        });
+        try {
+          return await new Promise((resolve, reject) => {
+            const tx = db.transaction("vault", "readwrite"),
+              store = tx.objectStore("vault");
+            const active = store.get("active"),
+              previous = store.get("previous");
+            active.onsuccess = () =>
+              store.put(
+                {
+                  ...active.result,
+                  payload: { ...active.result.payload, ciphertext: "bad" },
+                },
+                "active",
+              );
+            tx.oncomplete = () => resolve(previous.result.revision);
+            tx.onabort = tx.onerror = reject;
+          });
+        } finally {
+          db.close();
+        }
+      });
+      await page.reload();
+      await expect(
+        page.getByText(
+          `The current vault could not be read. An older copy from revision ${revision} exists. Unlock it to recover?`,
+        ),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Unlock vault", exact: true }),
+      ).toHaveCount(0);
+      await expect(page.locator(".account")).toHaveCount(0);
+      await page
+        .getByLabel("Master password", { exact: true })
+        .fill("wrong synthetic password");
+      await click("Unlock older copy");
+      await expect(page.getByRole("status")).toContainText(
+        "Authentication failed",
+      );
+      await expect(page.locator(".account")).toHaveCount(0);
+      await page.getByLabel("Master password", { exact: true }).fill(password);
+      await click("Unlock older copy");
+      await expect(page.locator(".account")).toHaveCount(3);
+      const star = page.getByRole("button", { name: /favorite: GitHub/ });
+      const original = await star.getAttribute("aria-label");
+      await star.click();
+      await expect(
+        page.getByRole("button", { name: original, exact: true }),
+      ).toHaveCount(0);
+      await click("Lock");
+      await unlock();
+      await expect(page.locator(".account")).toHaveCount(3);
+    },
+  );
   await check("no external requests during vault workflows", async () =>
     expect(network).toEqual([]),
   );

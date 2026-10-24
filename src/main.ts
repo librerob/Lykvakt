@@ -1,7 +1,7 @@
 import "./style.css";
 import { button, el } from "./dom";
 import { Session } from "./session";
-import { load } from "./storage";
+import { load, isRecoveryOffer } from "./storage";
 import { createAccounts } from "./ui/accounts";
 import { createRecovery } from "./ui/recovery";
 import { createSettings } from "./ui/settings";
@@ -234,7 +234,11 @@ function render(): void {
   );
 }
 void run(async () => {
-  state.exists = !!(await load());
+  // Until loading succeeds, never offer setup over a damaged existing database.
+  state.exists = true;
+  const loaded = await load();
+  state.exists = !!loaded;
+  state.recovery = loaded && isRecoveryOffer(loaded) ? loaded : undefined;
   render();
 });
 render();
