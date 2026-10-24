@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { it, expect } from "vitest";
+import { it, expect, vi } from "vitest";
 import { commit, load } from "../src/storage";
 import { createEnvelope, headerOf, seal } from "../src/crypto";
 import { emptyVault } from "../src/model";
@@ -47,4 +47,21 @@ it("locks on the next operation if timers were suspended", async () => {
   session.timeout = 0;
   expect(() => session.accounts()).toThrow("Unlock");
   expect(session.unlocked).toBe(false);
+});
+
+it("monotonic inactivity expiry survives a wall-clock rollback", async () => {
+  const session = new Session();
+  await session.unlock("test database passphrase");
+  const monotonic = performance.now();
+  const wall = Date.now();
+  const clock = vi.spyOn(Date, "now").mockReturnValue(wall - 86_400_000);
+  const tick = vi
+    .spyOn(performance, "now")
+    .mockReturnValue(monotonic + 300_001);
+  try {
+    expect(() => session.accounts()).toThrow("Unlock");
+  } finally {
+    clock.mockRestore();
+    tick.mockRestore();
+  }
 });

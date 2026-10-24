@@ -92,6 +92,7 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
                 );
               const result = await unlockPasskey(saved, saved.passkeys[0]!);
               await session.unlockWith(result.key, saved, result.data, epoch);
+              state.view = "codes";
               render();
             }),
           "button tonal",

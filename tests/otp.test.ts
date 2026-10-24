@@ -197,7 +197,7 @@ describe("import safety", () => {
     const result = parseImport(
       JSON.stringify({
         version: 1,
-        header: null,
+        header: {},
         db: {
           version: 3,
           entries: [
@@ -230,7 +230,7 @@ describe("import safety", () => {
             secret,
             otp: {
               tokenType: "TOTP",
-              account: { name: "user" },
+              account: "user",
               algorithm: "SHA1",
               digits: 6,
               period: 30,
@@ -254,7 +254,7 @@ describe("import safety", () => {
       parseImport(
         JSON.stringify({
           version: 1,
-          header: null,
+          header: {},
           db: {
             version: 3,
             entries: [

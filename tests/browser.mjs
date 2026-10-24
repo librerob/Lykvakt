@@ -10,8 +10,8 @@ const extension = resolve("dist");
 const profile = await mkdtemp(join(tmpdir(), "otp-vault-test-"));
 await mkdir("artifacts/screenshots", { recursive: true });
 const executablePath = process.env.CHROMIUM_PATH || undefined;
-const launch = () =>
-  chromium.launchPersistentContext(profile, {
+const launch = (directory = profile) =>
+  chromium.launchPersistentContext(directory, {
     executablePath,
     channel: executablePath ? undefined : "chromium",
     headless: true,
@@ -313,15 +313,11 @@ try {
     expect(JSON.stringify(data)).not.toContain("demo@example.test");
     expect(data.session).toEqual({});
   });
-  await check("hiding page locks vault", async () => {
-    const other = await context.newPage();
-    await other.goto("about:blank");
-    await other.bringToFront();
-    await page.bringToFront();
+  await check("page reload drops unlocked keys", async () => {
+    await page.reload();
     await expect(
       page.getByRole("heading", { name: "Welcome back." }),
     ).toBeVisible();
-    await other.close();
   });
   await check("narrow viewport has no horizontal overflow", async () => {
     await page.setViewportSize({ width: 360, height: 640 });
@@ -336,6 +332,42 @@ try {
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
+  });
+  await check("recovery into an isolated fresh profile", async () => {
+    await context.close();
+    const recoveredProfile = await mkdtemp(join(tmpdir(), "otp-recovery-"));
+    context = await launch(recoveredProfile);
+    worker =
+      context.serviceWorkers()[0] ??
+      (await context.waitForEvent("serviceworker"));
+    page = await context.newPage();
+    page.on("pageerror", (error) => errors.push(error.message));
+    context.on("request", (request) => {
+      if (/^https?:/.test(request.url())) network.push(request.url());
+    });
+    await page.goto(base);
+    await click("Restore an encrypted backup");
+    await page
+      .getByLabel("Encrypted backup file", { exact: true })
+      .setInputFiles(backupPath);
+    await page
+      .getByLabel("Backup passphrase", { exact: true })
+      .fill("synthetic backup passphrase only");
+    await page
+      .getByLabel("New master password", { exact: true })
+      .fill(password);
+    await page
+      .getByLabel("Confirm new master password", { exact: true })
+      .fill(password);
+    await click("Test & recover accounts");
+    await expect(page.locator(".account")).toHaveCount(3);
+    const row = page
+      .locator(".account")
+      .filter({
+        has: page.getByRole("heading", { name: "Counter", exact: true }),
+      });
+    await expect(row.locator(".otp")).toHaveText("287 082");
+    await screenshot("recovered-fresh-profile");
   });
   await check("no external requests during vault workflows", async () =>
     expect(network).toEqual([]),

@@ -23,6 +23,8 @@ jobs:
       - run: npm audit --audit-level=moderate
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
+      - run: node tests/passkeys.mjs
+      - run: xvfb-run -a node tests/visibility.mjs
       - run: npm run bench
       - run: npm run package
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -33,7 +35,9 @@ jobs:
             artifacts/screenshots/
             artifacts/axe-*.json
             artifacts/browser-results.json
+            artifacts/browser-failure.txt
             artifacts/bench.json
+            artifacts/passkey-results.json
             artifacts/*.zip
             artifacts/*.sha256
           if-no-files-found: ignore

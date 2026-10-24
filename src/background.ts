@@ -1,6 +1,7 @@
 import { loadDirectory, lookup } from "./directory";
 
 let epoch = 0;
+const pending = new Map<number, number>();
 async function enabled(): Promise<boolean> {
   return (
     !!(await chrome.storage.local.get("automatic")).automatic &&
@@ -9,11 +10,13 @@ async function enabled(): Promise<boolean> {
 }
 async function update(id: number, url?: string): Promise<void> {
   const generation = epoch;
+  const sequence = (pending.get(id) ?? 0) + 1;
+  pending.set(id, sequence);
   try {
     const allowed = await enabled();
     const found =
       allowed && url ? lookup(url, await loadDirectory()) : undefined;
-    if (generation !== epoch) return;
+    if (generation !== epoch || pending.get(id) !== sequence) return;
     await chrome.action.setBadgeText({ tabId: id, text: found ? "2FA" : "" });
     await chrome.action.setBadgeBackgroundColor({
       tabId: id,
@@ -60,4 +63,8 @@ chrome.runtime.onStartup.addListener(() => {
 });
 chrome.runtime.onInstalled.addListener(() => {
   void refresh();
+});
+
+chrome.tabs.onRemoved.addListener((id) => {
+  pending.delete(id);
 });

@@ -14,7 +14,10 @@ let dialog: HTMLDialogElement | undefined;
 let status: HTMLElement;
 const isExtension = !!globalThis.chrome?.runtime?.id;
 const fullWindow = new URL(location.href).searchParams.has("window");
-session.timeout = Number(localStorage.getItem("timeout")) || 300_000;
+const storedTimeout = Number(localStorage.getItem("timeout"));
+session.timeout = [60_000, 300_000, 900_000, 1_800_000].includes(storedTimeout)
+  ? storedTimeout
+  : 300_000;
 async function run(action: () => void | Promise<void>): Promise<void> {
   try {
     await action();

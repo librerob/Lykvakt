@@ -16,16 +16,25 @@ export class Session {
   private generation = 0;
   private writing = false;
   private lastActivity = 0;
+  private lastActivityWall = 0;
   timeout = 5 * 60_000;
   onlock = () => {};
   get unlocked(): boolean {
     return !!this.key;
   }
   touch(): void {
-    if (this.key) this.lastActivity = Date.now();
+    if (this.key) {
+      this.lastActivity = performance.now();
+      this.lastActivityWall = Date.now();
+    }
   }
   check(): void {
-    if (this.key && Date.now() - this.lastActivity >= this.timeout) this.lock();
+    if (
+      this.key &&
+      (performance.now() - this.lastActivity >= this.timeout ||
+        Date.now() - this.lastActivityWall >= this.timeout)
+    )
+      this.lock();
     if (!this.key || !this.data || !this.envelope)
       throw new Error("Unlock the vault to continue.");
   }

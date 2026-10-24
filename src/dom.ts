@@ -37,12 +37,7 @@ export function input(
   });
   control.value = value;
   return {
-    wrapper: el(
-      "label",
-      { class: "field" },
-      el("span", { id: `label-${name}` }, label),
-      control,
-    ),
+    wrapper: el("label", { class: "field" }, el("span", {}, label), control),
     control,
   };
 }

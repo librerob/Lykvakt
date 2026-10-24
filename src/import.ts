@@ -153,7 +153,9 @@ export function parseImport(
   if (format === "aegis") {
     if (
       parsed.version !== 1 ||
-      parsed.header !== null ||
+      (parsed.header !== null &&
+        (typeof parsed.header !== "object" ||
+          Object.keys(record(parsed.header)).length !== 0)) ||
       typeof parsed.db !== "object"
     )
       throw new Error(
@@ -188,15 +190,24 @@ export function parseImport(
       };
       const type =
         format === "aegis" ? item.type : String(otp.tokenType).toLowerCase();
+      if (type === "hotp" && otp.counter === undefined)
+        throw new Error("HOTP requires an explicit counter.");
       const counter = otp.counter ?? 0;
       if (typeof counter !== "string" && !Number.isSafeInteger(counter))
         throw new Error("Unsafe HOTP counter.");
-      const account = format === "2fas" ? record(otp.account ?? {}) : {};
+      const account = format === "2fas" ? otp.account : undefined;
+      if (
+        format === "2fas" &&
+        account !== undefined &&
+        typeof account !== "string"
+      )
+        throw new Error("Invalid 2FAS account identifier.");
       return validateAccount({
         id: crypto.randomUUID(),
         type,
-        issuer: format === "aegis" ? item.issuer : item.name,
-        label: format === "aegis" ? item.name : (account.name ?? item.name),
+        issuer: format === "aegis" ? item.issuer : (otp.issuer ?? item.name),
+        label:
+          format === "aegis" ? item.name : (account ?? otp.label ?? item.name),
         secret: format === "aegis" ? otp.secret : item.secret,
         algorithm: algorithms[hash],
         digits: otp.digits,
