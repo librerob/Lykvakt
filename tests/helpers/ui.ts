@@ -97,7 +97,9 @@ export function set(name: string, value: string) {
 }
 export async function send() {
   if (!ui.submit) throw new Error("Missing test form.");
-  await ui.submit(new FormData(), {
+  const data = new FormData();
+  for (const [name, field] of ui.fields) data.set(name, field.value);
+  await ui.submit(data, {
     reset() {
       for (const f of ui.fields.values()) f.value = "";
     },

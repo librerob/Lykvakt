@@ -186,7 +186,11 @@ export function createSettings(ctx: AppContext) {
       el(
         "aside",
         { class: "notice" },
-        el("strong", {}, "Development preview · 0.1.0-rc.1"),
+        el(
+          "strong",
+          {},
+          `Development preview · ${isExtension ? chrome.runtime.getManifest().version : "development"}`,
+        ),
         el(
           "p",
           {},

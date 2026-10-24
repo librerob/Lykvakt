@@ -28,15 +28,34 @@ export async function load(): Promise<Envelope | undefined> {
 export async function commit(
   next: Envelope,
   expected?: Envelope,
+  signal?: AbortSignal,
 ): Promise<void> {
+  if (signal?.aborted) throw new Error("Save cancelled by locking.");
   const db = await database();
   try {
     await new Promise<void>((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(new Error("Save cancelled by locking."));
+        return;
+      }
       const tx = db.transaction("vault", "readwrite", { durability: "strict" });
       const store = tx.objectStore("vault");
       const request = store.get("active");
       let conflict = false;
+      const abort = () => {
+        try {
+          tx.abort();
+        } catch {
+          /* Already past the transaction's abortable phase. */
+        }
+      };
+      signal?.addEventListener("abort", abort, { once: true });
+      const cleanup = () => signal?.removeEventListener("abort", abort);
       request.onsuccess = () => {
+        if (signal?.aborted) {
+          abort();
+          return;
+        }
         const old = request.result as Envelope | undefined;
         if (
           expected
@@ -51,15 +70,22 @@ export async function commit(
         }
         store.put(next, "active");
       };
-      tx.oncomplete = () => resolve();
-      tx.onabort = tx.onerror = () =>
+      tx.oncomplete = () => {
+        cleanup();
+        resolve();
+      };
+      tx.onabort = tx.onerror = () => {
+        cleanup();
         reject(
           new Error(
-            conflict
-              ? "Vault changed in another window. Lock and unlock before retrying."
-              : "Save failed. The previous vault is unchanged.",
+            signal?.aborted
+              ? "Save cancelled by locking."
+              : conflict
+                ? "Vault changed in another window. Lock and unlock before retrying."
+                : "Save failed. The previous vault is unchanged.",
           ),
         );
+      };
     });
   } finally {
     db.close();

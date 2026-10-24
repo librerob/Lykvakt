@@ -164,7 +164,7 @@ export function createRecovery(
             if (epoch !== session.epoch()) return;
             download(
               contents,
-              `otp-vault-backup-${new Date().toISOString().slice(0, 10)}.json`,
+              `lykvakt-backup-${new Date().toISOString().slice(0, 10)}.json`,
             );
             closeDialog();
             announce(

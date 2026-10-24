@@ -15,6 +15,7 @@ export class Session {
   private envelope?: Envelope;
   private data?: VaultData;
   private generation = 0;
+  private cancellation = new AbortController();
   private writing = false;
   private lastActivity = 0;
   private lastActivityWall = 0;
@@ -41,6 +42,8 @@ export class Session {
   }
   lock(): void {
     this.generation++;
+    this.cancellation.abort();
+    this.cancellation = new AbortController();
     this.key = undefined;
     this.data = undefined;
     this.envelope = undefined;
@@ -55,11 +58,12 @@ export class Session {
     return structuredClone(this.envelope!);
   }
   async setup(password: string, data = emptyVault()): Promise<void> {
-    const epoch = this.generation;
+    const epoch = this.generation,
+      signal = this.cancellation.signal;
     const result = await createEnvelope(password, data);
     if (epoch !== this.generation)
       throw new Error("Setup was cancelled by locking.");
-    await storage.commit(result.envelope);
+    await storage.commit(result.envelope, undefined, signal);
     if (epoch !== this.generation) return;
     this.key = result.key;
     this.data = data;
@@ -70,8 +74,10 @@ export class Session {
     password: string,
     defaultIterations = DEFAULT_ITERATIONS,
   ): Promise<void> {
-    const epoch = this.generation;
+    const epoch = this.generation,
+      signal = this.cancellation.signal;
     const saved = await storage.load();
+    if (epoch !== this.generation) throw new Error("Unlock cancelled.");
     if (!saved) throw new Error("No vault exists.");
     const result = await decryptEnvelope(
       saved,
@@ -81,7 +87,7 @@ export class Session {
     );
     if (epoch !== this.generation) throw new Error("Unlock cancelled.");
     if (result.envelope.revision !== saved.revision)
-      await storage.commit(result.envelope, saved);
+      await storage.commit(result.envelope, saved, signal);
     if (epoch !== this.generation) throw new Error("Unlock cancelled.");
     this.key = result.key;
     this.data = result.data;
@@ -112,6 +118,7 @@ export class Session {
     if (this.writing) throw new Error("A save is already in progress.");
     this.writing = true;
     const epoch = this.generation,
+      signal = this.cancellation.signal,
       previous = this.envelope!;
     try {
       const header = { ...headerOf(previous), revision: previous.revision + 1 };
@@ -124,8 +131,9 @@ export class Session {
       this.check();
       if (epoch !== this.generation)
         throw new Error("Save cancelled by locking.");
-      await storage.commit(next, previous);
-      if (epoch !== this.generation) return;
+      await storage.commit(next, previous, signal);
+      if (epoch !== this.generation)
+        throw new Error("Save cancelled by locking.");
       this.key = nextKey ?? this.key;
       this.envelope = next;
       this.data = validated;
