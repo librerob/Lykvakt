@@ -129,10 +129,18 @@ try {
     );
   }
   const text = () => evaluate("document.body.innerText");
-  const click = (label) =>
-    evaluate(
+  const click = async (label) => {
+    await expect
+      .poll(() =>
+        evaluate(
+          `([...document.querySelectorAll('button')].some(b => b.textContent === ${JSON.stringify(label)} && !b.disabled))`,
+        ),
+      )
+      .toBe(true);
+    return evaluate(
       `(() => { const b = [...document.querySelectorAll('button')].find(b => b.textContent === ${JSON.stringify(label)}); if (!b) throw Error('Missing button'); b.click(); })()`,
     );
+  };
   await expect.poll(text).toContain("Welcome back.");
   await evaluate(
     `document.querySelector('input[name="password"]').value = ${JSON.stringify(password)}`,
