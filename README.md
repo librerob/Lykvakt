@@ -6,6 +6,10 @@ An offline browser authenticator with a password-encrypted local vault and a bac
 
 The product name is provisional. This repository contains original GPL-3.0-or-later code; bundled third-party components retain their licenses.
 
+![Actual Chromium interface with synthetic accounts](docs/screenshots/desktop-eight-digit.png)
+
+[Light, dark, AMOLED and recovery screenshots](docs/screenshots.md). All accounts shown are synthetic.
+
 ## What works
 
 - RFC 4226 HOTP and RFC 6238 TOTP, SHA-1/256/512, six or eight digits, custom periods.
