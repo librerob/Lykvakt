@@ -80,6 +80,7 @@ export async function commit(
   next: Envelope,
   expected?: Envelope | RecoveryOffer,
   signal?: AbortSignal,
+  discardPrevious = false,
 ): Promise<void> {
   if (signal?.aborted) throw new Error("Save cancelled by locking.");
   const db = await database();
@@ -122,8 +123,13 @@ export async function commit(
         try {
           // Preserve the stored ciphertext byte-for-byte, in the same transaction.
           // A recovery promotion retains the authenticated older copy, not corrupt active data.
-          const previous = recovery ? recovery.previous : old;
-          if (previous !== undefined) store.put(previous, "previous");
+          if (discardPrevious) {
+            // Key rotation must not leave a copy encrypted with the superseded key.
+            store.delete("previous");
+          } else {
+            const previous = recovery ? recovery.previous : old;
+            if (previous !== undefined) store.put(previous, "previous");
+          }
           store.put(next, "active");
         } catch {
           abort();

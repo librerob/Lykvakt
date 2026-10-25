@@ -149,7 +149,12 @@ export class Session {
       this.check();
       if (epoch !== this.generation)
         throw new Error("Save cancelled by locking.");
-      await storage.commit(next, this.recovery ?? previous, signal);
+      await storage.commit(
+        next,
+        this.recovery ?? previous,
+        signal,
+        nextKey !== undefined && nextKey !== this.key,
+      );
       if (epoch !== this.generation)
         throw new Error("Save cancelled by locking.");
       this.key = nextKey ?? this.key;
