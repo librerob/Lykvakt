@@ -19,7 +19,7 @@ The complete manifest permission set is `["clipboardWrite"]`. Supplied import fi
 | Accidental plaintext export                     | Fresh master-password verification and explicit warning                                  | Anyone holding the exported seed can generate codes                      |
 | Dependency/build compromise                     | Small bundled runtime set, lockfile and pinned CI actions                                | Pinning and vulnerability feeds do not prove safety                      |
 
-Password change rotates the vault key and atomically removes the older local recovery copy. An old envelope/password key cannot open subsequent saves. Independently retained snapshots and backups keep their original credentials. The local previous copy is not an independent backup or guaranteed secure deletion mechanism.
+Password change rotates the vault key and atomically removes the older local recovery copy. An old envelope/password key cannot open subsequent saves. Independently retained snapshots and backups keep their original credentials. The local previous copy is not an independent backup or guaranteed secure deletion mechanism. Older-copy recovery warns that HOTP counters may lag and previously submitted codes must not be reused. Malformed or exhausted active revisions do not prevent later saves after confirmed recovery; the transaction still checks the actual active record.
 
 For legacy compatibility, new envelopes retain an empty `passkeys` array, and old slots are authenticated and stripped on password unlock when saving succeeds.
 

@@ -13,7 +13,7 @@ export function isRecoveryOffer(
 export class RecoveryRequired extends Error {
   constructor(readonly offer: RecoveryOffer) {
     super(
-      `The current vault could not be read. An older copy from revision ${offer.previous.revision} exists. Unlock it to recover?`,
+      `The current vault could not be read. An older copy from revision ${offer.previous.revision} exists. Unlock it to recover? If you use counter-based (HOTP) accounts, their counters may be behind. Do not reuse codes you already submitted.`,
     );
   }
 }

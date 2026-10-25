@@ -132,7 +132,9 @@ export class Session {
     try {
       const active = this.recovery?.active as Partial<Envelope> | undefined;
       const activeRevision =
-        Number.isSafeInteger(active?.revision) && active!.revision! >= 0
+        Number.isSafeInteger(active?.revision) &&
+        active!.revision! >= 0 &&
+        active!.revision! < Number.MAX_SAFE_INTEGER - 2
           ? active!.revision!
           : 0;
       const header = {

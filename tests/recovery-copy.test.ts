@@ -170,3 +170,85 @@ it("never offers an invalid previous copy or falls back after authentication fai
   await record("previous", { bad: true }, true);
   await expect(load()).rejects.toThrow("no readable older copy");
 });
+
+it("the recovery offer warns about older HOTP counters before confirmation", async () => {
+  const { second } = await copies();
+  await record(
+    "active",
+    { ...second, payload: { ...second.payload, ciphertext: "bad" } },
+    true,
+  );
+  const offered = (await load())!;
+  if (!isRecoveryOffer(offered)) throw new Error("Missing recovery offer");
+  expect(new RecoveryRequired(offered).message).toContain(
+    "If you use counter-based (HOTP) accounts, their counters may be behind. Do not reuse codes you already submitted.",
+  );
+});
+it.each([
+  Number.MAX_SAFE_INTEGER - 2,
+  Number.MAX_SAFE_INTEGER - 1,
+  Number.MAX_SAFE_INTEGER,
+  Number.MAX_SAFE_INTEGER + 1,
+  Number.POSITIVE_INFINITY,
+  1.5,
+  -1,
+  "invalid revision",
+])(
+  "recovery ignores unusable active revision %s and permits later saves",
+  async (revision) => {
+    const { first, second } = await copies();
+    const corrupt = {
+      ...second,
+      revision,
+      payload: { ...second.payload, ciphertext: "bad" },
+    };
+    await record("active", corrupt, true);
+    const offered = (await load())!;
+    if (!isRecoveryOffer(offered)) throw new Error("Missing recovery offer");
+    const session = new Session();
+    await session.unlock(password, undefined, offered);
+    await session.save(session.accounts());
+    expect(session.current().revision).toBe(first.revision + 1);
+    expect(await load()).toEqual(session.current());
+    expect(await record("previous")).toEqual(first);
+    await session.save(session.accounts());
+    expect(session.current().revision).toBe(first.revision + 2);
+    expect(await load()).toEqual(session.current());
+  },
+);
+it("recovery accepts the last safe active revision below the reserved headroom", async () => {
+  const { second } = await copies();
+  const revision = Number.MAX_SAFE_INTEGER - 3;
+  await record(
+    "active",
+    { ...second, revision, payload: { ...second.payload, ciphertext: "bad" } },
+    true,
+  );
+  const offered = (await load())!;
+  if (!isRecoveryOffer(offered)) throw new Error("Missing recovery offer");
+  const session = new Session();
+  await session.unlock(password, undefined, offered);
+  await session.save(session.accounts());
+  expect(session.current().revision).toBe(revision + 1);
+  expect(await load()).toEqual(session.current());
+});
+it("recovery still rejects a changed corrupt active record when its revision was ignored", async () => {
+  const { second } = await copies();
+  const corrupt = {
+    ...second,
+    revision: Number.MAX_SAFE_INTEGER,
+    payload: { ...second.payload, ciphertext: "bad" },
+  };
+  await record("active", corrupt, true);
+  const offered = (await load())!;
+  if (!isRecoveryOffer(offered)) throw new Error("Missing recovery offer");
+  const session = new Session();
+  await session.unlock(password, undefined, offered);
+  const changed = { ...corrupt, revision: Number.MAX_SAFE_INTEGER - 1 };
+  await record("active", changed, true);
+  await expect(session.save(session.accounts())).rejects.toThrow(
+    "changed in another window",
+  );
+  expect(await record("active")).toEqual(changed);
+  expect(session.current()).toEqual(offered.previous);
+});

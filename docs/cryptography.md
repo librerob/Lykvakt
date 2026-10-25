@@ -28,7 +28,7 @@ Canonical JSON sorts object keys by plain JavaScript code-unit comparison and pr
 
 Payload schema 1 is read into schema 2; new saves use schema 2. Legacy account metadata remains validated and encrypted for compatibility, without granting page access. Encrypted backups use independent key material and their own passphrases. Verification authenticates the selected file, validates records and compares account snapshots.
 
-Ordinary saves preserve the exact previous encrypted envelope in the active-write transaction. Structural corruption can offer that older copy; selection and password authentication are explicit. Promotion still compares against the actual active record. There is no trusted anti-rollback anchor or guaranteed forensic erasure.
+Ordinary saves preserve the exact previous encrypted envelope in the active-write transaction. Structural corruption can offer that older copy; selection and password authentication are explicit. Recovered HOTP counters may be behind; the recovery offer warns against reusing previously submitted codes. Promotion still compares against the actual active record. Only a nonnegative safe active revision below Number.MAX_SAFE_INTEGER - 2 advances the recovered revision; malformed or exhausted active revisions are ignored for numbering, without bypassing compare-and-swap. There is no trusted anti-rollback anchor or guaranteed forensic erasure.
 
 ## Limits
 
