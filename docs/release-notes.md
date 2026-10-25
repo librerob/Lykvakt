@@ -1,19 +1,17 @@
-# Lykvakt 0.2.0-rc.1 — unaudited development preview
+# Lykvakt 0.3.0-rc.1 — unaudited development preview
 
 **Use test accounts only. Keep your existing authenticator, service recovery codes and independently stored verified backups. This build has not had an independent security audit.**
 
-This build is an offline TOTP/HOTP vault with a single true-black and pink appearance. Its complete manifest permission set is `["clipboardWrite"]`, used only to copy a selected code after a click. There are no optional or host permissions, developer servers or telemetry.
+- New vaults, backups and password changes use Argon2id in a bundled JavaScript worker. Recommended protection uses 64 MiB, three passes and one lane. No WebAssembly is shipped or used by the extension.
+- Supported older PBKDF2 files still open. Vault unlock attempts an authenticated upgrade. Transient write failures preserve access and show a dismissible retry reminder; typed revision conflicts reject the stale unlock. Successful upgrades discard superseded local recovery copies atomically.
+- Optional local tuning shows measured and estimated times before an authenticated save. Stronger existing protection is retained.
+- Optional Next preview for time-based codes starts off and follows the current code's reveal/masking state. Copy always uses the current code; HOTP counters are never advanced automatically.
+- Open with Ctrl+Shift+Y, or Command+Shift+Y on Mac. Rebind at chrome://extensions/shortcuts. Enter after a non-empty account search copies the first match and names the account; Escape clears search before closing a popup.
+- Native keyboard-accessible help, plain-language errors and busy messages, and a dismissible first-run backup checklist.
+- Recovery warns about older HOTP counters and ignores unusable active revisions without bypassing conflict checks.
 
-- Master-password unlock and authenticated local encryption, with page/inactivity locking and revision-checked atomic saves.
-- Fresh vault-key rotation on password change; the older local recovery copy is removed in the same transaction. Exported backups keep their original passphrases.
-- Explicit password-authenticated recovery from a readable previous encrypted revision when the active envelope is structurally unreadable.
-- Codes hidden by default, timed keyboard-operable reveal and copying without reveal.
-- Setup keys, standard OTP links, user-selected QR images, complete Google Authenticator transfer batches and supported plaintext Aegis/2FAS exports.
-- Import previews with visible skipped-entry reports, duplicate handling and blocking configuration conflicts.
-- Per-account transfer QR and plaintext OTP export after master-password re-authentication.
-- Encrypted backups with actual saved-file restoration testing and an account-snapshot backup reminder.
-- Local seven-word passphrase generation using the bundled EFF wordlist and browser-provided random values.
+**Older Lykvakt builds cannot open Argon2id vaults or backups.**
 
-KDF compatibility bounds, Unicode password handling, deterministic authenticated-header encoding, session cancellation and parser fuzz tests cover specific failure cases. Automated results are not an audit or exhaustive phone interoperability certification. See [validation](validation.md), [migration](migration.md) and [recovery](recovery.md).
+The complete manifest permission set remains ["clipboardWrite"], used to copy a selected code after a click or search Enter. There are no optional or host permissions, remote code, developer servers or telemetry.
 
-The repository remains `librerob/otp-vault`. No Chrome Web Store submission or production-support promise is made.
+See the [plain-English guide](plain-english-guide.md), [compatibility](compatibility.md), [validation](validation.md) and [recovery](recovery.md). Automated checks are not an independent audit or exhaustive interoperability certification. No Store submission or production-support promise is made.

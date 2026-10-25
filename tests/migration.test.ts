@@ -165,7 +165,7 @@ describe("encrypted website approvals and schema migration", () => {
       expect(() =>
         validateData({ ...data, accounts: [{ ...a, origins: [origin] }] }),
       ).toThrow();
-  });
+  }, 60_000);
 });
 
 it("restores a frozen encrypted 0.1.0 backup with exact HOTP state", async () => {
@@ -191,4 +191,4 @@ it("restores a frozen encrypted 0.1.0 backup with exact HOTP state", async () =>
       },
     ],
   });
-});
+}, 60_000);

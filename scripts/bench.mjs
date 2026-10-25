@@ -3,7 +3,7 @@ import { writeFile, mkdir } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 await mkdir("artifacts", { recursive: true });
 await build({
-  entryPoints: ["src/crypto.ts", "src/import.ts", "src/otp.ts"],
+  entryPoints: ["src/crypto.ts", "src/import.ts", "src/otp.ts", "src/kdf.ts"],
   outdir: "artifacts/bench-modules",
   bundle: true,
   platform: "node",
@@ -11,6 +11,7 @@ await build({
   packages: "external",
 });
 const cryptoModule = await import("../artifacts/bench-modules/crypto.js");
+const kdfModule = await import("../artifacts/bench-modules/kdf.js");
 const importer = await import("../artifacts/bench-modules/import.js");
 const otp = await import("../artifacts/bench-modules/otp.js");
 const records = Array.from({ length: 500 }, (_, i) => ({
@@ -40,6 +41,17 @@ async function measure(name, action) {
   results.measurements[name] = Number((performance.now() - start).toFixed(2));
   return value;
 }
+results.argon2Defaults = { mKiB: 65_536, t: 3, p: 1, version: 0x13 };
+await measure("argon2idDefaultMs", async () => {
+  const password = new TextEncoder().encode("synthetic benchmark passphrase"),
+    salt = crypto.getRandomValues(new Uint8Array(32));
+  try {
+    await kdfModule.argon2Key(password, salt, cryptoModule.DEFAULT_KDF);
+  } finally {
+    password.fill(0);
+    salt.fill(0);
+  }
+});
 const saved = await measure("createVaultMs", () =>
   cryptoModule.createEnvelope("synthetic benchmark passphrase", data),
 );

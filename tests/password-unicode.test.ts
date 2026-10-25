@@ -28,6 +28,7 @@ it.each(["NFC", "NFD"] as const)(
       nfd?.fill(0);
     }
   },
+  60_000,
 );
 it("new slots also apply compatibility normalization, not only canonical composition", async () => {
   const { envelope } = await createEnvelope(
@@ -37,7 +38,7 @@ it("new slots also apply compatibility normalization, not only canonical composi
   expect(
     (await decryptEnvelope(envelope, "synthetic A master passphrase")).data,
   ).toEqual(emptyVault());
-});
+}, 60_000);
 it("a frozen raw-NFD legacy backup still unlocks with its original passphrase", async () => {
   // Made with untouched source at fe2cc687, before any normalization change.
   const restored = await decryptEnvelope(
@@ -46,4 +47,4 @@ it("a frozen raw-NFD legacy backup still unlocks with its original passphrase", 
     "backup",
   );
   expect(restored.data).toEqual(emptyVault());
-});
+}, 60_000);

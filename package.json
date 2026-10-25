@@ -1,6 +1,6 @@
 {
   "name": "otp-vault",
-  "version": "0.2.0-rc.1",
+  "version": "0.3.0-rc.1",
   "private": true,
   "type": "module",
   "license": "GPL-3.0-or-later",
@@ -16,6 +16,7 @@
     "bench": "node scripts/bench.mjs"
   },
   "dependencies": {
+    "@noble/hashes": "2.4.0",
     "jsqr": "1.4.0",
     "qrcode": "1.5.4"
   },

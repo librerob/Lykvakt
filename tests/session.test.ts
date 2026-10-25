@@ -29,7 +29,7 @@ it("idle timeout locks and removes access to keys and account data", async () =>
   expect(session.unlocked).toBe(false);
   expect(() => session.accounts()).toThrow("Unlock");
   expect(() => session.current()).toThrow("Unlock");
-});
+}, 60_000);
 it("lock during in-flight password unlock cancels it without resurrecting the session", async () => {
   const session = await unlocked();
   session.lock();
@@ -51,7 +51,7 @@ it("lock during in-flight password unlock cancels it without resurrecting the se
   finish.release();
   await rejected;
   expect(session.unlocked).toBe(false);
-});
+}, 60_000);
 it("lock during in-flight sealing cancels save without changing storage", async () => {
   const session = await unlocked(),
     old = session.current(),
@@ -72,7 +72,7 @@ it("lock during in-flight sealing cancels save without changing storage", async 
   await rejected;
   expect(await storage.load()).toEqual(old);
   expect(session.unlocked).toBe(false);
-});
+}, 60_000);
 it("lock after save reaches storage cancels the pending commit rather than writing it", async () => {
   const session = await unlocked(),
     old = session.current(),
@@ -92,7 +92,7 @@ it("lock after save reaches storage cancels the pending commit rather than writi
   await rejected;
   expect(await storage.load()).toEqual(old);
   expect(session.unlocked).toBe(false);
-});
+}, 60_000);
 it("concurrent save is rejected while the first save is in flight", async () => {
   const session = await unlocked(),
     old = session.current(),
@@ -112,7 +112,7 @@ it("concurrent save is rejected while the first save is in flight", async () => 
   finish.release();
   await first;
   expect(session.current().revision).toBe(old.revision + 1);
-});
+}, 60_000);
 it("stale session revision cannot overwrite another window's save", async () => {
   const first = await unlocked(),
     stale = new Session();
@@ -124,4 +124,4 @@ it("stale session revision cannot overwrite another window's save", async () => 
   );
   expect(stale.current()).toEqual(old);
   expect(await storage.load()).toEqual(first.current());
-});
+}, 60_000);

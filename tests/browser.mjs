@@ -59,6 +59,56 @@ async function importURI(value) {
   await expect(page.getByRole("dialog")).toContainText("Review import");
   await click("Import 1 account(s)");
 }
+const openedHelpTopics = new Set();
+async function plainPrimaryUI() {
+  const text = await page.evaluate(() => {
+    const body = document.body.cloneNode(true);
+    body.querySelectorAll("[data-technical]").forEach((node) => node.remove());
+    return body.textContent;
+  });
+  expect(text).not.toMatch(
+    /\b(?:Argon2id|PBKDF2|KDF|AES|GCM|AAD|envelope|nonce|iterations|WASM)\b/i,
+  );
+}
+async function keyboardHelp(scope = page, leaveOpen = false) {
+  const blocks = scope.locator("details[data-help], details[data-technical]");
+  const opened = [];
+  for (let i = 0; i < (await blocks.count()); i++) {
+    const block = blocks.nth(i);
+    if (!(await block.isVisible())) continue;
+    const summary = block.locator(":scope > summary");
+    expect(
+      await summary.evaluate((node) => node.tabIndex),
+    ).toBeGreaterThanOrEqual(0);
+    await summary.focus();
+    if ((await block.getAttribute("open")) !== null)
+      await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+    await expect(block).toHaveAttribute("open", "");
+    await expect(block.locator(":scope > p").first()).toBeVisible();
+    const topic = await block.getAttribute("data-help");
+    if (topic) openedHelpTopics.add(topic);
+    opened.push(block);
+  }
+  await plainPrimaryUI();
+  if (!leaveOpen)
+    for (const block of opened.reverse()) {
+      await block.locator(":scope > summary").focus();
+      await page.keyboard.press("Enter");
+      await expect(block).not.toHaveAttribute("open", "");
+    }
+}
+async function helpAxe(name) {
+  const results = await new AxeBuilder({ page })
+    .setLegacyMode()
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+    .analyze();
+  await writeFile(
+    "artifacts/axe-help-" + name + ".json",
+    JSON.stringify(results.violations, null, 2),
+  );
+  expect(results.violations).toEqual([]);
+}
 async function screenshot(name) {
   await page.screenshot({
     path: `artifacts/screenshots/${name}.png`,
@@ -74,6 +124,25 @@ try {
     ).toBeVisible();
     await screenshot("setup");
   });
+  await check(
+    "the suggested popup command is assigned without a Chrome shortcut collision",
+    async () => {
+      const commands = await page.evaluate(() => chrome.commands.getAll());
+      expect(
+        commands.find((command) => command.name === "_execute_action")
+          ?.shortcut,
+      ).toBe("Ctrl+Shift+Y");
+    },
+  );
+  await check(
+    "setup focuses the password and opens plain-language help by keyboard",
+    async () => {
+      await expect(
+        page.getByLabel("Create a master password", { exact: true }),
+      ).toBeFocused();
+      await keyboardHelp();
+    },
+  );
   await check(
     "setup generates a passphrase and shows it only until leaving the field",
     async () => {
@@ -101,12 +170,83 @@ try {
     await expect(page.getByText("A fresh start.")).toBeVisible();
     await screenshot("empty");
   });
+  await check(
+    "first-run guidance is keyboard accessible and dismissal survives reopening",
+    async () => {
+      const tips = page.getByRole("complementary", { name: "Getting started" });
+      await expect(tips).toBeVisible();
+      await expect(
+        page.getByLabel("Search accounts", { exact: true }),
+      ).toBeFocused();
+      await keyboardHelp();
+      await click("Got it");
+      await expect(tips).toHaveCount(0);
+      await page.reload();
+      await expect(
+        page.getByLabel("Master password", { exact: true }),
+      ).toBeFocused();
+      await unlock();
+      await expect(tips).toHaveCount(0);
+      await expect(
+        page.getByLabel("Search accounts", { exact: true }),
+      ).toBeFocused();
+    },
+  );
   await check("standard URI preview and import", async () => {
     await importURI(uri);
     await expect(
       page.getByRole("heading", { name: "GitHub", exact: true }),
     ).toBeVisible();
   });
+  await check(
+    "empty and whitespace search Enter never writes to the clipboard",
+    async () => {
+      const search = page.getByLabel("Search accounts", { exact: true });
+      await page.evaluate(() => {
+        globalThis.__originalClipboardWrite = navigator.clipboard.writeText;
+        globalThis.__emptySearchWrites = 0;
+        navigator.clipboard.writeText = async () => {
+          globalThis.__emptySearchWrites++;
+        };
+      });
+      try {
+        for (const value of ["", "   "]) {
+          await search.fill(value);
+          await search.press("Enter");
+          await expect(page.getByRole("status")).toContainText(
+            "Type part of an account name, then press Enter to copy its code.",
+          );
+          expect(
+            await page.evaluate(() => globalThis.__emptySearchWrites),
+          ).toBe(0);
+          await expect(page.locator(".account .otp")).toHaveText("••• •••");
+        }
+      } finally {
+        await page.evaluate(() => {
+          navigator.clipboard.writeText = globalThis.__originalClipboardWrite;
+          delete globalThis.__originalClipboardWrite;
+          delete globalThis.__emptySearchWrites;
+        });
+        await search.fill("");
+      }
+    },
+  );
+  await check(
+    "search Enter copies a current code without reveal and Escape clears the search",
+    async () => {
+      const search = page.getByLabel("Search accounts", { exact: true });
+      await expect(search).toBeFocused();
+      await search.fill("GitHub");
+      await search.press("Enter");
+      await expect(page.getByRole("status")).toContainText(
+        "Copied code for GitHub demo@example.test. Clipboard managers may keep a copy.",
+      );
+      await expect(page.locator(".account .otp")).toHaveText("••• •••");
+      await search.press("Escape");
+      await expect(search).toHaveValue("");
+      await expect(search).toBeFocused();
+    },
+  );
   await check(
     "codes start hidden; copy does not reveal; keyboard reveal expires",
     async () => {
@@ -116,7 +256,9 @@ try {
         "Reveal code for GitHub demo@example.test (hidden)",
       );
       await click("Copy");
-      await expect(page.getByRole("status")).toContainText("Code copied");
+      await expect(page.getByRole("status")).toContainText(
+        "Copied code for GitHub demo@example.test. Clipboard managers may keep a copy.",
+      );
       await expect(code).toHaveText("••• •••");
       await code.focus();
       await page.keyboard.press("Enter");
@@ -638,6 +780,122 @@ try {
     await screenshot("desktop-eight-digit");
   });
   await check(
+    "optional next-code preview preserves masking, settings and current-only copy",
+    async () => {
+      await click("Settings");
+      const setting = page.getByLabel("Show next code", { exact: true });
+      await expect(setting).not.toBeChecked();
+      await setting.check();
+      await click("Authenticator");
+      const row = page.locator(".account").filter({
+        has: page.getByRole("heading", { name: "Eight", exact: true }),
+      });
+      const next = row.locator(".next-code");
+      await expect(row.locator(".otp")).toHaveText("••• •••");
+      await expect(next).toBeHidden();
+      await row.locator(".otp").click();
+      await expect(next).toBeVisible();
+      await expect(next).toHaveAccessibleName(
+        "Next code, valid after the current one expires",
+      );
+      await expect
+        .poll(async () => {
+          const now = await page.evaluate(() => Date.now());
+          const message = Buffer.alloc(8);
+          message.writeBigUInt64BE(BigInt(Math.floor(now / 45_000) + 1));
+          const mac = createHmac("sha256", "12345678901234567890123456789012")
+            .update(message)
+            .digest();
+          const value = ((mac.readUInt32BE(mac.at(-1) & 15) & 0x7fffffff) % 1e8)
+            .toString()
+            .padStart(8, "0");
+          return (
+            (await row.locator(".next-code-value").textContent()) ===
+            value.slice(0, 4) + " " + value.slice(4)
+          );
+        })
+        .toBe(true);
+      await row.getByRole("button", { name: "Copy", exact: true }).click();
+      await expect(page.getByRole("status")).toContainText(
+        "Copied code for Eight synthetic. Clipboard managers may keep a copy.",
+      );
+      await row.locator(".otp").click();
+      await expect(next).toBeHidden();
+      await expect(row.locator(".next-code-value")).toHaveText("");
+      const hotp = page.locator(".account").filter({
+        has: page.getByRole("heading", { name: "Counter", exact: true }),
+      });
+      await expect(hotp.locator(".next-code")).toHaveCount(0);
+      await page.setViewportSize({ width: 360, height: 760 });
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page.reload();
+      await unlock();
+      await expect(next).toBeHidden();
+      await click("Settings");
+      await expect(setting).toBeChecked();
+      await setting.uncheck();
+      await click("Authenticator");
+    },
+  );
+  await check(
+    "settings, backup and export help work by keyboard with expanded axe checks",
+    async () => {
+      await click("Settings");
+      const strength = page.getByLabel(
+        "How strongly should we protect your vault?",
+        { exact: true },
+      );
+      await expect(strength).toHaveValue("recommended");
+      await strength.selectOption("tune");
+      await expect(
+        page.getByRole("button", { name: "Test this computer", exact: true }),
+      ).toBeVisible();
+      await expect(page.locator("[data-calibration-result]")).toBeHidden();
+      // A real speed probe is an explicit user action, never run by this suite.
+      await keyboardHelp(page, true);
+      await helpAxe("settings");
+      await keyboardHelp();
+      await strength.selectOption("recommended");
+      await click("Recovery");
+      await expect(
+        page.getByText(
+          "Backups made with this version need this version or newer to restore.",
+          { exact: true },
+        ),
+      ).toBeVisible();
+      await keyboardHelp(page, true);
+      await helpAxe("recovery");
+      await keyboardHelp();
+      for (const name of [
+        "Create encrypted backup",
+        "Verify or restore a backup",
+        "Export plaintext OTP links…",
+      ]) {
+        await click(name);
+        await keyboardHelp(page.getByRole("dialog"));
+        await click("Close");
+      }
+      await click("Authenticator");
+      for (const name of ["+ Add account", "Import accounts"]) {
+        await click(name);
+        await keyboardHelp(page.getByRole("dialog"));
+        await click("Close");
+      }
+      await page
+        .locator(".account")
+        .first()
+        .getByRole("button", { name: "Edit", exact: true })
+        .click();
+      await click("Show transfer QR…");
+      await keyboardHelp(page.getByRole("dialog"));
+      await click("Close");
+    },
+  );
+  await check(
     "older vault requires explicit recovery confirmation",
     async () => {
       const revision = await page.evaluate(async () => {
@@ -690,6 +948,7 @@ try {
         "Authentication failed",
       );
       await expect(page.locator(".account")).toHaveCount(0);
+      await keyboardHelp();
       await page.getByLabel("Master password", { exact: true }).fill(password);
       await click("Unlock older copy");
       await expect(page.locator(".account")).toHaveCount(3);
@@ -702,6 +961,241 @@ try {
       await click("Lock");
       await unlock();
       await expect(page.locator(".account")).toHaveCount(3);
+    },
+  );
+  await check(
+    "protection changes require the password and save only after authentication",
+    async () => {
+      async function metadata() {
+        return page.evaluate(async () => {
+          const db = await new Promise((resolve, reject) => {
+            const request = indexedDB.open("otp-vault", 1);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+          try {
+            return await new Promise((resolve, reject) => {
+              const tx = db.transaction("vault"),
+                store = tx.objectStore("vault");
+              const active = store.get("active"),
+                previous = store.get("previous");
+              tx.oncomplete = () =>
+                resolve({
+                  password: active.result.password,
+                  revision: active.result.revision,
+                  hasPrevious: previous.result !== undefined,
+                });
+              tx.onerror = tx.onabort = () =>
+                reject(new Error("Could not read test metadata"));
+            });
+          } finally {
+            db.close();
+          }
+        });
+      }
+      const before = await metadata();
+      await click("Settings");
+      await page
+        .getByLabel("How strongly should we protect your vault?", {
+          exact: true,
+        })
+        .selectOption("extra");
+      await click("Apply protection");
+      await page
+        .getByLabel("Master password", { exact: true })
+        .fill("wrong synthetic password");
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Apply protection", exact: true })
+        .click();
+      await expect(page.getByRole("status")).toContainText("Caps Lock", {
+        timeout: 60_000,
+      });
+      expect(await metadata()).toEqual(before);
+      await expect(
+        page.getByLabel("Master password", { exact: true }),
+      ).toHaveValue("");
+      await page.getByLabel("Master password", { exact: true }).fill(password);
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Apply protection", exact: true })
+        .click();
+      await expect(page.getByRole("dialog")).toHaveCount(0, {
+        timeout: 60_000,
+      });
+      const after = await metadata();
+      expect(after.password).toMatchObject({
+        kdf: "Argon2id",
+        m: 131072,
+        t: 3,
+        p: 1,
+      });
+      expect(after.revision).toBe(before.revision + 1);
+      expect(after.hasPrevious).toBe(false);
+      await expect(page.getByRole("status")).toContainText(
+        "Your password and codes are unchanged",
+      );
+      await click("Authenticator");
+      await expect(page.locator(".account")).toHaveCount(3);
+    },
+  );
+  await check("every help topic was opened with the keyboard", async () => {
+    for (const topic of [
+      "account",
+      "import",
+      "password",
+      "backup",
+      "verify",
+      "reminder",
+      "export",
+      "nextCode",
+      "shortcut",
+      "olderCopy",
+      "timeout",
+      "protection",
+      "tipsPassword",
+      "tipsBackup",
+      "tipsVerify",
+    ])
+      expect(
+        openedHelpTopics.has(topic),
+        "Missing keyboard help: " + topic,
+      ).toBe(true);
+    await plainPrimaryUI();
+  });
+  await check(
+    "failed upgrade reminders appear in both views, dismiss, return on another failed unlock and clear on retry",
+    async () => {
+      const priorPage = page;
+      const isolated = await launch(
+        await mkdtemp(join(tmpdir(), "otp-upgrade-notice-")),
+      );
+      isolated.on("request", (request) => {
+        if (/^https?:/.test(request.url())) network.push(request.url());
+      });
+      page = await isolated.newPage();
+      page.on("pageerror", (error) => errors.push(error.message));
+      try {
+        await page.goto(base);
+        await expect(
+          page.getByRole("heading", { name: "Your codes. Your vault." }),
+        ).toBeVisible();
+        const legacy = JSON.parse(
+          await readFile(
+            new URL("./fixtures/legacy-slots-vault.json", import.meta.url),
+            "utf8",
+          ),
+        );
+        await page.evaluate(async (envelope) => {
+          const db = await new Promise((resolve, reject) => {
+            const request = indexedDB.open("otp-vault", 1);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+          try {
+            await new Promise((resolve, reject) => {
+              const tx = db.transaction("vault", "readwrite");
+              tx.objectStore("vault").put(envelope, "active");
+              tx.oncomplete = resolve;
+              tx.onerror = tx.onabort = () => reject(tx.error);
+            });
+          } finally {
+            db.close();
+          }
+        }, legacy);
+        await page.reload();
+        const notice = page.getByRole("complementary", {
+          name: "Security upgrade reminder",
+        });
+        const message =
+          "Your vault works normally, but we couldn't finish a security upgrade. We'll try again the next time you unlock.";
+        async function failUpgradeOnce() {
+          await page.evaluate(() => {
+            const put = IDBObjectStore.prototype.put;
+            IDBObjectStore.prototype.put = function (value, key) {
+              if (
+                this.name === "vault" &&
+                key === "active" &&
+                value.password?.kdf === "Argon2id"
+              ) {
+                IDBObjectStore.prototype.put = put;
+                throw new Error("synthetic optional-upgrade write failure");
+              }
+              return put.call(this, value, key);
+            };
+          });
+        }
+        async function unlockLegacy() {
+          await page
+            .getByLabel("Master password", { exact: true })
+            .fill("synthetic legacy slot password");
+          await click("Unlock vault");
+          await expect(
+            page.getByRole("heading", { name: "Authenticator", exact: true }),
+          ).toBeVisible({ timeout: 60_000 });
+        }
+        async function active() {
+          return page.evaluate(async () => {
+            const db = await new Promise((resolve, reject) => {
+              const request = indexedDB.open("otp-vault", 1);
+              request.onsuccess = () => resolve(request.result);
+              request.onerror = () => reject(request.error);
+            });
+            try {
+              return await new Promise((resolve, reject) => {
+                const tx = db.transaction("vault"),
+                  read = tx.objectStore("vault").get("active");
+                tx.oncomplete = () => resolve(read.result);
+                tx.onerror = tx.onabort = () => reject(tx.error);
+              });
+            } finally {
+              db.close();
+            }
+          });
+        }
+        await failUpgradeOnce();
+        await unlockLegacy();
+        await expect(notice).toContainText(message);
+        expect(await active()).toEqual(legacy);
+        const detail = notice.locator("[data-technical]");
+        await expect(detail).not.toHaveAttribute("open", "");
+        await expect(detail.locator("p")).toBeHidden();
+        await plainPrimaryUI();
+        await click("Settings");
+        await expect(notice).toContainText(message);
+        await notice.locator("summary").focus();
+        await page.keyboard.press("Enter");
+        await expect(detail.locator("p")).toContainText("Save failed");
+        await plainPrimaryUI();
+        await helpAxe("upgrade-notice");
+        await notice
+          .getByRole("button", { name: "Dismiss upgrade notice", exact: true })
+          .focus();
+        await page.keyboard.press("Enter");
+        await expect(notice).toHaveCount(0);
+        await click("Authenticator");
+        await expect(notice).toHaveCount(0);
+        await click("Lock");
+        await failUpgradeOnce();
+        await unlockLegacy();
+        await expect(notice).toContainText(message);
+        expect(await active()).toEqual(legacy);
+        await click("Lock");
+        await unlockLegacy();
+        await expect(notice).toHaveCount(0);
+        expect((await active()).password).toMatchObject({
+          kdf: "Argon2id",
+          m: 65536,
+          t: 3,
+          p: 1,
+        });
+        await click("Settings");
+        await expect(notice).toHaveCount(0);
+      } finally {
+        await isolated.close();
+        page = priorPage;
+        await page.bringToFront();
+      }
     },
   );
   await check("no external requests during vault workflows", async () =>

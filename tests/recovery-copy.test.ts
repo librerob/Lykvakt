@@ -64,7 +64,7 @@ it("offers structurally corrupted active data without silently selecting previou
   expect(session.unlocked).toBe(false);
   expect(await record("active")).toEqual(corrupt);
   expect(await record("previous")).toEqual(first);
-});
+}, 60_000);
 it("offers previous when active is missing and only unlocks after confirmation", async () => {
   const { first } = await copies();
   await record("active", undefined, true);
@@ -85,13 +85,13 @@ it("offers previous when active is missing and only unlocks after confirmation",
   await session.save(session.accounts());
   expect(await load()).toEqual(session.current());
   expect(await record("previous")).toEqual(first);
-});
+}, 60_000);
 it("uses active when both copies validate, regardless of previous", async () => {
   const { second } = await copies();
   expect(await load()).toEqual(second);
   await record("previous", { corrupt: true }, true);
   expect(await load()).toEqual(second);
-});
+}, 60_000);
 it("rolls back both records if the second write fails", async () => {
   const { first, second, key } = await copies();
   const third = await seal(
@@ -112,7 +112,7 @@ it("rolls back both records if the second write fails", async () => {
   );
   expect(await record("active")).toEqual(second);
   expect(await record("previous")).toEqual(first);
-});
+}, 60_000);
 it("overwrites previous with the exact prior envelope on the next commit", async () => {
   const { second, key } = await copies();
   const third = await seal(
@@ -127,7 +127,7 @@ it("overwrites previous with the exact prior envelope on the next commit", async
     "changed in another window",
   );
   expect(await record("previous")).toEqual(second);
-});
+}, 60_000);
 it("promotes recovery past the active revision and rejects stale writers", async () => {
   const { first, second } = await copies();
   const stale = new Session();
@@ -143,7 +143,7 @@ it("promotes recovery past the active revision and rejects stale writers", async
   await expect(stale.save(stale.accounts())).rejects.toThrow(
     "changed in another window",
   );
-});
+}, 60_000);
 it("rejects recovery promotion and old confirmation when active changes", async () => {
   const { second } = await copies();
   await record("active", { ...second, ciphertext: "bad" }, true);
@@ -161,7 +161,7 @@ it("rejects recovery promotion and old confirmation when active changes", async 
   await expect(session.save(session.accounts())).rejects.toThrow(
     "changed in another window",
   );
-});
+}, 60_000);
 it("never offers an invalid previous copy or falls back after authentication failure", async () => {
   const { second } = await copies();
   await expect(new Session().unlock("wrong password")).rejects.toThrow();
@@ -169,7 +169,7 @@ it("never offers an invalid previous copy or falls back after authentication fai
   await record("active", { bad: true }, true);
   await record("previous", { bad: true }, true);
   await expect(load()).rejects.toThrow("no readable older copy");
-});
+}, 60_000);
 
 it("the recovery offer warns about older HOTP counters before confirmation", async () => {
   const { second } = await copies();
@@ -183,7 +183,7 @@ it("the recovery offer warns about older HOTP counters before confirmation", asy
   expect(new RecoveryRequired(offered).message).toContain(
     "If you use counter-based (HOTP) accounts, their counters may be behind. Do not reuse codes you already submitted.",
   );
-});
+}, 60_000);
 it.each([
   Number.MAX_SAFE_INTEGER - 2,
   Number.MAX_SAFE_INTEGER - 1,
@@ -215,6 +215,7 @@ it.each([
     expect(session.current().revision).toBe(first.revision + 2);
     expect(await load()).toEqual(session.current());
   },
+  60_000,
 );
 it("recovery accepts the last safe active revision below the reserved headroom", async () => {
   const { second } = await copies();
@@ -231,7 +232,7 @@ it("recovery accepts the last safe active revision below the reserved headroom",
   await session.save(session.accounts());
   expect(session.current().revision).toBe(revision + 1);
   expect(await load()).toEqual(session.current());
-});
+}, 60_000);
 it("recovery still rejects a changed corrupt active record when its revision was ignored", async () => {
   const { second } = await copies();
   const corrupt = {
@@ -251,4 +252,4 @@ it("recovery still rejects a changed corrupt active record when its revision was
   );
   expect(await record("active")).toEqual(changed);
   expect(session.current()).toEqual(offered.previous);
-});
+}, 60_000);

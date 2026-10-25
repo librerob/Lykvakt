@@ -8,6 +8,7 @@ import {
   submit,
   download,
   readText,
+  helpBlock,
 } from "../dom";
 import { codeFor } from "../otp";
 import { validateAccount, type Account } from "../model";
@@ -73,6 +74,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           { class: "muted" },
           "Enter the setup key supplied by the service.",
         ),
+        helpBlock("account"),
         issuer.wrapper,
         label.wrapper,
         secret.wrapper,
@@ -243,6 +245,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
             await preview(imported.accounts, imported.skipped);
           }),
         format.wrapper,
+        helpBlock("import"),
         el(
           "label",
           { class: "field" },

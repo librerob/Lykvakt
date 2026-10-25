@@ -1,4 +1,4 @@
-import { el, input, form, submit } from "../dom";
+import { el, input, form, submit, helpBlock } from "../dom";
 import { unwrapPassword } from "../crypto";
 import type { AppContext } from "./context";
 export function authenticateAction(
@@ -22,6 +22,7 @@ export function authenticateAction(
             raw = await unwrapPassword(
               ctx.session.current(),
               password.control.value,
+              ctx.session.cancellationSignal(),
             );
           } finally {
             raw?.fill(0);
@@ -37,6 +38,8 @@ export function authenticateAction(
         }),
       el("p", {}, message),
       password.wrapper,
+      helpBlock("password"),
+      helpBlock("export"),
       submit(label),
     ),
   );

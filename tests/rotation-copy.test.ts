@@ -66,7 +66,7 @@ it("master-password rotation removes the pre-rotation previous envelope", async 
   await expect(
     decryptEnvelope(session.current(), oldPassword),
   ).rejects.toThrow();
-});
+}, 60_000);
 it("the next ordinary save preserves the post-rotation envelope as previous", async () => {
   const { session } = await prepare();
   await send();
@@ -78,7 +78,7 @@ it("the next ordinary save preserves the post-rotation envelope as previous", as
     session.accounts(),
   );
   await expect(decryptEnvelope(previous, oldPassword)).rejects.toThrow();
-});
+}, 60_000);
 it("failure after previous deletion rolls back both records and keeps the session key", async () => {
   const { session, first, active } = await prepare();
   const put = IDBObjectStore.prototype.put;
@@ -101,7 +101,7 @@ it("failure after previous deletion rolls back both records and keeps the sessio
   expect((await decryptEnvelope(session.current(), oldPassword)).data).toEqual(
     session.accounts(),
   );
-});
+}, 60_000);
 it("corrupting active immediately after rotation cannot offer a pre-rotation recovery copy", async () => {
   const { session } = await prepare();
   await send();
@@ -117,4 +117,4 @@ it("corrupting active immediately after rotation cannot offer a pre-rotation rec
     "no readable older copy",
   );
   expect(session.unlocked).toBe(false);
-});
+}, 60_000);

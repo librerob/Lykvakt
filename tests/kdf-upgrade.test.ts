@@ -34,7 +34,7 @@ it("old vault unlocks and atomically upgrades its password slot to an injected h
   session.lock();
   await session.unlock(password, 600_001);
   expect(session.current()).toEqual(upgraded);
-});
+}, 60_000);
 it.each([
   [
     "conflict",
@@ -75,6 +75,7 @@ it.each([
     expect(commit).toHaveBeenCalledTimes(2);
     expect(session.current()).toEqual(upgraded);
   },
+  60_000,
 );
 it("locking during a failed KDF upgrade still cancels unlock", async () => {
   const old = await passwordVault(password);
@@ -87,16 +88,16 @@ it("locking during a failed KDF upgrade still cancels unlock", async () => {
   await expect(session.unlock(password, 600_001)).rejects.toThrow("cancelled");
   expect(session.unlocked).toBe(false);
   expect(await storage.load()).toEqual(old);
-});
+}, 60_000);
 
-it("a 600k vault unlocks and persists the production 2m default without an override", async () => {
+it("a 600k vault can still use an explicit legacy 2m upgrade policy", async () => {
   expect(MIN_ITERATIONS).toBe(600_000);
   expect(MAX_ITERATIONS).toBe(5_000_000);
   const old = await passwordVault(password, 600_000);
   await storage.commit(old);
   const commit = vi.spyOn(storage, "commit");
   const session = new Session();
-  await session.unlock(password);
+  await session.unlock(password, DEFAULT_ITERATIONS);
   const upgraded = session.current();
   expect(session.unlocked).toBe(true);
   expect(upgraded.password.iterations).toBe(2_000_000);
@@ -110,7 +111,7 @@ it("a 600k vault unlocks and persists the production 2m default without an overr
   expect(commit).toHaveBeenCalledTimes(1);
 
   session.lock();
-  await session.unlock(password);
+  await session.unlock(password, DEFAULT_ITERATIONS);
   expect(session.current()).toEqual(upgraded);
   expect(commit).toHaveBeenCalledTimes(1);
-});
+}, 60_000);

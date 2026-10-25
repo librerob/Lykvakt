@@ -7,9 +7,24 @@ import {
   type VaultData,
 } from "./model";
 
-export const MIN_ITERATIONS = 600_000;
-export const DEFAULT_ITERATIONS = 2_000_000;
-export const MAX_ITERATIONS = 5_000_000;
+import { argon2Key } from "./kdf";
+import {
+  DEFAULT_KDF,
+  MIN_ITERATIONS,
+  MAX_ITERATIONS,
+  kdfPolicy,
+  upgradePolicy,
+  validateArgon2,
+  type Argon2Policy,
+  type KDFPolicy,
+} from "./kdf-policy";
+export {
+  MIN_ITERATIONS,
+  DEFAULT_ITERATIONS,
+  MAX_ITERATIONS,
+  DEFAULT_KDF,
+} from "./kdf-policy";
+export type { KDFPolicy, Argon2Policy } from "./kdf-policy";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
 export const random = (length: number): Uint8Array<ArrayBuffer> =>
@@ -36,13 +51,19 @@ function exact(value: unknown, length: number): Uint8Array<ArrayBuffer> {
   if (bytes.length !== length) throw new Error("Invalid binary length.");
   return bytes;
 }
-export interface PasswordSlot {
+export interface PBKDF2Slot {
   kdf: "PBKDF2-SHA256";
   iterations: number;
   salt: string;
   iv: string;
   wrapped: string;
 }
+export interface Argon2Slot extends Argon2Policy {
+  salt: string;
+  iv: string;
+  wrapped: string;
+}
+export type PasswordSlot = PBKDF2Slot | Argon2Slot;
 // Read compatibility only; no new passkey wrappers may be written.
 interface PasskeySlot {
   id: string;
@@ -86,7 +107,9 @@ const passwordAAD = (h: Pick<Header, "id" | "kind" | "password">) =>
     purpose: "password-wrap",
     kdf: h.password.kdf,
     salt: h.password.salt,
-    iterations: h.password.iterations,
+    ...(h.password.kdf === "PBKDF2-SHA256"
+      ? { iterations: h.password.iterations }
+      : { m: h.password.m, t: h.password.t, p: h.password.p }),
   });
 export function headerOf(e: Envelope): Header {
   const { payload: _payload, ...header } = e;
@@ -107,9 +130,10 @@ export function validateEnvelope(
     (kind && kind !== e.kind)
   )
     throw new Error("Unsupported archive format or purpose.");
-  if (p.kdf !== "PBKDF2-SHA256")
-    throw new Error("Unsupported password derivation.");
-  integer(p.iterations, MIN_ITERATIONS, MAX_ITERATIONS);
+  if (p.kdf === "PBKDF2-SHA256")
+    integer(p.iterations, MIN_ITERATIONS, MAX_ITERATIONS);
+  else if (p.kdf === "Argon2id") validateArgon2(p as unknown as Argon2Policy);
+  else throw new Error("Unsupported password derivation.");
   exact(p.salt, 32);
   exact(p.iv, 12);
   exact(p.wrapped, 48);
@@ -139,7 +163,10 @@ export function validateEnvelope(
   if (
     Object.keys(e).sort().join() !==
       "format,id,kind,passkeys,password,payload,revision,version" ||
-    Object.keys(p).sort().join() !== "iterations,iv,kdf,salt,wrapped" ||
+    Object.keys(p).sort().join() !==
+      (p.kdf === "PBKDF2-SHA256"
+        ? "iterations,iv,kdf,salt,wrapped"
+        : "iv,kdf,m,p,salt,t,wrapped") ||
     Object.keys(payload).sort().join() !== "ciphertext,iv,key"
   )
     throw new Error("Unsupported archive fields.");
@@ -151,6 +178,7 @@ async function passwordKey(
   password: string,
   p: PasswordSlot,
   normalize = true,
+  signal?: AbortSignal,
 ): Promise<CryptoKey> {
   if (!password.length || password.length > 1024)
     throw new Error("Invalid password length.");
@@ -158,6 +186,9 @@ async function passwordKey(
     normalize ? password.normalize("NFKC") : password,
   );
   try {
+    signal?.throwIfAborted();
+    if (p.kdf === "Argon2id")
+      return await argon2Key(bytes, exact(p.salt, 32), p, signal);
     const source = await crypto.subtle.importKey(
       "raw",
       bytes,
@@ -165,7 +196,7 @@ async function passwordKey(
       false,
       ["deriveKey"],
     );
-    return await crypto.subtle.deriveKey(
+    const key = await crypto.subtle.deriveKey(
       {
         name: "PBKDF2",
         hash: "SHA-256",
@@ -177,6 +208,8 @@ async function passwordKey(
       false,
       ["encrypt", "decrypt"],
     );
+    signal?.throwIfAborted();
+    return key;
   } finally {
     bytes.fill(0);
   }
@@ -192,17 +225,17 @@ export async function makePasswordSlot(
   password: string,
   id: string,
   kind: Header["kind"],
-  iterations = DEFAULT_ITERATIONS,
+  policy: KDFPolicy | number = DEFAULT_KDF,
+  signal?: AbortSignal,
 ): Promise<PasswordSlot> {
   requireStrongPassword(password);
   const slot: PasswordSlot = {
-    kdf: "PBKDF2-SHA256",
-    iterations: integer(iterations, MIN_ITERATIONS, MAX_ITERATIONS),
+    ...kdfPolicy(policy),
     salt: base64(random(32)),
     iv: base64(random(12)),
     wrapped: "",
   };
-  const key = await passwordKey(password, slot);
+  const key = await passwordKey(password, slot, true, signal);
   slot.wrapped = base64(
     new Uint8Array(
       await crypto.subtle.encrypt(
@@ -222,11 +255,13 @@ export async function makePasswordSlot(
 export async function unwrapPassword(
   e: Envelope,
   password: string,
+  signal?: AbortSignal,
 ): Promise<Uint8Array<ArrayBuffer>> {
   validateEnvelope(e, undefined, true);
   const unwrap = async (normalize: boolean) => {
-    const key = await passwordKey(password, e.password, normalize);
-    return new Uint8Array(
+    const key = await passwordKey(password, e.password, normalize, signal);
+    signal?.throwIfAborted();
+    const raw = new Uint8Array(
       await crypto.subtle.decrypt(
         {
           name: "AES-GCM",
@@ -238,11 +273,17 @@ export async function unwrapPassword(
         exact(e.password.wrapped, 48),
       ),
     );
+    if (signal?.aborted) {
+      raw.fill(0);
+      signal.throwIfAborted();
+    }
+    return raw;
   };
   try {
     return await unwrap(true);
   } catch (error) {
     if (
+      e.password.kdf !== "PBKDF2-SHA256" ||
       !(error instanceof Error) ||
       error.name !== "OperationError" ||
       password.normalize("NFKC") === password
@@ -255,8 +296,10 @@ export async function rotatePassword(
   envelope: Envelope,
   currentPassword: string,
   nextPassword: string,
+  policy: KDFPolicy | number = DEFAULT_KDF,
+  signal?: AbortSignal,
 ): Promise<{ key: CryptoKey; password: PasswordSlot }> {
-  const previous = await unwrapPassword(envelope, currentPassword);
+  const previous = await unwrapPassword(envelope, currentPassword, signal);
   let raw: Uint8Array<ArrayBuffer> | undefined;
   try {
     raw = random(32);
@@ -265,7 +308,10 @@ export async function rotatePassword(
       nextPassword,
       envelope.id,
       envelope.kind,
+      policy,
+      signal,
     );
+    signal?.throwIfAborted();
     return { password, key: await importVaultKey(raw) };
   } finally {
     previous.fill(0);
@@ -350,11 +396,20 @@ export async function createEnvelope(
   password: string,
   data: VaultData,
   kind: Header["kind"] = "vault",
+  policy: KDFPolicy | number = DEFAULT_KDF,
+  signal?: AbortSignal,
 ): Promise<{ envelope: Envelope; key: CryptoKey }> {
   const raw = random(32),
     id = crypto.randomUUID();
   try {
-    const slot = await makePasswordSlot(raw, password, id, kind);
+    const slot = await makePasswordSlot(
+      raw,
+      password,
+      id,
+      kind,
+      policy,
+      signal,
+    );
     const key = await importVaultKey(raw);
     return {
       envelope: await seal(
@@ -380,31 +435,32 @@ export async function decryptEnvelope(
   input: unknown,
   password: string,
   kind?: Header["kind"],
-  upgradeIterations?: number,
+  policy?: KDFPolicy | number,
+  signal?: AbortSignal,
 ): Promise<{ envelope: Envelope; key: CryptoKey; data: VaultData }> {
   const envelope = validateEnvelope(input, kind, true);
-  if (upgradeIterations !== undefined)
-    integer(upgradeIterations, MIN_ITERATIONS, MAX_ITERATIONS);
-  const raw = await unwrapPassword(envelope, password);
+  if (policy !== undefined) kdfPolicy(policy);
+  const raw = await unwrapPassword(envelope, password, signal);
   try {
     const key = await importVaultKey(raw);
     const data = await open(envelope, key);
-    if (
-      upgradeIterations !== undefined &&
-      (envelope.password.iterations < upgradeIterations ||
-        envelope.passkeys.length)
-    ) {
+    signal?.throwIfAborted();
+    const target =
+      policy === undefined
+        ? undefined
+        : upgradePolicy(envelope.password, policy);
+    if (policy !== undefined && (target || envelope.passkeys.length)) {
       try {
-        const passwordSlot =
-          envelope.password.iterations < upgradeIterations
-            ? await makePasswordSlot(
-                raw,
-                password,
-                envelope.id,
-                envelope.kind,
-                upgradeIterations,
-              )
-            : envelope.password;
+        const passwordSlot = target
+          ? await makePasswordSlot(
+              raw,
+              password,
+              envelope.id,
+              envelope.kind,
+              target,
+              signal,
+            )
+          : envelope.password;
         const upgraded = await seal(
           {
             ...headerOf(envelope),
@@ -415,10 +471,11 @@ export async function decryptEnvelope(
           key,
           data,
         );
+        signal?.throwIfAborted();
         return { envelope: upgraded, key, data };
-      } catch (error) {
-        if (!envelope.passkeys.length) throw error;
-        // Legacy slot removal is best effort after authenticated decryption.
+      } catch {
+        signal?.throwIfAborted();
+        // Authenticated access survives optional upgrade preparation failures too.
       }
     }
     return { envelope, key, data };
