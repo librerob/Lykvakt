@@ -21,6 +21,24 @@ A small offline TOTP/HOTP authenticator with a password-encrypted local vault.
 
 The complete manifest permission set is **`["clipboardWrite"]`**, used only to copy a selected code. There are no optional or host permissions. Processing stays local, with no developer server, telemetry or cloud account.
 
+## Screenshots
+
+These are real extension captures with synthetic test accounts.
+
+![Authenticator with hidden codes](docs/screenshots/accounts-amoled.png)
+
+![Saved backup restoration verified](docs/screenshots/backup-verified.png)
+
+See [all interface screenshots](docs/screenshots.md) for setup, locked and full-window views.
+
+## A personal project, with a way out
+
+I built Lykvakt for myself and use it daily. It is a personal, independently maintained project, and I intend to keep it that way for the long term. That is my intention, not a lifetime support guarantee; the unaudited-preview warning above still applies.
+
+You should be able to leave without depending on me. The vault runs locally without a developer account or server. If development stops or ownership changes, your accounts can be exported as standard OTP links or individual QR codes for a compatible authenticator. The source for this version remains available under GPL-3.0-or-later for others to maintain or fork.
+
+Keep an encrypted backup outside your browser and its passphrase separately. Before switching authenticators, verify the destination's settings and test a service login. See [moving accounts](docs/migration.md) for supported imports, exports and their limits.
+
 ## Build and test
 
 Use Node 24 and the pinned npm lockfile:
