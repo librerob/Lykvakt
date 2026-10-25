@@ -10,6 +10,12 @@ export function isRecoveryOffer(
 ): value is RecoveryOffer {
   return value.kind === "recovery";
 }
+export class StorageConflictError extends Error {
+  constructor() {
+    super("Vault changed in another window. Lock and unlock before retrying.");
+    this.name = "StorageConflictError";
+  }
+}
 export class RecoveryRequired extends Error {
   constructor(readonly offer: RecoveryOffer) {
     super(
@@ -142,13 +148,11 @@ export async function commit(
       tx.onabort = tx.onerror = () => {
         cleanup();
         reject(
-          new Error(
-            signal?.aborted
-              ? "Save cancelled by locking."
-              : conflict
-                ? "Vault changed in another window. Lock and unlock before retrying."
-                : "Save failed. The previous vault is unchanged.",
-          ),
+          signal?.aborted
+            ? new Error("Save cancelled by locking.")
+            : conflict
+              ? new StorageConflictError()
+              : new Error("Save failed. The previous vault is unchanged."),
         );
       };
     });

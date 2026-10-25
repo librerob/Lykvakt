@@ -13,7 +13,7 @@ The complete manifest permission set is `["clipboardWrite"]`. Supplied import fi
 | Hostile import/image                            | Size/count/dimension bounds, validation, skipped-entry report and explicit preview       | Parser/decoder defects and incomplete interoperability coverage          |
 | Tampered ciphertext/header                      | Authenticated encryption and strict schema                                               | Corruption/deletion can deny access; no trusted anti-rollback anchor     |
 | Corrupted active envelope                       | Explicit password-authenticated older-copy recovery                                      | The previous copy may be older, unavailable or corrupted too             |
-| Stale/concurrent write                          | Revision-checked transaction and one pending save                                        | Another window may show stale data until reopened                        |
+| Stale/concurrent write                          | Typed revision conflict, stale-unlock rejection and one pending save                     | Another window may show stale data until reopened                        |
 | Lock during async work                          | Epoch guards and abort signals                                                           | Committed writes cannot be undone; no guaranteed OS-lock signal          |
 | Lost password/profile                           | Independently stored encrypted backup and saved-file restoration test                    | No reset service; losing every usable copy can lose accounts             |
 | Accidental plaintext export                     | Fresh master-password verification and explicit warning                                  | Anyone holding the exported seed can generate codes                      |
@@ -23,7 +23,7 @@ Password change rotates the vault key and atomically removes the older local rec
 
 For legacy compatibility, new envelopes retain an empty `passkeys` array, and old slots are authenticated and stripped on password unlock when saving succeeds.
 
-Failed legacy cleanup does not block password access or bypass cancellation checks. Retained schema metadata grants no access beyond the extension page. Removing old wrappers alone does not revoke a previously recovered key; password change performs that rotation.
+Transient legacy-cleanup write failures do not block password access or bypass cancellation checks. Typed compare-and-swap conflicts reject stale unlocks and clear session keys and data; they require another unlock. Other optional-upgrade write failures preserve the original authenticated envelope, expose read-only pending-upgrade state and retry at the next unlock. Lock cancellation takes precedence, and successful or unnecessary upgrades clear pending state. Retained schema metadata grants no access beyond the extension page. Removing old wrappers alone does not revoke a previously recovered key; password change performs that rotation.
 
 KDF validation is bounded to 600,000–5,000,000 iterations, with a current new-slot default of 2,000,000. NFKC-first unlock with a legacy raw-string fallback can require two bounded derivations. Canonical header/snapshot ordering uses deterministic code-unit comparison.
 
