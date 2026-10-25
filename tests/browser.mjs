@@ -644,6 +644,14 @@ try {
       const star = page.getByRole("button", { name: /favorite: GitHub/ });
       const original = await star.getAttribute("aria-label");
       await star.click();
+      await expect(
+        page
+          .locator(".account")
+          .filter({
+            has: page.getByRole("heading", { name: "GitHub", exact: true }),
+          })
+          .locator(".favorite"),
+      ).not.toHaveAttribute("aria-label", original);
       await openMore(
         page.locator(".account").filter({
           has: page.getByRole("heading", { name: "GitHub", exact: true }),
@@ -654,6 +662,14 @@ try {
       ).toHaveCount(0);
       await expect(page.locator(".backup-notice")).toBeVisible();
       await star.click();
+      await expect(
+        page
+          .locator(".account")
+          .filter({
+            has: page.getByRole("heading", { name: "GitHub", exact: true }),
+          })
+          .locator(".favorite"),
+      ).toHaveAttribute("aria-label", original);
       await openMore(
         page.locator(".account").filter({
           has: page.getByRole("heading", { name: "GitHub", exact: true }),
@@ -1031,6 +1047,14 @@ try {
       const star = page.getByRole("button", { name: /favorite: GitHub/ });
       const original = await star.getAttribute("aria-label");
       await star.click();
+      await expect(
+        page
+          .locator(".account")
+          .filter({
+            has: page.getByRole("heading", { name: "GitHub", exact: true }),
+          })
+          .locator(".favorite"),
+      ).not.toHaveAttribute("aria-label", original);
       await openMore(
         page.locator(".account").filter({
           has: page.getByRole("heading", { name: "GitHub", exact: true }),
