@@ -343,47 +343,23 @@ try {
       await click("Authenticator");
     },
   );
-  await check("light appearance and accessible account list", async () => {
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByLabel("Appearance", { exact: true }).selectOption("light");
-    await page
-      .getByRole("button", { name: "Authenticator", exact: true })
-      .click();
-    await screenshot("accounts-light");
+  await check("amoled appearance and accessibility", async () => {
+    expect(
+      await page.evaluate(
+        () => getComputedStyle(document.documentElement).backgroundColor,
+      ),
+    ).toBe("rgb(0, 0, 0)");
+    await screenshot("accounts-amoled");
     const results = await new AxeBuilder({ page })
       .setLegacyMode()
       .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
       .analyze();
     await writeFile(
-      "artifacts/axe-light.json",
+      "artifacts/axe-amoled.json",
       JSON.stringify(results.violations, null, 2),
     );
     expect(results.violations).toEqual([]);
   });
-  for (const theme of ["dark", "amoled"])
-    await check(theme + " appearance and accessibility", async () => {
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
-      await page.getByLabel("Appearance", { exact: true }).selectOption(theme);
-      await page
-        .getByRole("button", { name: "Authenticator", exact: true })
-        .click();
-      if (theme === "amoled")
-        expect(
-          await page.evaluate(
-            () => getComputedStyle(document.documentElement).backgroundColor,
-          ),
-        ).toBe("rgb(0, 0, 0)");
-      await screenshot("accounts-" + theme);
-      const results = await new AxeBuilder({ page })
-        .setLegacyMode()
-        .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
-        .analyze();
-      await writeFile(
-        "artifacts/axe-" + theme + ".json",
-        JSON.stringify(results.violations, null, 2),
-      );
-      expect(results.violations).toEqual([]);
-    });
   await check(
     "change-password and backup forms generate only new passwords",
     async () => {

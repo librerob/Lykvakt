@@ -5,50 +5,7 @@ import type { AppContext } from "./context";
 export function createSettings(ctx: AppContext) {
   const { session, isExtension, run, announce, modal, closeDialog, render } =
     ctx;
-  let theme = localStorage.getItem("theme") ?? "system";
-  let accent = localStorage.getItem("accent") ?? "pink";
-  function setTheme() {
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.dataset.accent = accent;
-  }
-  setTheme();
-
   function settingsView(): HTMLElement {
-    const themeSelect = select(
-      "theme",
-      "Appearance",
-      {
-        system: "System",
-        light: "Light",
-        dark: "Dark",
-        amoled: "AMOLED · true black",
-      },
-      theme,
-    );
-    themeSelect.control.addEventListener("change", () => {
-      theme = themeSelect.control.value;
-      localStorage.setItem("theme", theme);
-      setTheme();
-    });
-    const accentSelect = select(
-      "accent",
-      "Accent",
-      {
-        pink: "Shock pink · default",
-        green: "Forest",
-        blue: "Blue",
-        violet: "Violet",
-        rose: "Rose",
-        teal: "Teal",
-        neutral: "Neutral",
-      },
-      accent,
-    );
-    accentSelect.control.addEventListener("change", () => {
-      accent = accentSelect.control.value;
-      localStorage.setItem("accent", accent);
-      setTheme();
-    });
     const showCodes = input("alwaysShowCodes", "Always show codes", "checkbox");
     showCodes.control.checked =
       localStorage.getItem("alwaysShowCodes") === "true";
@@ -81,8 +38,6 @@ export function createSettings(ctx: AppContext) {
         "div",
         { class: "settings-section stack" },
         el("h2", {}, "Make it yours"),
-        themeSelect.wrapper,
-        accentSelect.wrapper,
         showCodes.wrapper,
       ),
       el(

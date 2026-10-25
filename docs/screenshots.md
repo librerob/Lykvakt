@@ -1,18 +1,12 @@
 # Actual interface screenshots
 
-Captured from the installed unpacked extension in Chrome for Testing 156 on Linux. All accounts and codes use synthetic test secrets. These are application captures, not mockups.
+Captured from the installed unpacked extension in Chrome for Testing 156 on Linux. All accounts and codes use synthetic test secrets. Every view uses the single true-black and pink appearance. These are application captures, not mockups.
 
-## Light
+The images were regenerated in [successful browser CI](https://github.com/librerob/otp-vault/actions/runs/40179546200). The later [validated build](https://github.com/librerob/otp-vault/actions/runs/40179869571) includes those files; see [validation](validation.md) for observed checks and limits.
 
-![Light mode](screenshots/accounts-light.png)
+## Authenticator
 
-## Dark
-
-![Dark mode](screenshots/accounts-dark.png)
-
-## AMOLED
-
-![AMOLED mode](screenshots/accounts-amoled.png)
+![True-black and pink Authenticator view](screenshots/accounts-amoled.png)
 
 ## Tested backup restoration
 

@@ -1,18 +1,23 @@
 # Compatibility
 
-| Environment / capability                       | Status                                                                                                                     |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Manifest V3 / Chromium 120+ APIs               | Build target; real integration results recorded separately in validation                                                   |
-| Windows host                                   | Type checking, unit tests and build executed; local Chrome for Testing launch was blocked by OS application-control policy |
-| Linux Playwright Chromium                      | Passed 28 core, six virtual PRF, one headed tab-lock and four genuine toolbar capture/fill checks                          |
-| macOS / Touch ID                               | Not physically tested                                                                                                      |
-| Windows 10 / 11 Hello fingerprint, face or PIN | Not physically tested; PRF capability must actually yield a usable secret                                                  |
-| FIDO2 keys / third-party passkey providers     | Not physically tested; user verification plus PRF required                                                                 |
-| Firefox / Safari                               | No supported package or validation                                                                                         |
-| Chrome Web Store                               | No submission or approval                                                                                                  |
+| Environment / capability              | Status                                                                                                                  |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Chromium 120+ / Manifest V3           | Build target; observed integration results are recorded in [validation](validation.md)                                  |
+| Linux Chrome for Testing 156.0.8078.4 | 34 browser scenarios, the AMOLED axe check and one headed tab-lock check passed in the linked CI run                    |
+| Windows development host              | Build, lint, formatting and unit tests passed; local browser launch was blocked, so browser success is attributed to CI |
+| Firefox / Safari                      | No supported package or validation                                                                                      |
+| Chrome Web Store                      | No submission or approval                                                                                               |
 
-PRF support is determined by actual returned cryptographic output and a repeatable wrap/unwrap test, not a browser or OS name. Browser support alone does not prove a particular authenticator/provider implements PRF. Password unlock remains the baseline. Credentials from a development extension origin are not portable to a different Store identity.
+## Existing vaults and backups
 
-The UI’s auto-lock timers use local inactivity and page visibility/closure. No guaranteed OS-lock signal is implemented or claimed. Manual site detection requires activeTab authorization from opening the action popup. A full extension tab has no inherited temporary access to an unrelated site. Optional automatic indicators require tabs permission and provide directory-support information only.
+The IndexedDB identity and `otp-vault` encrypted-envelope format remain stable. Payload schema 1 is read as schema 2; new saves use schema 2. A migrated account snapshot requires new backup verification. Older builds may not read newer payloads.
 
-See [migration and filling](migration-and-fill.md) for Google transfers, plaintext exports, exact-origin approvals, supported OTP fields and payload schema compatibility. Native optional-tabs prompts, physical phone imports and physical PRF devices remain manual gates.
+For legacy compatibility, new envelopes retain an empty `passkeys` array, and old slots are authenticated and stripped on password unlock when saving succeeds.
+
+If cleanup persistence fails, password access remains available and a later save retries it. Legacy metadata has no UI behavior. Password normalization first tries NFKC and can retry the original raw encoding for old archives when the forms differ.
+
+Changing an unpacked folder or extension identity can create separate browser-local data. Preserve the existing installation and verify an independent encrypted backup before changing it. There is no guaranteed OS-lock signal; locks follow the page/session events described in [architecture](architecture.md).
+
+## Moving accounts
+
+See [migration](migration.md) for the supported Aegis, 2FAS, Google transfer, OTP-link and QR flows. Destination apps may interpret OTP settings differently. No exhaustive phone interoperability certification or independent security audit is claimed.

@@ -1,17 +1,25 @@
-# Backups, imports and recovery
+# Backups and recovery
 
-1. Keep the service’s recovery codes separately from this browser.
-2. Export an encrypted backup using a unique, strong passphrase.
-3. Save that file outside the browser profile. Keep a second offline copy.
-4. Select the saved file in the restore test, supply its passphrase, and confirm the result matches the active vault.
-5. Compare OTPs against your existing authenticator or a test service before retiring another copy.
+1. Keep service recovery codes separately from this browser.
+2. Create an encrypted backup with a unique, strong passphrase.
+3. Save the file outside the browser profile and keep a second offline copy.
+4. In Recovery, select the actual saved file and test restoration with its passphrase.
+5. Compare accounts, settings and codes before retiring another authenticator.
 
-A successful test authenticates/decrypts the actual file, validates every record, counts accounts, generates deterministic test OTPs at a fixed timestamp and compares the full account snapshot (including counters and metadata). The active vault is not replaced. Its encrypted health metadata remembers the last matching test. That timestamp does not prove the file remains available or that websites accept the codes. Any account change makes the remembered snapshot stale.
+A restoration test authenticates and decrypts the selected file, validates every record, generates test OTPs and compares the full account snapshot, including HOTP counters and metadata. It does not replace active accounts. A matching verification records a timestamp and snapshot; these do not prove continued file availability or successful service login.
 
-During setup, a readable backup can create a fresh vault under a new master password. If a vault already exists, backup recovery offers a previewed merge only. Matching seed/type with different settings is a conflict and blocks import. HOTP counters are never reset, inferred or automatically advanced. A stale HOTP backup requires careful service-side resynchronization; do not blindly advance many counters.
+The Authenticator view reminds you when no backup has been verified or the account snapshot has changed. HOTP counter advances change the snapshot intentionally. Re-test a matching saved file after account changes.
 
-Supported: version-1 Lykvakt encrypted backups, standard `otpauth://totp` / `hotp` lines and images containing one such URI. Synthetic adapter fixtures cover unencrypted Aegis envelope v1/database v3 and unencrypted 2FAS schema 4. Check every count and configuration after using either adapter. No encrypted Aegis/2FAS, Google transfer batches, Authenticator-Extension encrypted backup, CXF or proprietary Steam/Battle.net migration is advertised.
+## Local previous-copy recovery
 
-Single-account plaintext URI export is behind a warning. It carries the seed and must be handled as a password. Plain third-party export files and QR images also contain secrets; delete/move them securely according to your device policy after verifying migration.
+An ordinary save atomically keeps the preceding encrypted envelope in the same browser database. If the active envelope is structurally unreadable or missing, a readable older revision is offered explicitly. Choose Unlock older copy and use that copy’s password. An incorrect password never causes an automatic fallback. The next save promotes the authenticated older copy with revision-conflict checks.
 
-The app never knows the master/backup passphrase after the operation. There is no reset service. If you forget the master password but have a readable independent backup, restore into a separate installation. Never uninstall the only working vault to troubleshoot. Deletion has no application trash or guaranteed forensic erasure; old backups can retain old secrets.
+Password change rotates the vault key and removes the older local copy atomically. The next ordinary save begins a new previous-copy chain. These copies are not independent backups and can disappear with the browser profile. Previously exported backups keep their own passphrases.
+
+## Restoring or moving accounts
+
+During initial setup, a readable encrypted backup can create a fresh vault under a new master password. With an existing unlocked vault, a different backup can be previewed for merge; active accounts are not silently replaced. Conflicting settings block confirmation. A stale HOTP backup may require careful service-side resynchronization; do not blindly advance many counters.
+
+See [migration](migration.md) for supported Aegis, 2FAS, Google transfer, OTP-link and QR import/export flows. Plaintext links and transfer QRs expose seeds and require master-password re-authentication before export/reveal.
+
+The app has no password-reset service. JavaScript cannot guarantee erasure of strings or browser-managed memory. If you lose the master password but retain an independently readable backup, restore into a separate installation. Never uninstall the only working vault to troubleshoot. Deletion has no application trash or guaranteed forensic erasure.
