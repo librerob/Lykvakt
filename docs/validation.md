@@ -2,7 +2,7 @@
 
 ## Current development branch
 
-A fresh local source snapshot passed npm ci --ignore-scripts, build, lint, format:check and all 269 tests in 29 files. The install audited 176 packages and reported zero vulnerabilities. The runtime package guard and ZIP packaging also passed. The current feature browser run will be recorded here after it finishes; no feature browser success is claimed yet.
+A fresh local source snapshot passed npm ci --ignore-scripts, build, lint, format:check and all 269 tests in 29 files. The install audited 176 packages and reported zero vulnerabilities. The runtime package guard and ZIP packaging also passed. The [full feature PR run](https://github.com/librerob/otp-vault/actions/runs/40210914031) passed on commit 887a90ff641a0678766d7e6862e9a3d4c615263c: all 269 unit tests, all 41 browser scenarios in Chrome for Testing 156.0.8078.4 on Linux, the existing AMOLED axe scan and both expanded-help axe scans with zero violations, the actual headed tab-lock check, bench and packaging. The browser artifact recorded zero external requests and no uncaught errors; npm audit reported zero vulnerabilities.
 
 The preceding security-fix build passed [full PR CI](https://github.com/librerob/otp-vault/actions/runs/40205186659): 186 unit tests, 34 browser scenarios, the existing AMOLED axe scan with zero violations, the headed tab-lock check, and an audit with zero reported vulnerabilities. Those results describe that PBKDF2 build, not the new Argon2id interface.
 
