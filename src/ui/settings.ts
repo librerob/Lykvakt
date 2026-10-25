@@ -1,19 +1,9 @@
 import { button, el, input, select, form, submit } from "../dom";
-import { rotatePassword, unwrapPassword } from "../crypto";
-import { enroll } from "../passkeys";
+import { rotatePassword } from "../crypto";
 import type { AppContext } from "./context";
 export function createSettings(ctx: AppContext) {
-  const {
-    session,
-    isExtension,
-    fullWindow,
-    run,
-    announce,
-    modal,
-    closeDialog,
-    render,
-    confirmAction,
-  } = ctx;
+  const { session, isExtension, run, announce, modal, closeDialog, render } =
+    ctx;
   let theme = localStorage.getItem("theme") ?? "system";
   let accent = localStorage.getItem("accent") ?? "pink";
   function setTheme() {
@@ -73,52 +63,6 @@ export function createSettings(ctx: AppContext) {
       session.timeout = Number(timeout.control.value);
       localStorage.setItem("timeout", String(session.timeout));
     });
-    const slots = el("div", { class: "stack" });
-    for (const [i, slot] of session.current().passkeys.entries())
-      slots.append(
-        el(
-          "div",
-          { class: "inline" },
-          el("span", {}, "Passkey " + (i + 1)),
-          button(
-            "Revoke",
-            () =>
-              confirmAction(
-                "Revoke passkey unlock?",
-                "This removes its encrypted key wrapper from this vault. Remove the credential separately in your authenticator if desired. The master password remains available.",
-                "Revoke",
-                async () => {
-                  await session.save(session.accounts(), (h) => ({
-                    ...h,
-                    passkeys: h.passkeys.filter((x) => x.id !== slot.id),
-                  }));
-                  render();
-                },
-              ),
-            "button text",
-          ),
-        ),
-      );
-    const automatic = el("input", { type: "checkbox", id: "automatic" });
-    if (isExtension) {
-      void chrome.storage.local.get("automatic").then((p) => {
-        automatic.checked = !!p.automatic;
-      });
-      automatic.addEventListener("change", () =>
-        run(async () => {
-          if (automatic.checked) {
-            const allowed = await chrome.permissions.request({
-              permissions: ["tabs"],
-            });
-            automatic.checked = allowed;
-            await chrome.storage.local.set({ automatic: allowed });
-          } else {
-            await chrome.storage.local.set({ automatic: false });
-            await chrome.permissions.remove({ permissions: ["tabs"] });
-          }
-        }),
-      );
-    } else automatic.disabled = true;
     return el(
       "section",
       { class: "content stack" },
@@ -144,43 +88,6 @@ export function createSettings(ctx: AppContext) {
           "Change master password",
           () => changePassword(),
           "button tonal",
-        ),
-      ),
-      el(
-        "details",
-        { class: "settings-section" },
-        el("summary", {}, "Experimental passkey unlock"),
-        el(
-          "div",
-          { class: "stack" },
-          el(
-            "p",
-            {},
-            "Uses WebAuthn PRF to unwrap the vault key. Requires a compatible authenticator and this extension’s stable origin. No real Windows Hello, Touch ID or security-key hardware has been validated for this preview.",
-          ),
-          el(
-            "p",
-            { class: "hint" },
-            "Use a full window. Enrollment requires your master password and two successful authentication requests. Development and Store extension IDs may differ; keep your password and backup.",
-          ),
-          slots,
-          button("Enroll a passkey", () => passkeyEnrollment(), "button tonal"),
-        ),
-      ),
-      el(
-        "div",
-        { class: "settings-section stack" },
-        el("h2", {}, "Website awareness"),
-        el(
-          "label",
-          { class: "switch-label", for: "automatic" },
-          automatic,
-          "Automatic toolbar indicators",
-        ),
-        el(
-          "p",
-          { class: "hint" },
-          "Optional tabs permission gives access to the URLs of all open tabs. Addresses are checked against the bundled directory on this device. No visits are stored or sent. Manual checks use activeTab when you open the popup. No notifications or page injection.",
         ),
       ),
       el(
@@ -234,63 +141,13 @@ export function createSettings(ctx: AppContext) {
             closeDialog();
             render();
             announce(
-              "Master password changed and vault key rotated. All passkeys must be re-enrolled. Existing backup files still use their original passphrase.",
+              "Master password changed and vault key rotated. Existing backup files still use their original passphrase.",
             );
           }),
         current.wrapper,
         next.wrapper,
         confirm.wrapper,
         submit("Change password"),
-      ),
-    );
-  }
-
-  function passkeyEnrollment(): void {
-    if (!fullWindow) {
-      announce("Open the full window, unlock, and enroll from Settings.", true);
-      return;
-    }
-    if (session.current().passkeys.length >= 5) {
-      announce(
-        "Revoke a passkey before enrolling another (maximum five).",
-        true,
-      );
-      return;
-    }
-    const password = input("password", "Confirm master password", "password");
-    modal(
-      "Enroll passkey unlock",
-      form(
-        async (_fields, f) =>
-          run(async () => {
-            const e = session.current(),
-              epoch = session.epoch();
-            const raw = await unwrapPassword(e, password.control.value);
-            f.reset();
-            try {
-              const slot = await enroll(e, raw);
-              session.check();
-              if (epoch !== session.epoch()) return;
-              await session.save(session.accounts(), (h) => ({
-                ...h,
-                passkeys: [...h.passkeys, slot],
-              }));
-            } finally {
-              raw.fill(0);
-            }
-            closeDialog();
-            render();
-            announce(
-              "PRF round-trip passed. Passkey wrapper enrolled for this extension origin.",
-            );
-          }),
-        password.wrapper,
-        el(
-          "p",
-          { class: "hint" },
-          "If PRF is unavailable, no unlock method is saved. Your provider may retain a credential from an unsuccessful enrollment; remove it there if needed.",
-        ),
-        submit("Start secure enrollment"),
       ),
     );
   }

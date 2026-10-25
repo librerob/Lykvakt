@@ -459,15 +459,6 @@ nav {
   max-width: 280px;
   font-size: 13px;
 }
-.site-note {
-  border-top: 1px solid var(--line);
-  padding: 18px 0 0;
-  margin-top: 18px;
-  font-size: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 a {
   color: var(--primary);
   text-underline-offset: 3px;
@@ -541,16 +532,6 @@ summary {
 }
 details > .stack {
   padding-top: 16px;
-}
-.inline,
-.switch-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.switch-label {
-  justify-content: flex-start;
 }
 dialog {
   color: var(--text);
@@ -638,12 +619,6 @@ dialog::backdrop {
   --on-tonal: #153e2a;
 }
 
-.import-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
 .transfer-qr {
   width: min(320px, 100%);
   align-self: center;

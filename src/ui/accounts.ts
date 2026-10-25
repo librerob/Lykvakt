@@ -1,13 +1,9 @@
 import { button, el, input } from "../dom";
 import { codeFor } from "../otp";
-import { loadDirectory, lookup, safeLink } from "../directory";
 import { createEnrollment } from "./enrollment";
-import { currentWebsite, unchangedWebsite, captureWebsite } from "../tab";
-import { fillCode } from "../fill";
-import { parseImport } from "../import";
 import type { AppContext } from "./context";
 export function createAccounts(ctx: AppContext) {
-  const { session, isExtension, run, announce, confirmAction } = ctx;
+  const { session, run, announce, confirmAction } = ctx;
   let search = "",
     favorites = false;
   let list: HTMLElement | undefined;
@@ -24,78 +20,6 @@ export function createAccounts(ctx: AppContext) {
     list = undefined;
   }
 
-  async function scanTab(): Promise<void> {
-    session.check();
-    if (ctx.fullWindow)
-      throw new Error(
-        "Open Lykvakt from the toolbar on the website, then choose Scan this tab.",
-      );
-    const epoch = session.epoch();
-    const blob = await captureWebsite();
-    const { readQRs } = await import("../qr");
-    const values = await readQRs(blob);
-    session.check();
-    if (epoch !== session.epoch()) return;
-    if (values.some((v) => !/^otpauth(?:-migration)?:/.test(v)))
-      throw new Error(
-        "A QR on this page is not an authenticator setup code. Use a cropped image of the intended OTP QR.",
-      );
-    const imported = parseImport(values.join("\n"), "uri");
-    await preview(imported.accounts, imported.skipped);
-  }
-  async function fillAccount(id: string): Promise<void> {
-    session.check();
-    if (ctx.fullWindow)
-      throw new Error(
-        "Open Lykvakt from the toolbar on the website to fill a code.",
-      );
-    const epoch = session.epoch();
-    const target = await currentWebsite();
-    session.check();
-    if (epoch !== session.epoch()) return;
-    const current = session.accounts().accounts.find((a) => a.id === id)!;
-    const fill = async () => {
-      session.check();
-      if (epoch !== session.epoch()) return;
-      const entry = session.accounts().accounts.find((a) => a.id === id)!;
-      if (!entry.origins.includes(target.origin))
-        throw new Error("Website approval is required.");
-      const value = await codeFor(entry);
-      session.check();
-      if (epoch !== session.epoch()) return;
-      await unchangedWebsite(target);
-      session.check();
-      if (epoch !== session.epoch()) return;
-      const results = await chrome.scripting.executeScript({
-        target: { tabId: target.id, frameIds: [0] },
-        func: fillCode,
-        args: [target.origin, value],
-      });
-      session.check();
-      if (epoch !== session.epoch()) return;
-      if (!results[0]?.result)
-        throw new Error(
-          "No single empty one-time-code field found. Use Copy and paste the code yourself.",
-        );
-      announce("Code filled. Submit it on the website when ready.");
-    };
-    if (current.origins.includes(target.origin)) await fill();
-    else
-      confirmAction(
-        "Approve this website?",
-        `Allow ${current.issuer || current.label} codes to be filled on ${target.origin}? Verify the address yourself. Website approval does not protect against a compromised site.`,
-        "Approve website & fill",
-        async () => {
-          session.check();
-          if (epoch !== session.epoch()) return;
-          await unchangedWebsite(target);
-          const data = session.accounts();
-          data.accounts.find((a) => a.id === id)!.origins.push(target.origin);
-          await session.save(data);
-          await fill();
-        },
-      );
-  }
   function codesView(): HTMLElement {
     const add = button("+ Add account", () => addAccount(), "button primary");
     const heading = el(
@@ -133,73 +57,9 @@ export function createAccounts(ctx: AppContext) {
       heading,
       el("div", { class: "search-row" }, searchInput.wrapper, filter),
       list,
-      el(
-        "div",
-        { class: "import-actions" },
-        button("Import accounts", () => importAccounts(), "button text"),
-        isExtension && !ctx.fullWindow
-          ? button("Scan this tab", () => run(scanTab), "button tonal")
-          : null,
-      ),
+      button("Import accounts", () => importAccounts(), "button text"),
     );
     drawAccounts();
-    if (isExtension) {
-      const site = el("aside", { class: "site-note" });
-      section.append(site);
-      void run(async () => {
-        const [tab] = await chrome.tabs.query({
-          active: true,
-          currentWindow: true,
-        });
-        const found = tab?.url
-          ? lookup(tab.url, await loadDirectory())
-          : undefined;
-        if (!site.isConnected) return;
-        if (!found) {
-          site.textContent =
-            "Website check: no directory match for this tab. This does not prove 2FA is unavailable.";
-          return;
-        }
-        site.append(
-          el("strong", {}, `${found.domain} lists 2FA support`),
-          el(
-            "p",
-            {},
-            found.entry.methods
-              .map(
-                (m) =>
-                  ({
-                    totp: "Authenticator codes",
-                    u2f: "Security keys",
-                    sms: "SMS",
-                    email: "Email",
-                    call: "Phone call",
-                    "custom-software": "Other software",
-                    "custom-hardware": "Other hardware",
-                  })[m] ?? m,
-              )
-              .join(" · "),
-          ),
-        );
-        const link = safeLink(found.entry.documentation);
-        if (link)
-          site.append(
-            el(
-              "a",
-              { href: link, target: "_blank", rel: "noopener noreferrer" },
-              "View setup instructions ↗",
-            ),
-          );
-        site.append(
-          el(
-            "p",
-            { class: "hint" },
-            "Support does not mean your account is enrolled. Prefer phishing-resistant passkeys or security keys where available.",
-          ),
-          el("small", {}, "Data sourced from 2FA Directory by 2factorauth."),
-        );
-      });
-    }
     return section;
   }
 
@@ -268,9 +128,6 @@ export function createAccounts(ctx: AppContext) {
           { class: "code-row" },
           code,
           remaining,
-          isExtension && !ctx.fullWindow
-            ? button("Fill", () => run(() => fillAccount(a.id)), "button text")
-            : null,
           button(
             "Copy",
             () =>

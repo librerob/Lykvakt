@@ -2,22 +2,14 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import assert from "node:assert/strict";
 const manifest = JSON.parse(await readFile("dist/manifest.json", "utf8"));
 assert.equal(manifest.manifest_version, 3);
-assert.deepEqual(manifest.permissions, [
-  "activeTab",
-  "storage",
-  "clipboardWrite",
-  "scripting",
-]);
-assert.deepEqual(manifest.optional_permissions, ["tabs"]);
+assert.deepEqual(manifest.permissions, ["clipboardWrite"]);
+assert.equal(manifest.optional_permissions, undefined);
+assert.equal(manifest.background, undefined);
 assert.equal(manifest.host_permissions, undefined);
 assert.equal(manifest.content_scripts, undefined);
 assert.equal(manifest.externally_connectable, undefined);
 assert.equal(manifest.web_accessible_resources, undefined);
-for (const path of [
-  "index.html",
-  "background.js",
-  ...Object.values(manifest.icons),
-])
+for (const path of ["index.html", ...Object.values(manifest.icons)])
   assert((await stat("dist/" + path)).isFile());
 async function scan(dir) {
   let bytes = 0;

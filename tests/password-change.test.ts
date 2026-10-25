@@ -1,11 +1,9 @@
 import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, it, expect, vi } from "vitest";
 import {
-  base64,
   decryptEnvelope,
   importVaultKey,
   open,
-  random,
   unwrapPassword,
 } from "../src/crypto";
 import { Session } from "../src/session";
@@ -37,18 +35,6 @@ async function settings() {
 }
 it("password change rotates the actual session key: an old envelope/password cannot decrypt future saves", async () => {
   const session = await settings();
-  await session.save(session.accounts(), (h) => ({
-    ...h,
-    passkeys: [
-      {
-        id: "synthetic",
-        credential: base64(random(32)),
-        salt: base64(random(32)),
-        iv: base64(random(12)),
-        wrapped: base64(random(48)),
-      },
-    ],
-  }));
   const oldEnvelope = session.current();
   const raw = await unwrapPassword(oldEnvelope, oldPassword);
   let oldKey: CryptoKey;
@@ -70,7 +56,7 @@ it("password change rotates the actual session key: an old envelope/password can
   expect((await decryptEnvelope(session.current(), newPassword)).data).toEqual(
     session.accounts(),
   );
-  expect(ui.messages.join(" ")).toMatch(/passkeys.*re-enroll/i);
+  expect(ui.messages.join(" ")).toMatch(/vault key rotated/i);
 });
 it("failed rotation commit preserves the old session key and stored vault", async () => {
   const session = await settings(),

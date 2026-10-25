@@ -1,27 +1,25 @@
 # Chrome Web Store preparation (not submitted)
 
-The product name and publisher identity still need final review. These texts describe the current preview; they are not a Store approval or an invitation to move critical accounts.
+These texts describe the minimized branch. No Store upload, payment, submission or approval has occurred.
 
 ## Short description
 
-Offline authenticator with an encrypted local vault and encrypted backups you can test restoring.
+Offline TOTP/HOTP authenticator with a password-encrypted local vault and encrypted backups you can test restoring.
 
 ## Description
 
-Lykvakt is an open-source development preview for dedicated test accounts. Generate TOTP and HOTP codes offline, organize accounts, and save encrypted backups protected by a passphrase you choose. Open the actual saved file to test restoration without replacing your active accounts.
+Lykvakt is an open-source development preview for test accounts. Generate TOTP/HOTP codes offline, organize accounts, import setup keys or user-selected QR images, and save encrypted backups with a passphrase you choose. Open the actual saved file to test restoration without replacing your accounts.
 
-Secrets and account metadata stay encrypted in the local browser profile. The extension has no developer backend, telemetry, advertising, account registration or paid tier. Website-support checks use bundled 2FA Directory data. Optional automatic toolbar indicators require access to open-tab addresses and check those addresses locally.
+Password verification is required before plaintext setup-secret export or transfer QR reveal. Password change rotates the vault key. Existing password-protected vaults and backups remain readable; legacy passkey slots are authenticated and then stripped on password unlock when persistence succeeds. Passkey unlock/enrollment is no longer available.
 
-Passkey unlock is experimental and requires real WebAuthn PRF output. Physical Windows Hello, Touch ID and security-key support has not been validated. A password remains available; exported backups do not depend on a passkey.
+The extension has no server, telemetry, advertising, registration, subscription or paid tier. It does not look up websites, fill forms, capture tabs or inject page scripts. Keep your existing authenticator, service recovery codes and separately stored verified backups. No independent security audit has occurred, and TOTP remains phishable.
 
-No independent security audit has occurred. Keep your existing authenticator, service recovery codes and a separately stored, verified backup. TOTP is not phishing-resistant. A compromised computer can expose unlocked secrets.
+## Permissions and privacy
 
-## Privacy fields
+The exact manifest permission set is `["clipboardWrite"]`, used only to copy a selected OTP after a click. There are no optional or host permissions: no `activeTab`, `tabs`, `scripting` or `storage`. The extension has no background service worker. The encrypted vault uses IndexedDB; appearance/timeout preferences use localStorage. QR import uses files explicitly selected by the user, with no camera or screen access.
 
-Use PRIVACY.md as the authoritative policy. Locally processed authentication information is sensitive even when it is never sent to the developer. Store questionnaire answers must accurately distinguish local handling from collection/transmission; verify the live dashboard wording before submission.
+Use [PRIVACY.md](../../PRIVACY.md) as the policy. Authentication information is sensitive even when handled only locally. Verify the live Store questionnaire wording and public policy hosting before submission.
 
-Required permissions: activeTab for user-triggered site lookup, visible-tab QR capture and filling; scripting for an explicitly selected OTP filled into an approved origin; storage for one local feature preference; clipboardWrite for a clicked code. Optional tabs grants URL visibility for all open tabs, used only for local support badges. No standing host access, automatically registered content scripts, camera or clipboard-read permission is requested. Captures stay local; a selected OTP is disclosed to the approved website on an explicit Fill click.
+## Remaining portal work
 
-## Assets and remaining portal work
-
-Original icon files are in public/icons/ at 16, 32, 48 and 128 pixels, with editable SVG source. Genuine synthetic-account screenshots are produced by the Chromium suite. Final Store screenshot dimensions, promotional tiles, public policy hosting, stable extension identity and branding must be completed after review. No Store upload, payment or submission has been performed.
+The name and publisher identity need final review. Icons are in `public/icons/`; browser CI produces genuine synthetic-account screenshots. Final Store asset dimensions, promotional tiles, public policy hosting and a stable Store extension identity remain to be completed. Older screenshots/release notes may show features removed by this branch.

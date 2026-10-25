@@ -289,28 +289,6 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           `${a.type.toUpperCase()} · ${a.algorithm} · ${a.digits} digits. OTP settings are preserved.`,
         ),
         submit("Save changes"),
-        el(
-          "p",
-          { class: "hint" },
-          a.origins.length
-            ? "Approved fill websites: " + a.origins.join(", ")
-            : "No websites approved for filling.",
-        ),
-        a.origins.length
-          ? button(
-              "Remove website approvals",
-              () =>
-                run(async () => {
-                  const data = session.accounts();
-                  data.accounts.find((x) => x.id === id)!.origins = [];
-                  await session.save(data);
-                  closeDialog();
-                  drawAccounts();
-                  announce("Website approvals removed.");
-                }),
-              "button text",
-            )
-          : null,
         button(
           "Show transfer QR…",
           () =>
@@ -351,7 +329,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
                     el(
                       "p",
                       { class: "hint" },
-                      "Standard otpauth QR. Check algorithm, digits, period and counter support in the destination app. Favorites, groups and website approvals are not transferred.",
+                      "Standard otpauth QR. Check algorithm, digits, period and counter support in the destination app. Favorites and groups are not transferred.",
                     ),
                   ),
                 );

@@ -1,17 +1,25 @@
 # Architecture
 
-The TypeScript extension uses native DOM controls and Material 3 inspired design tokens. A UI framework would add little to these few screens. Vite bundles two entries: an extension page and a service worker. All executable code is local. The CSP restricts connections to the extension origin and forbids remote scripts, frames and objects.
+One TypeScript extension page owns the UI, unlocked data and nonextractable CryptoKeys. Vite bundles that page and the locally loaded QR components. There is no service worker, directory dataset, remote script, website content script, native companion or message-based vault API.
 
-The extension page owns the unlocked session. The worker only reads public directory data, observes URL events when the optional permission is granted, and manages per-tab badges. It never receives an account, key, password or OTP. There are no automatically registered content scripts, external messages or page-to-vault message endpoints.
+The only manifest permission is `clipboardWrite`. There are no optional or host permissions. IndexedDB stores the encrypted vault without a Chrome storage permission. Theme, accent and timeout preferences use localStorage. No `chrome.storage` API, website lookup, tab URL query, scripting injection or screen capture remains.
 
-The complete vault is one encrypted document in IndexedDB. Account metadata is encrypted with the seeds. A save seals a new document, then performs a strict-durability compare-and-swap transaction against the vault ID and revision. Concurrent stale writers fail with an actionable error; they do not overwrite a newer vault. There is no automatic merge of counter state.
+## Vault and session
 
-UI operations validate the unlocked session before and after asynchronous crypto. An epoch invalidates late unlocks and sensitive UI results after locking. Explicit lock, tab switching, page hiding, page closure and inactivity drop key/data references and remove dialogs and OTP DOM nodes. Every sensitive operation checks wall-clock inactivity so a suspended timer does not extend access. Multiple pages have independent unlock state and revision-checked writes. Closing all pages or restarting Chrome therefore loses the only unwrapped keys.
+The complete account payload is an authenticated encrypted IndexedDB document. Saves encrypt fresh content, then use the vault ID and revision in a compare-and-swap transaction. Stale or concurrent writers fail rather than overwrite another window's state. Pending writes carry an abort signal from the session.
 
-Imports are bounded, parsed locally and fully validated. Unsupported records fail the whole import. The preview identifies exact duplicates and blocks conflicting configurations sharing a seed/type. Confirmation rechecks duplicates against current data, then commits the combined document atomically. Original records retain their settings and counters.
+Unlock derives the password key and authenticates the existing envelope before migration. A weaker accepted KDF slot is upgraded to the configured default. A legacy vault with passkey slots is resealed with `passkeys: []` through the same revision-checked commit path. Failure of legacy slot removal leaves password access available; later saves strip the slots again. New writes reject nonempty slots. The field remains in authenticated header data for compatibility.
 
-The implementation uses Web Crypto for HMAC, PBKDF2, HKDF, AES-GCM and AES-KW. `jsqr` decodes user-selected images and explicit visible-tab captures; `qrcode` generates transfer QRs (including its bundled `dijkstrajs` dependency); `tldts` supplies public/private suffix parsing. Runtime dependency notices are included in the package. Build and test dependencies do not ship in the extension.
+Password change generates a fresh random vault key and switches the session key only after the new envelope commits. Keys are never shared between extension pages. Explicit lock, inactivity, page hiding/closure and a different active tab in the full-window view remove key/data references and sensitive dialogs. Basic tab IDs and activation events support the lock without granting URL access or requiring a tabs permission. OS-lock detection is not claimed.
 
-Extension pages do not reliably report tab occlusion through document.hidden in tested Chromium. Full-window sessions therefore also observe chrome.tabs.onActivated and lock when a different tab in their own window becomes active. Only tab/window IDs are used; URL visibility is not needed. No guarantee is made about OS-lock or external-app focus signals.
+Async operations carry a session epoch so late results cannot reopen a locked session. Lock aborts pending abortable storage transactions; a write that has already committed cannot be undone. JavaScript cannot guarantee memory zeroization.
 
-See [migration, tab capture and explicit fill](migration-and-fill.md) for the schema migration, exact-origin approvals and conservative field rules. The injected fill function is isolated from the vault and receives only a single OTP and approved origin.
+## Import and export
+
+Bounded parsers accept standard OTP links, Google transfer batches, supported plaintext Aegis/2FAS exports and user-selected QR image files. Structural errors and incomplete batches throw. Invalid individual records are listed with their positions/reasons; zero valid records also throws. The user reviews valid records, duplicates and skips before an atomic save. Conflicting configurations sharing a seed/type block confirmation.
+
+The retained `origins` account field is validated and encrypted so old records/backups round-trip. No UI consumes or edits it, and it never authorizes page access.
+
+Encrypted backup verification decrypts the actual selected file, validates records, generates test codes and compares snapshots without replacing the vault. Plaintext OTP-link exports and transfer QR reveal require fresh master-password verification. Only a clicked code is written to the clipboard.
+
+Web Crypto supplies HMAC, PBKDF2, AES-GCM and AES-KW. The runtime QR dependencies are `jsqr` and `qrcode` (with its bundled `dijkstrajs` dependency). No runtime cryptography package or new dependency was added. All executable assets are bundled; the CSP restricts scripts/styles/connections to the extension origin and forbids frames and objects.

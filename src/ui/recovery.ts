@@ -25,11 +25,7 @@ export function createRecovery(
         el("dt", {}, "Storage"),
         el("dd", {}, "Encrypted · AES-256-GCM"),
         el("dt", {}, "Unlock methods"),
-        el(
-          "dd",
-          {},
-          `Master password + ${session.current().passkeys.length} passkey(s)`,
-        ),
+        el("dd", {}, "Master password"),
         el("dt", {}, "Last matching file verification"),
         el(
           "dd",
@@ -77,7 +73,7 @@ export function createRecovery(
             authenticateAction(
               ctx,
               "Export every setup secret?",
-              "This unencrypted file lets anyone generate your codes. It excludes favorites, groups and website approvals. Keep it private, verify the destination app, then remove the file.",
+              "This unencrypted file lets anyone generate your codes. It excludes favorites and groups. Keep it private, verify the destination app, then remove the file.",
               "Export all OTP links",
               async () => {
                 session.check();
@@ -176,7 +172,7 @@ export function createRecovery(
         el(
           "p",
           { class: "hint" },
-          "At least 14 characters. Passkey unlock records are excluded: this file restores using only its passphrase.",
+          "At least 14 characters. This file restores using its own passphrase.",
         ),
         submit("Save encrypted file"),
       ),

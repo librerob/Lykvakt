@@ -17,7 +17,6 @@ it("settings reads the runtime manifest version", async () => {
   await session.setup("synthetic settings password");
   vi.stubGlobal("chrome", {
     runtime: { getManifest: () => ({ version: "7.8.9" }) },
-    storage: { local: { get: async () => ({ automatic: false }) } },
   });
   const ctx = context(session);
   ctx.isExtension = true;

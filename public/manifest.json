@@ -3,17 +3,12 @@
   "name": "Lykvakt — Development Preview",
   "version": "0.2.0",
   "version_name": "0.2.0-rc.1 (unaudited)",
-  "description": "Offline authenticator with a password-encrypted local vault and testable encrypted backups. Development preview for test accounts.",
+  "description": "Offline TOTP/HOTP vault with password encryption, QR image import and testable encrypted backups. Clipboard permission only.",
   "minimum_chrome_version": "120",
-  "permissions": ["activeTab", "storage", "clipboardWrite", "scripting"],
-  "optional_permissions": ["tabs"],
+  "permissions": ["clipboardWrite"],
   "action": {
     "default_popup": "index.html",
     "default_title": "Lykvakt"
-  },
-  "background": {
-    "service_worker": "background.js",
-    "type": "module"
   },
   "icons": {
     "16": "icons/16.png",

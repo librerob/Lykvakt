@@ -1,27 +1,21 @@
 # Privacy
 
-Lykvakt development preview, 24 October 2026.
+Lykvakt minimized development preview, 24 October 2026.
 
-Secrets, service names, identifiers, favorites, groups, approved fill origins and backup-verification history are stored together inside an authenticated encrypted IndexedDB document. The unencrypted envelope exposes the format, random vault identifier, revision, ciphertext size, password KDF parameters and optional passkey credential identifiers/wrappers.
+Secrets, service/account identifiers, favorites, groups, legacy origins metadata and backup-verification history are stored in one authenticated encrypted IndexedDB document. Its outer envelope exposes format/version, random vault ID, revision, ciphertext size and password KDF parameters. Old envelopes may also contain legacy passkey wrapper metadata; password unlock authenticates it and attempts to strip it. New writes require an empty `passkeys` array.
 
-Unlocked data and nonextractable CryptoKeys live in the extension page’s memory. Neither `chrome.storage.session` nor browser sync receives a vault key. Theme, accent and inactivity settings are unencrypted local preferences. Optional automatic detection is an unencrypted boolean in `chrome.storage.local`.
+Unlocked data and nonextractable CryptoKeys live only in the extension page. Appearance and timeout settings are unencrypted localStorage preferences. No Chrome storage API or sync is used. JavaScript and browser internals prevent guaranteed memory erasure.
 
-The extension has no telemetry, analytics, advertising, accounts or developer backend. No external fetch is used at runtime. Bundled directory JSON is read from the extension package. Clicking a documentation link opens that external site, which receives the usual browser request. The browser/passkey provider can perform its own operations during a user-requested WebAuthn ceremony; Lykvakt does not control a provider’s synchronization or privacy practices.
+The extension has no developer backend, telemetry, analytics, advertising, registration or cloud sync. Executable code and QR components are bundled locally. There is no directory dataset, background worker, passkey ceremony, website lookup, form filling, page injection, tab capture, camera access or external runtime request.
 
 ## Permissions
 
-| Permission        | Purpose                                                                                                                                                                 |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `activeTab`       | Temporary current-site access after toolbar invocation, for local lookup, explicit QR capture and approved filling.                                                     |
-| `scripting`       | Inject a small function into the active page only after Fill is clicked. It receives the selected OTP and approved origin, never the secret.                            |
-| `storage`         | Save the optional automatic-indicator preference. The encrypted vault uses IndexedDB.                                                                                   |
-| `clipboardWrite`  | Copy a specific OTP after a user click. Clipboard readers and history may retain it.                                                                                    |
-| `tabs` (optional) | Observe addresses of open tabs for automatic local badges. This grants broader URL visibility; it is requested explicitly. Disabling the option removes the permission. |
+The complete manifest permission set is `["clipboardWrite"]`: a user-clicked OTP can be copied. Clipboard readers, OS history and other apps can retain that code. No clipboard reading occurs. There are no optional permissions, host permissions, `activeTab`, `tabs`, `scripting` or `storage` permission. IndexedDB and localStorage do not require Chrome's storage permission. Basic tab IDs/activation events support full-window locking without reading URLs.
 
-No standing website host permissions, automatically registered content scripts, camera access, clipboard reading, native helper, notifications or web-accessible resources are declared. No browsing history, visited-domain list or page contents are retained. Directory support indicators reveal nothing about the user’s accounts and work independently of the locked vault.
+## Import, export and deletion
 
-## Export and deletion
+Only user-selected QR image files and supplied import text/files are decoded. They are not uploaded or logged. Invalid records are reported before the user confirms valid accounts; structural errors and incomplete batches save nothing.
 
-Backups are encrypted with their own password and fresh key material. Separately confirmed OTP-link exports and revealed transfer QRs are plaintext and contain secrets. QR files, Google transfer data, import text and user-requested visible-tab captures are processed locally and not logged or persisted. Captures can contain unrelated visible page content while being decoded. Explicit filling discloses the chosen OTP to the approved website; that site controls its own scripts.
+Backups have independent password encryption. Plaintext OTP-link exports and revealed transfer QRs contain setup secrets and require master-password verification. No website receives an OTP automatically. The user controls any later sharing or pasting.
 
-Deleting an account replaces the active encrypted document without an application trash. Browser databases, OS backups and old exported files may retain previous ciphertext. Physical/forensic erasure cannot be guaranteed. Uninstalling the extension removes its browser-managed local storage, so verify a usable backup first.
+Deletion replaces the active encrypted document without application trash. Browser databases, OS backups and exported files can retain older ciphertext; physical erasure is not guaranteed. Password change rotates the active vault key but does not revoke older exported copies. Uninstalling removes browser-managed local storage, so verify an independently stored backup first.
