@@ -14,7 +14,7 @@ The read path accepts only the bounded legacy structure needed to authenticate o
 
 ## Passwords and rotation
 
-Validation uses a fixed minimum of 600,000 PBKDF2 iterations and a maximum of 5,000,000; new slots currently use 600,000. Raising the new-slot default does not raise the compatibility floor. Successful password unlock upgrades a weaker accepted slot and reseals its authenticated header. Failed ordinary KDF-upgrade commits leave the session locked; combined legacy cleanup remains best effort. Backup verification does not persist upgrades.
+Validation uses a fixed minimum of 600,000 PBKDF2 iterations and a maximum of 5,000,000; new slots currently use 600,000. Raising the new-slot default does not raise the compatibility floor. Successful password unlock upgrades a weaker accepted slot and reseals its authenticated header. All upgrade writes are best effort: a failed commit keeps password access and the original session envelope; a later password unlock retries the upgrade. Lock cancellation still prevents access. Backup verification does not persist upgrades.
 
 New slots derive from NFKC-normalized UTF-8 passwords. Unlock tries NFKC first and, on authentication failure when normalization changes the string, can retry the raw encoding for an old archive. New master/backup passphrases require 14–1024 input characters. The optional generator chooses seven distinct EFF words with unbiased rejection sampling over `crypto.getRandomValues`. Temporary raw key and UTF-8 arrays are cleared in finally blocks where practical.
 

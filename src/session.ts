@@ -103,8 +103,8 @@ export class Session {
     if (result.envelope.revision !== saved.revision) {
       try {
         await storage.commit(result.envelope, saved, signal);
-      } catch (error) {
-        if (!saved.passkeys.length) throw error;
+      } catch {
+        // Authentication succeeded; an optional upgrade must not deny access.
         result.envelope = saved;
       }
     }
