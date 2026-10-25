@@ -102,7 +102,7 @@ export class Session {
     if (epoch !== this.generation) throw new Error("Unlock cancelled.");
     if (result.envelope.revision !== saved.revision) {
       try {
-        await storage.commit(result.envelope, saved, signal);
+        await storage.commit(result.envelope, saved, signal, true);
       } catch {
         // Authentication succeeded; an optional upgrade must not deny access.
         result.envelope = saved;

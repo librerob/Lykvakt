@@ -10,7 +10,7 @@ Every save generates a fresh AES-256-GCM content key and random 12-byte IV, encr
 
 For legacy compatibility, new envelopes retain an empty `passkeys` array, and old slots are authenticated and stripped on password unlock when saving succeeds.
 
-The read path accepts only the bounded legacy structure needed to authenticate original AAD. Cleanup increments the revision and follows the same compare-and-swap path as a KDF upgrade. A failed legacy cleanup leaves password access available; a later save retries it. Cleanup alone does not rotate the vault key or revoke a key recovered from an older copy.
+The read path accepts only the bounded legacy structure needed to authenticate original AAD. Cleanup increments the revision and follows the same compare-and-swap path as a KDF upgrade. Successful unlock upgrades delete the previous encrypted copy in the same transaction, so it cannot retain a superseded password wrapper or legacy slots; the next ordinary save preserves the upgraded envelope. A failed legacy cleanup leaves password access available; a later save retries it. Cleanup alone does not rotate the vault key or revoke a key recovered from an older copy.
 
 ## Passwords and rotation
 
