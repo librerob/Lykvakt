@@ -1,6 +1,7 @@
 import { withGenerator } from "./passphrase";
 import { button, el, input, select, form, submit, helpBlock } from "../dom";
 import { createProtection } from "./protection";
+import { upgradeNotice } from "./upgrade-notice";
 import { preferenceEnabled, savePreference } from "../preferences";
 import { busyCopy } from "../help";
 import type { Argon2Policy } from "../crypto";
@@ -40,6 +41,7 @@ export function createSettings(ctx: AppContext) {
       "section",
       { class: "content stack" },
       el("h1", {}, "Settings"),
+      upgradeNotice(ctx),
       el(
         "div",
         { class: "settings-section stack" },
@@ -70,7 +72,7 @@ export function createSettings(ctx: AppContext) {
         "div",
         { class: "settings-section stack" },
         el("h2", {}, "Keyboard shortcut"),
-        el("p", {}, "Alt+Shift+Y · Command+Shift+Y on Mac"),
+        el("p", {}, "Ctrl+Shift+Y · Command+Shift+Y on Mac"),
         helpBlock("shortcut"),
         isExtension
           ? button(

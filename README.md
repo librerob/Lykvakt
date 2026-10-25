@@ -66,7 +66,7 @@ Browser tests use the actual unpacked extension and synthetic accounts. Install 
 
 ## Keyboard shortcut
 
-Open with **Alt+Shift+Y**, or **Command+Shift+Y on Mac**. It avoids common Ctrl-based browser shortcuts, but another extension or the operating system can still take the key. Rebind it at chrome://extensions/shortcuts. The locked view focuses the password; after unlock, search gets focus. Enter copies the first match without revealing it. Escape clears search first, then closes the popup.
+Open with **Ctrl+Shift+Y**, or **Command+Shift+Y on Mac**. The suggested key is absent from [Chrome's published built-in shortcut list](https://support.google.com/chrome/answer/157179?hl=en); another extension or the operating system can still take it. Rebind it at chrome://extensions/shortcuts. The locked view focuses the password; after unlock, search gets focus. Type part of an account name, then Enter copies the first match without revealing it and announces the account. An empty search copies nothing. Escape clears search first, then closes the popup.
 
 ## Moving accounts and recovery
 
@@ -74,7 +74,7 @@ See [migration](docs/migration.md) for supported import/export formats and trans
 
 Save an encrypted backup outside the browser, then use Recovery → Verify or restore a backup to test that exact file. Keep its passphrase separately. Password changes protect future vault saves; previously exported backups keep their original passphrases. Local recovery copies are not independent backups. There is no password reset or recovery server.
 
-Password unlock remains compatible with supported older vaults and backups. New vaults, backups and successful upgrades use Argon2id; **older Lykvakt builds cannot open those new files**. Keep a working installation and verified independent backups when updating. See [format compatibility](docs/compatibility.md). Encrypted third-party exports and proprietary Steam/Battle.net formats are unsupported. Google transfers require every batch part. Text imports are bounded to 2,000 accounts and 8 MB; QR images have separate size/dimension bounds.
+Password unlock remains compatible with supported older vaults and backups. New vaults, backups and successful upgrades use Argon2id. See [format compatibility](docs/compatibility.md). Encrypted third-party exports and proprietary Steam/Battle.net formats are unsupported. Google transfers require every batch part. Text imports are bounded to 2,000 accounts and 8 MB; QR images have separate size/dimension bounds.
 
 No independent audit or exhaustive phone interoperability certification has occurred. TOTP is phishable; a compromised browser or device can read unlocked secrets.
 

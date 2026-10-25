@@ -1,3 +1,10 @@
+import { StorageConflictError } from "./storage";
+
+export const emptySearchMessage =
+  "Type part of an account name, then press Enter to copy its code.";
+export const upgradePendingMessage =
+  "Your vault works normally, but we couldn't finish a security upgrade. We'll try again the next time you unlock.";
+
 export const helpCopy = {
   account: {
     text: [
@@ -52,8 +59,8 @@ export const helpCopy = {
   },
   shortcut: {
     text: [
-      "Use Alt+Shift+Y to open Lykvakt, or Command+Shift+Y on a Mac. If another app uses that key, Chrome may leave it unassigned.",
-      "Open chrome://extensions/shortcuts to choose your own key. Once unlocked, type a search and press Enter to copy the first matching account's current code.",
+      "Use Ctrl+Shift+Y to open Lykvakt, or Command+Shift+Y on a Mac. If another app uses that key, Chrome may leave it unassigned.",
+      "Open chrome://extensions/shortcuts to choose your own key. Once unlocked, type part of an account name before pressing Enter. This copies the first match's current code and tells you which account it came from; an empty search copies nothing.",
     ],
   },
   olderCopy: {
@@ -145,6 +152,8 @@ export function friendlyError(error: unknown): {
         "We could not read that file. Choose an unchanged export or backup and try again. Your accounts have not been changed.",
       technical: original,
     };
+  if (error instanceof Error && error.cause instanceof StorageConflictError)
+    return { message: error.message, technical: original };
   if (
     error instanceof Error &&
     /changed in another window|Vault changed/.test(error.message)

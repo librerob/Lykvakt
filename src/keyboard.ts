@@ -1,6 +1,7 @@
 export function bindSearch(
   input: HTMLInputElement,
   copyFirst: () => Promise<void>,
+  emptySearch: () => void = () => {},
 ): void {
   input.addEventListener("keydown", (event) => {
     if (
@@ -12,6 +13,10 @@ export function bindSearch(
     )
       return;
     event.preventDefault();
+    if (!input.value.trim()) {
+      emptySearch();
+      return;
+    }
     void copyFirst();
   });
 }

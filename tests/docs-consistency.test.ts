@@ -72,7 +72,7 @@ it("current documentation matches the bundled-JavaScript, permission, shortcut a
     expect(manifest[field]).toBeUndefined();
   expect(manifest.commands._execute_action.description).toBe("Open Lykvakt");
   expect(manifest.commands._execute_action.suggested_key).toEqual({
-    default: "Alt+Shift+Y",
+    default: "Ctrl+Shift+Y",
     mac: "Command+Shift+Y",
   });
   expect(manifest.content_security_policy.extension_pages).not.toContain(
@@ -81,7 +81,7 @@ it("current documentation matches the bundled-JavaScript, permission, shortcut a
   expect(read("README.md")).toContain("docs/plain-english-guide.md");
   expect(read("README.md")).toMatch(/no WebAssembly/i);
   expect(read("docs/compatibility.md")).toContain(
-    "Older Lykvakt builds cannot open Argon2id",
+    "This build reads supported older PBKDF2 vaults and backups",
   );
   expect(read("docs/plain-english-guide.md")).toContain(
     "chrome://extensions/shortcuts",

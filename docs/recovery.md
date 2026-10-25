@@ -22,7 +22,7 @@ Password change rotates the vault key and removes the older local copy atomicall
 
 ## Password protection and versions
 
-New backup files use Argon2id at the recommended 64 MiB / three-pass setting and have their own password. This build opens supported older PBKDF2 backups without rewriting them. Older Lykvakt builds cannot open new Argon2id files; keep compatible software and verify an independent backup before changing an installation. Optional local tuning applies to the vault only after master-password authentication.
+New backup files use Argon2id at the recommended 64 MiB / three-pass setting and have their own password. This build opens supported older PBKDF2 backups without rewriting them. Optional local tuning applies to the vault only after master-password authentication.
 
 ## Restoring or moving accounts
 

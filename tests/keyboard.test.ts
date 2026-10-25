@@ -32,7 +32,7 @@ it("declares only clipboardWrite and a reserved popup command with platform-spec
     expect(manifest[field]).toBeUndefined();
   expect(manifest.commands).toEqual({
     _execute_action: {
-      suggested_key: { default: "Alt+Shift+Y", mac: "Command+Shift+Y" },
+      suggested_key: { default: "Ctrl+Shift+Y", mac: "Command+Shift+Y" },
       description: "Open Lykvakt",
     },
   });
@@ -68,6 +68,8 @@ it("Enter copies the first matching current code without revealing it", async ()
   const accounts = createAccounts(context(session));
   const view = accounts.codesView() as unknown as TestElement;
   const search = view.querySelector('input[name="search"]')!;
+  search.value = "first";
+  search.dispatchEvent(new Event("input"));
   search.dispatchEvent(keyEvent("Enter"));
   await vi.waitFor(() => expect(writeText).toHaveBeenLastCalledWith("755224"));
   expect(view.querySelector(".otp")!.textContent).toBe("••• •••");

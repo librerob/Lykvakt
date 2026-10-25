@@ -1,14 +1,16 @@
 # Validation record
 
-## Current development branch
+## Recorded full runs
 
-A fresh local source snapshot passed npm ci --ignore-scripts, build, lint, format:check and all 269 tests in 29 files. The install audited 176 packages and reported zero vulnerabilities. The runtime package guard and ZIP packaging also passed. The [full feature PR run](https://github.com/librerob/otp-vault/actions/runs/40210914031) passed on commit 887a90ff641a0678766d7e6862e9a3d4c615263c: all 269 unit tests, all 41 browser scenarios in Chrome for Testing 156.0.8078.4 on Linux, the existing AMOLED axe scan and both expanded-help axe scans with zero violations, the actual headed tab-lock check, bench and packaging. The browser artifact recorded zero external requests and no uncaught errors; npm audit reported zero vulnerabilities.
+The latest follow-up checks are attached to [PR #6](https://github.com/librerob/otp-vault/pull/6/checks). The recorded runs below identify their exact tested revisions; they do not stand in for a newer head.
 
-The preceding security-fix build passed [full PR CI](https://github.com/librerob/otp-vault/actions/runs/40205186659): 186 unit tests, 34 browser scenarios, the existing AMOLED axe scan with zero violations, the headed tab-lock check, and an audit with zero reported vulnerabilities. Those results describe that PBKDF2 build, not the new Argon2id interface.
+The initial feature source snapshot passed npm ci --ignore-scripts, build, lint, format:check and all 269 tests in 29 files. The install audited 176 packages and reported zero vulnerabilities. The runtime package guard and ZIP packaging also passed. The [full feature PR run](https://github.com/librerob/otp-vault/actions/runs/40210914031) passed on commit 887a90ff641a0678766d7e6862e9a3d4c615263c: all 269 unit tests, all 41 browser scenarios in Chrome for Testing 156.0.8078.4 on Linux, the existing AMOLED axe scan and both expanded-help axe scans with zero violations, the actual headed tab-lock check, bench and packaging. The browser artifact recorded zero external requests and no uncaught errors; npm audit reported zero vulnerabilities.
+
+The updated security base at d378e2b0fe799f9380fc48cce53ed08b42ea36f8 passed [full PR CI](https://github.com/librerob/otp-vault/actions/runs/40214026388): 196 unit tests, 34 browser scenarios, the existing AMOLED axe scan with zero violations, the headed tab-lock check, and an audit with zero reported vulnerabilities. Those results describe that PBKDF2 build.
 
 ## Checks included in this change
 
-Known-answer Argon2id vector, authenticated slot tampering and bounded parameters before allocation; real-default create/unlock and password rotation; supported frozen PBKDF2 files; best-effort upgrade retries; worker cancellation and buffer cleanup; pure calibration clamp tests with injected clock/probe; independent HMAC next-code boundaries, masking and preference persistence; focus/Enter/Escape behavior; rendered primary-UI language checks; and exact manifest/runtime constraints.
+Typed compare-and-swap conflict rejection, transient retry/pending state, dismissible upgrade reminders in both views, empty/whitespace Enter guards, account-identifying copy messages and shortcut assignment; known-answer Argon2id vector, authenticated slot tampering and bounded parameters before allocation; real-default create/unlock and password rotation; supported frozen PBKDF2 files; best-effort upgrade retries; worker cancellation and buffer cleanup; pure calibration clamp tests with injected clock/probe; independent HMAC next-code boundaries, masking and preference persistence; focus/Enter/Escape behavior; rendered primary-UI language checks; and exact manifest/runtime constraints.
 
 The parser fuzz suite retains every prior case and adds an Argon2id envelope seed: seven entry points, 5,000 deterministic mutations each, 35,000 calls total. The Error-only, account-validity and 250 ms per-call budgets remain unchanged. This is bounded regression coverage, not an independent audit.
 

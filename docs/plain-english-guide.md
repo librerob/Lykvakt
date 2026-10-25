@@ -12,7 +12,7 @@ The first-run tip card repeats these steps. Choose Got it to dismiss it. Open Wh
 
 ## Find and copy a code
 
-Unlock with your master password. Search for the service or account name, then choose Copy. You can also press Enter in the search box to copy the first matching account.
+Unlock with your master password. Search for the service or account name, then choose Copy. You can also type part of an account name and press Enter in the search box to copy the first match. An empty search copies nothing, and the message names the account copied.
 
 Codes start hidden. Choose a row's code to reveal it for 30 seconds; copying does not reveal it. Hiding or closing the page locks the vault.
 
@@ -20,7 +20,7 @@ The optional Show next code setting starts off. Turn it on if you want to see th
 
 ## Open with the keyboard
 
-The suggested key is Alt+Shift+Y, or Command+Shift+Y on Mac. Another extension or the operating system can take that key. Open chrome://extensions/shortcuts to choose your own.
+The suggested key is Ctrl+Shift+Y, or Command+Shift+Y on Mac. Another extension or the operating system can take that key. Open chrome://extensions/shortcuts to choose your own.
 
 When locked, the password box gets focus. After unlocking, search gets focus. Escape clears a search first, then closes the popup; a full-window page stays open. In a dialog, Escape closes the dialog.
 
@@ -33,6 +33,8 @@ Tune for this computer is optional. Choose Test this computer, wait for the resu
 Changing protection does not change your password or sign-in codes. If you change your master password, the vault's protection is renewed too. Existing backup files still use their own original passwords.
 
 ## Understand reminders and older copies
+
+If a security upgrade cannot be saved, your vault stays usable and shows a reminder. You can dismiss it; Lykvakt will try again at your next unlock. If another window changed the vault instead, unlock again so you use the latest copy.
 
 The backup reminder means your accounts changed, or you have not tested a backup yet. Save and test a new file. Using a counter-based account changes its saved counter, so an older backup can become out of date.
 

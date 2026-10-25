@@ -6,9 +6,7 @@ The build targets Chromium 120+ and Manifest V3. Observed local and browser resu
 
 This build reads supported older PBKDF2 vaults and backups, including the frozen legacy fixtures. IndexedDB identity, envelope format otp-vault and envelope version 1 remain unchanged. Payload schema 1 reads into schema 2; migrated account snapshots need new backup verification.
 
-New vaults, backups and password changes use Argon2id. Password unlock upgrades a PBKDF2 vault when it can safely save the result. A failed upgrade leaves authenticated access available and is retried on a later unlock. Verifying a backup does not rewrite the file or save an upgrade.
-
-**Older Lykvakt builds cannot open Argon2id vaults or backups.** Use this build or a later compatible version after an upgrade. Keep an independently verified backup and the working installation when changing versions. The new reader remains compatible with supported old files; the old reader does not gain support for new protection.
+New vaults, backups and password changes use Argon2id. Password unlock upgrades a PBKDF2 vault when it can safely save the result. A transient upgrade-write failure leaves authenticated access available with a dismissible reminder and is retried on a later unlock. A typed revision conflict clears the stale session and asks for a fresh unlock. Verifying a backup does not rewrite the file or save an upgrade.
 
 For legacy compatibility, new envelopes retain an empty `passkeys` array, and old slots are authenticated and stripped on password unlock when saving succeeds.
 
@@ -20,7 +18,7 @@ Changing an unpacked folder or extension identity can create separate browser-lo
 
 Argon2id uses bundled JavaScript in a module Web Worker, with no WebAssembly or additional manifest permission. Local performance depends on the browser, memory pressure and device; calibration is optional and its result is an estimate.
 
-Alt+Shift+Y is the suggested action shortcut; Mac uses Command+Shift+Y. Chrome or the operating system can reserve a conflicting key, and another extension can take it. Rebind at chrome://extensions/shortcuts. A newly opened popup starts locked because keys are scoped to its page; an already unlocked view focuses search.
+Ctrl+Shift+Y is the suggested action shortcut; Mac uses Command+Shift+Y. Chrome or the operating system can reserve a conflicting key, and another extension can take it. Rebind at chrome://extensions/shortcuts. A newly opened popup starts locked because keys are scoped to its page; an already unlocked view focuses search. Enter copies only after a non-empty account search and announces the copied account.
 
 ## Moving accounts
 

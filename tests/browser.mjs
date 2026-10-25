@@ -125,6 +125,16 @@ try {
     await screenshot("setup");
   });
   await check(
+    "the suggested popup command is assigned without a Chrome shortcut collision",
+    async () => {
+      const commands = await page.evaluate(() => chrome.commands.getAll());
+      expect(
+        commands.find((command) => command.name === "_execute_action")
+          ?.shortcut,
+      ).toBe("Ctrl+Shift+Y");
+    },
+  );
+  await check(
     "setup focuses the password and opens plain-language help by keyboard",
     async () => {
       await expect(
@@ -189,13 +199,48 @@ try {
     ).toBeVisible();
   });
   await check(
+    "empty and whitespace search Enter never writes to the clipboard",
+    async () => {
+      const search = page.getByLabel("Search accounts", { exact: true });
+      await page.evaluate(() => {
+        globalThis.__originalClipboardWrite = navigator.clipboard.writeText;
+        globalThis.__emptySearchWrites = 0;
+        navigator.clipboard.writeText = async () => {
+          globalThis.__emptySearchWrites++;
+        };
+      });
+      try {
+        for (const value of ["", "   "]) {
+          await search.fill(value);
+          await search.press("Enter");
+          await expect(page.getByRole("status")).toContainText(
+            "Type part of an account name, then press Enter to copy its code.",
+          );
+          expect(
+            await page.evaluate(() => globalThis.__emptySearchWrites),
+          ).toBe(0);
+          await expect(page.locator(".account .otp")).toHaveText("••• •••");
+        }
+      } finally {
+        await page.evaluate(() => {
+          navigator.clipboard.writeText = globalThis.__originalClipboardWrite;
+          delete globalThis.__originalClipboardWrite;
+          delete globalThis.__emptySearchWrites;
+        });
+        await search.fill("");
+      }
+    },
+  );
+  await check(
     "search Enter copies a current code without reveal and Escape clears the search",
     async () => {
       const search = page.getByLabel("Search accounts", { exact: true });
       await expect(search).toBeFocused();
       await search.fill("GitHub");
       await search.press("Enter");
-      await expect(page.getByRole("status")).toContainText("Code copied");
+      await expect(page.getByRole("status")).toContainText(
+        "Copied code for GitHub demo@example.test. Clipboard managers may keep a copy.",
+      );
       await expect(page.locator(".account .otp")).toHaveText("••• •••");
       await search.press("Escape");
       await expect(search).toHaveValue("");
@@ -211,7 +256,9 @@ try {
         "Reveal code for GitHub demo@example.test (hidden)",
       );
       await click("Copy");
-      await expect(page.getByRole("status")).toContainText("Code copied");
+      await expect(page.getByRole("status")).toContainText(
+        "Copied code for GitHub demo@example.test. Clipboard managers may keep a copy.",
+      );
       await expect(code).toHaveText("••• •••");
       await code.focus();
       await page.keyboard.press("Enter");
@@ -769,7 +816,9 @@ try {
         })
         .toBe(true);
       await row.getByRole("button", { name: "Copy", exact: true }).click();
-      await expect(page.getByRole("status")).toContainText("Code copied");
+      await expect(page.getByRole("status")).toContainText(
+        "Copied code for Eight synthetic. Clipboard managers may keep a copy.",
+      );
       await row.locator(".otp").click();
       await expect(next).toBeHidden();
       await expect(row.locator(".next-code-value")).toHaveText("");
@@ -1008,6 +1057,141 @@ try {
       ).toBe(true);
     await plainPrimaryUI();
   });
+  await check(
+    "failed upgrade reminders appear in both views, dismiss, return on another failed unlock and clear on retry",
+    async () => {
+      const priorPage = page;
+      const isolated = await launch(
+        await mkdtemp(join(tmpdir(), "otp-upgrade-notice-")),
+      );
+      isolated.on("request", (request) => {
+        if (/^https?:/.test(request.url())) network.push(request.url());
+      });
+      page = await isolated.newPage();
+      page.on("pageerror", (error) => errors.push(error.message));
+      try {
+        await page.goto(base);
+        await expect(
+          page.getByRole("heading", { name: "Your codes. Your vault." }),
+        ).toBeVisible();
+        const legacy = JSON.parse(
+          await readFile(
+            new URL("./fixtures/legacy-slots-vault.json", import.meta.url),
+            "utf8",
+          ),
+        );
+        await page.evaluate(async (envelope) => {
+          const db = await new Promise((resolve, reject) => {
+            const request = indexedDB.open("otp-vault", 1);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+          try {
+            await new Promise((resolve, reject) => {
+              const tx = db.transaction("vault", "readwrite");
+              tx.objectStore("vault").put(envelope, "active");
+              tx.oncomplete = resolve;
+              tx.onerror = tx.onabort = () => reject(tx.error);
+            });
+          } finally {
+            db.close();
+          }
+        }, legacy);
+        await page.reload();
+        const notice = page.getByRole("complementary", {
+          name: "Security upgrade reminder",
+        });
+        const message =
+          "Your vault works normally, but we couldn't finish a security upgrade. We'll try again the next time you unlock.";
+        async function failUpgradeOnce() {
+          await page.evaluate(() => {
+            const put = IDBObjectStore.prototype.put;
+            IDBObjectStore.prototype.put = function (value, key) {
+              if (
+                this.name === "vault" &&
+                key === "active" &&
+                value.password?.kdf === "Argon2id"
+              ) {
+                IDBObjectStore.prototype.put = put;
+                throw new Error("synthetic optional-upgrade write failure");
+              }
+              return put.call(this, value, key);
+            };
+          });
+        }
+        async function unlockLegacy() {
+          await page
+            .getByLabel("Master password", { exact: true })
+            .fill("synthetic legacy slot password");
+          await click("Unlock vault");
+          await expect(
+            page.getByRole("heading", { name: "Authenticator", exact: true }),
+          ).toBeVisible({ timeout: 60_000 });
+        }
+        async function active() {
+          return page.evaluate(async () => {
+            const db = await new Promise((resolve, reject) => {
+              const request = indexedDB.open("otp-vault", 1);
+              request.onsuccess = () => resolve(request.result);
+              request.onerror = () => reject(request.error);
+            });
+            try {
+              return await new Promise((resolve, reject) => {
+                const tx = db.transaction("vault"),
+                  read = tx.objectStore("vault").get("active");
+                tx.oncomplete = () => resolve(read.result);
+                tx.onerror = tx.onabort = () => reject(tx.error);
+              });
+            } finally {
+              db.close();
+            }
+          });
+        }
+        await failUpgradeOnce();
+        await unlockLegacy();
+        await expect(notice).toContainText(message);
+        expect(await active()).toEqual(legacy);
+        const detail = notice.locator("[data-technical]");
+        await expect(detail).not.toHaveAttribute("open", "");
+        await expect(detail.locator("p")).toBeHidden();
+        await plainPrimaryUI();
+        await click("Settings");
+        await expect(notice).toContainText(message);
+        await notice.locator("summary").focus();
+        await page.keyboard.press("Enter");
+        await expect(detail.locator("p")).toContainText("Save failed");
+        await plainPrimaryUI();
+        await helpAxe("upgrade-notice");
+        await notice
+          .getByRole("button", { name: "Dismiss upgrade notice", exact: true })
+          .focus();
+        await page.keyboard.press("Enter");
+        await expect(notice).toHaveCount(0);
+        await click("Authenticator");
+        await expect(notice).toHaveCount(0);
+        await click("Lock");
+        await failUpgradeOnce();
+        await unlockLegacy();
+        await expect(notice).toContainText(message);
+        expect(await active()).toEqual(legacy);
+        await click("Lock");
+        await unlockLegacy();
+        await expect(notice).toHaveCount(0);
+        expect((await active()).password).toMatchObject({
+          kdf: "Argon2id",
+          m: 65536,
+          t: 3,
+          p: 1,
+        });
+        await click("Settings");
+        await expect(notice).toHaveCount(0);
+      } finally {
+        await isolated.close();
+        page = priorPage;
+        await page.bringToFront();
+      }
+    },
+  );
   await check("no external requests during vault workflows", async () =>
     expect(network).toEqual([]),
   );

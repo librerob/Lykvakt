@@ -1,5 +1,7 @@
 import { button, el, input, helpBlock } from "../dom";
 import { bindSearch } from "../keyboard";
+import { emptySearchMessage } from "../help";
+import { upgradeNotice } from "./upgrade-notice";
 import { preferenceEnabled, savePreference } from "../preferences";
 import { codeFor } from "../otp";
 import { needsBackup } from "./recovery";
@@ -71,7 +73,8 @@ export function createAccounts(ctx: AppContext) {
     session.check();
     if (epoch !== session.epoch()) return;
     await navigator.clipboard.writeText(value);
-    announce("Code copied. Clipboard managers may keep a copy.");
+    const name = [current.issuer, current.label].filter(Boolean).join(" ");
+    announce(`Copied code for ${name}. Clipboard managers may keep a copy.`);
   }
   function firstRunTip(): HTMLElement | null {
     if (!ctx.state.firstRunTip) return null;
@@ -117,11 +120,14 @@ export function createAccounts(ctx: AppContext) {
     const searchInput = input("search", "Search accounts", "search", search);
     searchInput.control.placeholder = "Search accounts";
     searchControl = searchInput.control;
-    bindSearch(searchInput.control, () =>
-      run(async () => {
-        if (matchingIds[0]) await copyAccount(matchingIds[0]);
-        else announce("No matching account. Try a different search.");
-      }),
+    bindSearch(
+      searchInput.control,
+      () =>
+        run(async () => {
+          if (matchingIds[0]) await copyAccount(matchingIds[0]);
+          else announce("No matching account. Try a different search.");
+        }),
+      () => announce(emptySearchMessage),
     );
     searchInput.control.addEventListener("input", () => {
       search = searchInput.control.value;
@@ -159,6 +165,7 @@ export function createAccounts(ctx: AppContext) {
       "section",
       { class: "content" },
       heading,
+      upgradeNotice(ctx),
       firstRunTip(),
       backupNotice,
       el("div", { class: "search-row" }, searchInput.wrapper, filter),
@@ -186,7 +193,7 @@ export function createAccounts(ctx: AppContext) {
           (!favorites || a.favorite) &&
           `${a.issuer} ${a.label} ${a.group}`
             .toLowerCase()
-            .includes(search.toLowerCase()),
+            .includes(search.trim().toLowerCase()),
       )
       .sort(
         (a, b) =>

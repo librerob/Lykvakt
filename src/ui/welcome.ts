@@ -57,6 +57,7 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
             f.reset();
           }
           if (session.unlocked) {
+            state.upgradeNoticeDismissed = false;
             state.recovery = undefined;
             state.view = "codes";
             render();

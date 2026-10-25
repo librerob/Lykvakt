@@ -161,6 +161,7 @@ export function createProtection(ctx: AppContext) {
               await ctx.session.unlock(password.control.value, policy);
               ctx.session.check();
               if (epoch !== ctx.session.epoch()) return;
+              ctx.state.upgradeNoticeDismissed = false;
             } finally {
               f.reset();
               password.control.value = "";

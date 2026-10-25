@@ -136,6 +136,7 @@ installEscape(
 );
 
 session.onlock = () => {
+  state.upgradeNoticeDismissed = false;
   accounts.clear();
   closeDialog();
 
