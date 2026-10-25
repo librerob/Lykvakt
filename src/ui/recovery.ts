@@ -1,10 +1,14 @@
+import { withGenerator } from "./passphrase";
 import { authenticateAction } from "./reauth";
 import { button, el, input, form, submit, download, readText } from "../dom";
 import { load } from "../storage";
 import { createEnvelope, snapshot } from "../crypto";
 import { toURI, verifyBackup } from "../import";
-import type { Account } from "../model";
+import type { Account, VaultData } from "../model";
 import type { AppContext } from "./context";
+export async function needsBackup(data: VaultData): Promise<boolean> {
+  return !data.verifiedAt || data.verifiedSnapshot !== (await snapshot(data));
+}
 export function createRecovery(
   ctx: AppContext,
   preview: (accounts: Account[]) => Promise<void>,
@@ -36,13 +40,13 @@ export function createRecovery(
         ),
       ),
     );
-    void snapshot(data).then((hash) => {
+    void needsBackup(data).then((needed) => {
       if (!health.isConnected) return;
       health.append(
         el(
           "p",
           { class: "hint" },
-          data.verifiedSnapshot === hash
+          !needed
             ? "The last tested backup matched this account snapshot. Keep the file somewhere safe; its continued availability is not monitored."
             : "Your current accounts need a matching, verified backup.",
         ),
@@ -167,7 +171,7 @@ export function createRecovery(
               "Encrypted backup exported. Verify the saved file to test restoration.",
             );
           }),
-        password.wrapper,
+        withGenerator(password),
         confirmation.wrapper,
         el(
           "p",
@@ -301,7 +305,7 @@ export function createRecovery(
           }),
         file.wrapper,
         backup.wrapper,
-        password.wrapper,
+        withGenerator(password),
         confirm.wrapper,
         submit("Test & recover accounts"),
       ),

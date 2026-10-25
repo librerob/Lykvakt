@@ -411,6 +411,12 @@ nav {
   padding-top: 16px;
 }
 .otp {
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
   font-family: "Cascadia Mono", "Consolas", monospace;
   font-size: 30px;
   font-variant-numeric: tabular-nums;
@@ -626,4 +632,20 @@ dialog::backdrop {
 }
 .code-row {
   flex-wrap: wrap;
+}
+
+.password-generator {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+}
+.password-generator .field {
+  flex: 1;
+  min-width: 0;
+}
+.generated-passphrase {
+  display: block;
+  overflow-wrap: anywhere;
+  user-select: all;
+  margin-top: 8px;
 }

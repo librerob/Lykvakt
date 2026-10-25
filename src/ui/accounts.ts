@@ -1,5 +1,6 @@
 import { button, el, input } from "../dom";
 import { codeFor } from "../otp";
+import { needsBackup } from "./recovery";
 import { createEnrollment } from "./enrollment";
 import type { AppContext } from "./context";
 export function createAccounts(ctx: AppContext) {
@@ -8,6 +9,14 @@ export function createAccounts(ctx: AppContext) {
     favorites = false;
   let list: HTMLElement | undefined;
   let displayEpoch = 0;
+  let backupEpoch = 0;
+  let backupNotice: HTMLElement | undefined;
+  const revealed = new Map<string, ReturnType<typeof setTimeout>>();
+  const alwaysShow = () => localStorage.getItem("alwaysShowCodes") === "true";
+  function maskAll() {
+    for (const timer of revealed.values()) clearTimeout(timer);
+    revealed.clear();
+  }
   const codeCache = new Map<string, { step: string; code: string }>();
   const { addAccount, preview, importAccounts, editAccount } = createEnrollment(
     ctx,
@@ -15,6 +24,9 @@ export function createAccounts(ctx: AppContext) {
   );
   function clear() {
     displayEpoch++;
+    backupEpoch++;
+    backupNotice = undefined;
+    maskAll();
     codeCache.clear();
     search = "";
     list = undefined;
@@ -51,10 +63,26 @@ export function createAccounts(ctx: AppContext) {
     );
     filter.setAttribute("aria-pressed", String(favorites));
     list = el("div", { class: "account-list" });
+    backupNotice = el(
+      "aside",
+      { class: "notice backup-notice" },
+      el("p", {}, "Your accounts changed since your last verified backup."),
+      button(
+        "Go to Recovery",
+        () => {
+          ctx.state.view = "backups";
+          clear();
+          ctx.render();
+        },
+        "button text",
+      ),
+    );
+    backupNotice.hidden = true;
     const section = el(
       "section",
       { class: "content" },
       heading,
+      backupNotice,
       el("div", { class: "search-row" }, searchInput.wrapper, filter),
       list,
       button("Import accounts", () => importAccounts(), "button text"),
@@ -65,6 +93,14 @@ export function createAccounts(ctx: AppContext) {
 
   function drawAccounts(): void {
     if (!list || !session.unlocked) return;
+    maskAll();
+    const notice = backupNotice,
+      epoch = ++backupEpoch;
+    if (notice)
+      void run(async () => {
+        const needed = await needsBackup(session.accounts());
+        if (epoch === backupEpoch && session.unlocked) notice.hidden = !needed;
+      });
     const accounts = session
       .accounts()
       .accounts.filter(
@@ -81,11 +117,37 @@ export function createAccounts(ctx: AppContext) {
           a.label.localeCompare(b.label),
       );
     const rows = accounts.map((a) => {
-      const code = el(
-        "span",
-        { class: "otp", "aria-label": `Code for ${a.issuer} ${a.label}` },
+      const label = `${a.issuer} ${a.label}`;
+      const code = button(
         "••• •••",
+        () =>
+          run(async () => {
+            session.check();
+            if (alwaysShow()) return;
+            const timer = revealed.get(a.id);
+            if (timer !== undefined) {
+              clearTimeout(timer);
+              revealed.delete(a.id);
+            } else {
+              revealed.set(
+                a.id,
+                setTimeout(() => {
+                  revealed.delete(a.id);
+                  code.textContent = "••• •••";
+                  code.setAttribute(
+                    "aria-label",
+                    `Reveal code for ${label} (hidden)`,
+                  );
+                  code.setAttribute("aria-pressed", "false");
+                }, 30_000),
+              );
+            }
+            await tick();
+          }),
+        "otp",
       );
+      code.setAttribute("aria-label", `Reveal code for ${label} (hidden)`);
+      code.setAttribute("aria-pressed", "false");
       const remaining = el("span", {
         class: "remaining",
         "aria-label":
@@ -226,10 +288,20 @@ export function createAccounts(ctx: AppContext) {
           codeCache.set(a.id, cached);
         }
         if (epoch !== displayEpoch || !session.unlocked) return;
-        row.querySelector(".otp")!.textContent =
-          cached.code.slice(0, cached.code.length / 2) +
-          " " +
-          cached.code.slice(cached.code.length / 2);
+        const visible = alwaysShow() || revealed.has(a.id);
+        const code = row.querySelector(".otp")!;
+        code.textContent = visible
+          ? cached.code.slice(0, cached.code.length / 2) +
+            " " +
+            cached.code.slice(cached.code.length / 2)
+          : "••• •••";
+        code.setAttribute("aria-pressed", String(visible));
+        code.setAttribute(
+          "aria-label",
+          visible
+            ? `Code for ${a.issuer} ${a.label}: ${cached.code}`
+            : `Reveal code for ${a.issuer} ${a.label} (hidden)`,
+        );
         const remaining = a.period - (Math.floor(now / 1000) % a.period);
         row.querySelector(".remaining")!.textContent =
           a.type === "hotp" ? "HOTP" : `${remaining}s`;

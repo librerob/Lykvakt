@@ -1,3 +1,4 @@
+import { withGenerator } from "./passphrase";
 import { button, el, input, select, form, submit } from "../dom";
 import { rotatePassword } from "../crypto";
 import type { AppContext } from "./context";
@@ -48,6 +49,15 @@ export function createSettings(ctx: AppContext) {
       localStorage.setItem("accent", accent);
       setTheme();
     });
+    const showCodes = input("alwaysShowCodes", "Always show codes", "checkbox");
+    showCodes.control.checked =
+      localStorage.getItem("alwaysShowCodes") === "true";
+    showCodes.control.addEventListener("change", () => {
+      localStorage.setItem(
+        "alwaysShowCodes",
+        String(showCodes.control.checked),
+      );
+    });
     const timeout = select(
       "timeout",
       "Lock after inactivity",
@@ -73,6 +83,7 @@ export function createSettings(ctx: AppContext) {
         el("h2", {}, "Make it yours"),
         themeSelect.wrapper,
         accentSelect.wrapper,
+        showCodes.wrapper,
       ),
       el(
         "div",
@@ -145,7 +156,7 @@ export function createSettings(ctx: AppContext) {
             );
           }),
         current.wrapper,
-        next.wrapper,
+        withGenerator(next),
         confirm.wrapper,
         submit("Change password"),
       ),

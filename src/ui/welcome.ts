@@ -1,4 +1,7 @@
+import { withGenerator } from "./passphrase";
 import { button, el, input, form, submit } from "../dom";
+import { RecoveryRequired } from "../storage";
+import { DEFAULT_ITERATIONS } from "../crypto";
 import type { AppContext } from "./context";
 export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
   const { session, state, run, render } = ctx;
@@ -33,22 +36,47 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
           if (!state.exists && password !== data.get("confirmation"))
             throw new Error("Passwords do not match.");
           try {
-            if (state.exists) await session.unlock(password);
+            if (state.exists)
+              await session.unlock(
+                password,
+                DEFAULT_ITERATIONS,
+                state.recovery,
+              );
             else {
               await session.setup(password);
               state.exists = true;
             }
+          } catch (error) {
+            if (error instanceof RecoveryRequired) {
+              state.recovery = error.offer;
+              render();
+            }
+            throw error;
           } finally {
             f.reset();
           }
           if (session.unlocked) {
+            state.recovery = undefined;
             state.view = "codes";
             render();
           }
         }),
-      password.wrapper,
+      state.recovery
+        ? el(
+            "p",
+            { class: "notice" },
+            new RecoveryRequired(state.recovery).message,
+          )
+        : null,
+      state.exists ? password.wrapper : withGenerator(password),
       state.exists ? null : confirmation.wrapper,
-      submit(state.exists ? "Unlock vault" : "Create encrypted vault"),
+      submit(
+        state.recovery
+          ? "Unlock older copy"
+          : state.exists
+            ? "Unlock vault"
+            : "Create encrypted vault",
+      ),
     );
     const panel = el(
       "section",

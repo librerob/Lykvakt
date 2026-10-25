@@ -14,6 +14,7 @@ export class Session {
   private key?: CryptoKey;
   private envelope?: Envelope;
   private data?: VaultData;
+  private recovery?: storage.RecoveryOffer;
   private generation = 0;
   private cancellation = new AbortController();
   private writing = false;
@@ -47,6 +48,7 @@ export class Session {
     this.key = undefined;
     this.data = undefined;
     this.envelope = undefined;
+    this.recovery = undefined;
     this.onlock();
   }
   accounts(): VaultData {
@@ -73,17 +75,29 @@ export class Session {
   async unlock(
     password: string,
     defaultIterations = DEFAULT_ITERATIONS,
+    confirmedRecovery?: storage.RecoveryOffer,
   ): Promise<void> {
     const epoch = this.generation,
       signal = this.cancellation.signal;
-    const saved = await storage.load();
+    const loaded = await storage.load();
     if (epoch !== this.generation) throw new Error("Unlock cancelled.");
-    if (!saved) throw new Error("No vault exists.");
+    if (!loaded) throw new Error("No vault exists.");
+    const recovery = storage.isRecoveryOffer(loaded) ? loaded : undefined;
+    if (recovery && !confirmedRecovery)
+      throw new storage.RecoveryRequired(recovery);
+    if (
+      confirmedRecovery &&
+      (!recovery ||
+        !storage.sameActive(recovery.active, confirmedRecovery.active) ||
+        !storage.sameActive(recovery.previous, confirmedRecovery.previous))
+    )
+      throw new Error("Vault changed. Review the recovery offer again.");
+    const saved = recovery ? recovery.previous : (loaded as Envelope);
     const result = await decryptEnvelope(
       saved,
       password,
       "vault",
-      defaultIterations,
+      recovery ? undefined : defaultIterations,
     );
     if (epoch !== this.generation) throw new Error("Unlock cancelled.");
     if (result.envelope.revision !== saved.revision) {
@@ -95,6 +109,7 @@ export class Session {
       }
     }
     if (epoch !== this.generation) throw new Error("Unlock cancelled.");
+    this.recovery = recovery;
     this.key = result.key;
     this.data = result.data;
     this.envelope = result.envelope;
@@ -115,9 +130,14 @@ export class Session {
       signal = this.cancellation.signal,
       previous = this.envelope!;
     try {
+      const active = this.recovery?.active as Partial<Envelope> | undefined;
+      const activeRevision =
+        Number.isSafeInteger(active?.revision) && active!.revision! >= 0
+          ? active!.revision!
+          : 0;
       const header = {
         ...headerOf(previous),
-        revision: previous.revision + 1,
+        revision: Math.max(previous.revision, activeRevision) + 1,
         passkeys: [],
       };
       const validated = validateData(data);
@@ -129,10 +149,11 @@ export class Session {
       this.check();
       if (epoch !== this.generation)
         throw new Error("Save cancelled by locking.");
-      await storage.commit(next, previous, signal);
+      await storage.commit(next, this.recovery ?? previous, signal);
       if (epoch !== this.generation)
         throw new Error("Save cancelled by locking.");
       this.key = nextKey ?? this.key;
+      this.recovery = undefined;
       this.envelope = next;
       this.data = validated;
     } finally {

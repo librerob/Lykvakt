@@ -66,6 +66,10 @@ export function form(
   ...children: Child[]
 ): HTMLFormElement {
   const node = el("form", {}, ...children);
+  node.addEventListener("reset", () => {
+    for (const shown of node.querySelectorAll("[data-generated-passphrase]"))
+      shown.replaceChildren();
+  });
   node.addEventListener("submit", (event) => {
     event.preventDefault();
     const submits = [

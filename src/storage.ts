@@ -1,4 +1,31 @@
-import type { Envelope } from "./crypto";
+import { validateEnvelope, type Envelope } from "./crypto";
+
+export interface RecoveryOffer {
+  kind: "recovery";
+  previous: Envelope;
+  active: unknown;
+}
+export function isRecoveryOffer(
+  value: Envelope | RecoveryOffer,
+): value is RecoveryOffer {
+  return value.kind === "recovery";
+}
+export class RecoveryRequired extends Error {
+  constructor(readonly offer: RecoveryOffer) {
+    super(
+      `The current vault could not be read. An older copy from revision ${offer.previous.revision} exists. Unlock it to recover?`,
+    );
+  }
+}
+// Recovery uses the same active-record identity/revision check as ordinary saves.
+export function sameActive(a: unknown, b: unknown): boolean {
+  if (a && b && typeof a === "object" && typeof b === "object") {
+    const x = a as Partial<Envelope>,
+      y = b as Partial<Envelope>;
+    return x.id === y.id && x.revision === y.revision;
+  }
+  return Object.is(a, b);
+}
 
 function database(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -11,13 +38,37 @@ function database(): Promise<IDBDatabase> {
       reject(new Error("Close other vault windows and retry."));
   });
 }
-export async function load(): Promise<Envelope | undefined> {
+export async function load(): Promise<Envelope | RecoveryOffer | undefined> {
   const db = await database();
   try {
     return await new Promise((resolve, reject) => {
       const tx = db.transaction("vault", "readonly");
-      const request = tx.objectStore("vault").get("active");
-      tx.oncomplete = () => resolve(request.result as Envelope | undefined);
+      const store = tx.objectStore("vault");
+      const active = store.get("active"),
+        previous = store.get("previous");
+      tx.oncomplete = () => {
+        try {
+          if (active.result !== undefined) {
+            try {
+              resolve(validateEnvelope(active.result, "vault", true));
+              return;
+            } catch {
+              /* Only structural corruption offers recovery, never a bad password. */
+            }
+          } else if (previous.result === undefined) {
+            resolve(undefined);
+            return;
+          }
+          const older = validateEnvelope(previous.result, "vault", true);
+          resolve({ kind: "recovery", previous: older, active: active.result });
+        } catch {
+          reject(
+            new Error(
+              "The current vault could not be read and no readable older copy exists. Restore an encrypted backup.",
+            ),
+          );
+        }
+      };
       tx.onabort = tx.onerror = () =>
         reject(new Error("Vault could not be read."));
     });
@@ -27,7 +78,7 @@ export async function load(): Promise<Envelope | undefined> {
 }
 export async function commit(
   next: Envelope,
-  expected?: Envelope,
+  expected?: Envelope | RecoveryOffer,
   signal?: AbortSignal,
 ): Promise<void> {
   if (signal?.aborted) throw new Error("Save cancelled by locking.");
@@ -56,19 +107,27 @@ export async function commit(
           abort();
           return;
         }
-        const old = request.result as Envelope | undefined;
+        const old: unknown = request.result;
+        const recovery =
+          expected && isRecoveryOffer(expected) ? expected : undefined;
         if (
           expected
-            ? !old ||
-              old.id !== expected.id ||
-              old.revision !== expected.revision
+            ? !sameActive(old, recovery ? recovery.active : expected)
             : old !== undefined
         ) {
           conflict = true;
           tx.abort();
           return;
         }
-        store.put(next, "active");
+        try {
+          // Preserve the stored ciphertext byte-for-byte, in the same transaction.
+          // A recovery promotion retains the authenticated older copy, not corrupt active data.
+          const previous = recovery ? recovery.previous : old;
+          if (previous !== undefined) store.put(previous, "previous");
+          store.put(next, "active");
+        } catch {
+          abort();
+        }
       };
       tx.oncomplete = () => {
         cleanup();
