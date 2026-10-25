@@ -72,7 +72,7 @@ export const helpCopy = {
   },
   oldFormat: {
     text: [
-      "Earlier previews used a different file format. Keep the old app until you have moved your accounts.",
+      "Earlier previews used a different file format. Before updating, export your accounts using the old app. If you no longer have it, reinstall the old version in the same folder (same extension), export, then update.",
       "Export OTP links from Recovery in the old app, erase this old local vault only when you are ready, then import the links into a new vault. The exported file contains secrets; keep it private and remove temporary copies after checking the new vault.",
     ],
   },

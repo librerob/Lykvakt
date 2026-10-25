@@ -4,7 +4,7 @@ Lykvakt is a small offline TOTP/HOTP authenticator with masked codes, encrypted 
 
 Unaudited preview: use test accounts and keep your existing authenticator. TOTP is phishable and there is no password reset.
 
-Earlier previews cannot be opened by this version. Export accounts from the old app through Recovery → Export plaintext OTP links, then import into a fresh vault here.
+Earlier previews cannot be opened by this version. Export accounts from the old app through Recovery → Export plaintext OTP links, then import into a fresh vault here. If you no longer have the old version, reinstall it in the same folder (same extension), export through Recovery → Export plaintext OTP links, then update.
 
 Permissions: exactly ["clipboardWrite"]. No host/optional permissions, background worker, remote code, WebAssembly, telemetry, advertising, subscriptions or developer server.
 

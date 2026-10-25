@@ -6,7 +6,7 @@ Lykvakt is an unaudited development preview. Use test accounts, keep your existi
 
 **Export your accounts from the old version before updating. Earlier previews cannot be opened by this version.** This is an intentional format break.
 
-1. Open the working old version and unlock it.
+1. Open the working old version and unlock it. If you no longer have it, reinstall the old version in the same folder (same extension), export your accounts, then update.
 2. Choose Recovery → Export plaintext OTP links and enter its master password.
 3. Keep that file private: anyone holding it can generate the same codes.
 4. Open this version, confirm erasing the old local vault only when ready, and create a fresh vault.
@@ -47,7 +47,7 @@ Payload schema 3 contains accounts, verifiedAt and verifiedSnapshot. Accounts ha
 
 ## Derivation and locking
 
-A bundled one-job module Web Worker derives the password key, imports it immediately and returns only a nonextractable CryptoKey. The non-browser fallback uses the yielding JavaScript primitive for tests and benchmarks.
+A bundled one-job module Web Worker derives the password key, imports it immediately and returns only a nonextractable CryptoKey. Node tests and benchmarks explicitly inject the real yielding engine. The extension ships that engine only in its worker; missing or failed workers produce an error without main-thread derivation.
 
 Locking aborts pending work, terminates the worker and changes the Session epoch. Late results cannot reopen the session, save or expose a secret. Raw key, password and decoded payload buffers are cleared in finally blocks where practical.
 

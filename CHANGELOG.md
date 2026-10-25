@@ -2,7 +2,7 @@
 
 ## 0.4.0-rc.1 — 25 October 2026
 
-**Before you update: export your accounts from the old version through Recovery → Export plaintext OTP links. Earlier previews cannot be opened by this version. Keep the export private and verify the import before removing it.**
+**Before you update: export your accounts from the old version through Recovery → Export plaintext OTP links. Earlier previews cannot be opened by this version. Keep the export private and verify the import before removing it.** If you no longer have the old version, reinstall it in the same folder (same extension), export through Recovery → Export plaintext OTP links, then update.
 
 Unaudited development preview; use test accounts and keep your existing authenticator.
 

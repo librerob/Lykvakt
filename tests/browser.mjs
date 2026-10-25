@@ -215,6 +215,24 @@ try {
       expect(
         await row.evaluate((node) => node.getBoundingClientRect().height),
       ).toBeLessThanOrEqual(64);
+      expect(
+        await row.evaluate((node) => node.getBoundingClientRect().height),
+      ).toBeLessThanOrEqual(56);
+      expect(
+        await row
+          .locator(".otp")
+          .evaluate((node) => getComputedStyle(node).borderTopWidth),
+      ).toBe("0px");
+      expect(
+        await row
+          .locator(".otp")
+          .evaluate((node) => getComputedStyle(node).backgroundColor),
+      ).toBe("rgba(0, 0, 0, 0)");
+      const search = page.getByLabel("Search accounts", { exact: true });
+      await search.focus();
+      expect(
+        await search.evaluate((node) => getComputedStyle(node).outlineWidth),
+      ).toBe("2px");
       await row.locator(".row-copy").focus();
       await page.keyboard.press("Enter");
       await expect(page.getByRole("status")).toContainText(
@@ -223,6 +241,13 @@ try {
       await expect(row.locator(".otp")).toHaveText("••• •••");
       const more = row.locator(".account-more"),
         summary = more.locator("summary");
+      const target = await summary.boundingBox();
+      expect(target.width).toBeGreaterThanOrEqual(36);
+      expect(target.height).toBeGreaterThanOrEqual(36);
+      await expect(summary).toHaveAccessibleName(
+        "More for GitHub demo@example.test",
+      );
+      await expect(summary).toHaveText("⋯");
       await summary.focus();
       await page.keyboard.press("Enter");
       await expect(more).toHaveAttribute("open", "");
@@ -243,6 +268,7 @@ try {
       expect(
         await row.locator("svg").evaluate((node) => node.namespaceURI),
       ).toBe("http://www.w3.org/2000/svg");
+      await screenshot("accounts-expiring");
       await page.emulateMedia({ reducedMotion: "reduce" });
       expect(
         await row

@@ -1,6 +1,6 @@
 import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { argon2Key } from "../src/kdf";
+import { argon2Key, setKdfRunner } from "../src/kdf";
 import { DEFAULT_KDF } from "../src/kdf-policy";
 import { Session } from "../src/session";
 import * as storage from "../src/storage";
@@ -97,3 +97,81 @@ it("locking during an Argon2id password derivation cancels unlock and wipes the 
   expect(session.unlocked).toBe(false);
   expect(await storage.load()).toEqual(old);
 }, 60_000);
+
+const startMessage =
+  "Password protection could not start. Reload this extension and try again.";
+it("a missing Worker without an injected Node runner fails with the friendly start error", async () => {
+  setKdfRunner(undefined);
+  vi.stubGlobal("Worker", undefined);
+  await expect(
+    argon2Key(new Uint8Array(32), new Uint8Array(32), DEFAULT_KDF),
+  ).rejects.toThrow(startMessage);
+});
+it("a worker constructor failure never falls back to an injected engine", async () => {
+  const runner = vi.fn();
+  setKdfRunner(runner);
+  vi.stubGlobal(
+    "Worker",
+    class {
+      constructor() {
+        throw new Error("blocked worker");
+      }
+    },
+  );
+  await expect(
+    argon2Key(new Uint8Array(32), new Uint8Array(32), DEFAULT_KDF),
+  ).rejects.toThrow(startMessage);
+  expect(runner).not.toHaveBeenCalled();
+});
+it("a failed worker postMessage is friendly and terminates the worker", async () => {
+  vi.spyOn(FakeWorker.prototype, "postMessage").mockImplementationOnce(() => {
+    throw new DOMException("cannot clone", "DataCloneError");
+  });
+  await expect(
+    argon2Key(new Uint8Array(32), new Uint8Array(32), DEFAULT_KDF),
+  ).rejects.toThrow(startMessage);
+  expect(FakeWorker.jobs[0]!.terminate).toHaveBeenCalledOnce();
+});
+it("a worker startup error is friendly and terminates the worker", async () => {
+  const pending = argon2Key(
+    new Uint8Array(32),
+    new Uint8Array(32),
+    DEFAULT_KDF,
+  );
+  const rejected = expect(pending).rejects.toThrow(startMessage);
+  FakeWorker.jobs[0]!.onerror!();
+  await rejected;
+  expect(FakeWorker.jobs[0]!.terminate).toHaveBeenCalledOnce();
+});
+it("hostile parameters are rejected before an explicitly injected runner can allocate", async () => {
+  const runner = vi.fn();
+  setKdfRunner(runner);
+  vi.stubGlobal("Worker", undefined);
+  await expect(
+    argon2Key(new Uint8Array(32), new Uint8Array(32), {
+      ...DEFAULT_KDF,
+      m: 19455,
+    }),
+  ).rejects.toThrow("Unsupported");
+  expect(runner).not.toHaveBeenCalled();
+});
+it("cancellation takes precedence over a worker constructor error", async () => {
+  const controller = new AbortController();
+  vi.stubGlobal(
+    "Worker",
+    class {
+      constructor() {
+        controller.abort();
+        throw new Error("blocked worker");
+      }
+    },
+  );
+  await expect(
+    argon2Key(
+      new Uint8Array(32),
+      new Uint8Array(32),
+      DEFAULT_KDF,
+      controller.signal,
+    ),
+  ).rejects.toMatchObject({ name: "AbortError" });
+});

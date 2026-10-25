@@ -328,7 +328,7 @@ export function createAccounts(ctx: AppContext) {
         el(
           "details",
           { class: "account-more" },
-          el("summary", { "aria-label": `More for ${label}` }, "More"),
+          el("summary", { "aria-label": `More for ${label}` }, "⋯"),
           actions,
         ),
       );

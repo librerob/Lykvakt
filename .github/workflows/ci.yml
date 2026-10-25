@@ -37,9 +37,9 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         if: github.event_name == 'pull_request' && github.head_ref == 'minimal-1'
         with:
-          ref: 3689ddcec64ca8c0efaf9ee501ca78e103c27151
+          ref: 91a24aad9891dc893caf2c4f963b197a6b951b88
           path: .baseline
-      - name: Measure the pre-change build on this same runner
+      - name: Measure the PR before these follow-ups on this same runner
         if: github.event_name == 'pull_request' && github.head_ref == 'minimal-1'
         run: |
           cd .baseline

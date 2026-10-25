@@ -17,6 +17,7 @@ assert(
 );
 for (const path of ["index.html", ...Object.values(manifest.icons)])
   assert((await stat("dist/" + path)).isFile());
+const engines = [];
 async function scan(dir) {
   let bytes = 0;
   for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -26,10 +27,16 @@ async function scan(dir) {
       continue;
     }
     assert(!/\.wasm$/i.test(path), "Forbidden binary module: " + path);
+    assert(
+      !/kdf-engine[^/]*\.js$/i.test(path),
+      "Forbidden main-thread KDF chunk: " + path,
+    );
     const contents = await readFile(path);
     bytes += contents.length;
     if (/\.(js|html)$/.test(path)) {
       const code = contents.toString();
+      if (/\b(?:argon2InitialHash|argon2idAsync|deriveKeyHere)\b/.test(code))
+        engines.push(path);
       assert(
         !/\bWebAssembly\b/.test(code),
         "Forbidden compiled runtime: " + path,
@@ -44,6 +51,18 @@ async function scan(dir) {
   }
   return bytes;
 }
+const bytes = await scan("dist");
+
+assert.equal(engines.length, 1, "Ship exactly one Argon2 implementation.");
+assert.match(
+  engines[0],
+  /\/argon2\.worker-[\w-]+\.js$/,
+  "Argon2 belongs only in its worker.",
+);
 console.log(
-  `Manifest and bundled runtime checks passed. ${await scan("dist")} unpacked bytes.`,
+  "One Argon2 implementation, in " + engines[0] + "; no main-thread engine.",
+);
+
+console.log(
+  `Manifest and bundled runtime checks passed. ${bytes} unpacked bytes.`,
 );

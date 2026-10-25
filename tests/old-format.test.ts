@@ -50,6 +50,9 @@ async function record(key: string, value?: unknown) {
 }
 it("old vault and backup formats fail calmly before any password work", async () => {
   const derive = vi.spyOn(kdf, "argon2Key");
+  expect(oldFormatMessage).toBe(
+    "This vault was made by an earlier preview and can't be opened by this version. To move your accounts: use the old version, go to Recovery → Export plaintext OTP links, then import that file here. If you no longer have the old version, reinstall it in the same folder (same extension), export, then update.",
+  );
   expect(() => validateEnvelope(old)).toThrow(oldFormatMessage);
   await expect(
     verifyBackup({ ...old, kind: "backup" }, "synthetic password"),

@@ -4,7 +4,7 @@ A small offline TOTP/HOTP authenticator for Chrome. Lykvakt is a coined Nordic-i
 
 **Unaudited preview. Use test accounts and keep your existing authenticator.**
 
-**Before updating: export your accounts from the old version. Earlier previews cannot be opened by this version.** In the old app, choose Recovery → Export plaintext OTP links, then import the file into a fresh vault here. Keep the export private and remove temporary copies after checking the new app.
+**Before updating: export your accounts from the old version. Earlier previews cannot be opened by this version.** In the old app, choose Recovery → Export plaintext OTP links, then import the file into a fresh vault here. Keep the export private and remove temporary copies after checking the new app. If you no longer have the old version, reinstall it in the same folder (same extension), export through Recovery → Export plaintext OTP links, then update.
 
 ![Authenticator with synthetic accounts](docs/screenshots/accounts-amoled.png)
 

@@ -1,4 +1,19 @@
 import { validateArgon2, type Argon2Policy } from "./kdf-policy";
+type KdfRunner = (
+  password: Uint8Array<ArrayBuffer>,
+  salt: Uint8Array<ArrayBuffer>,
+  policy: Argon2Policy,
+  signal?: AbortSignal,
+) => Promise<CryptoKey>;
+// Only Node test/benchmark harnesses install a runner; the app never does.
+let nodeRunner: KdfRunner | undefined;
+export function setKdfRunner(runner?: KdfRunner): void {
+  nodeRunner = runner;
+}
+const startError = () =>
+  new Error(
+    "Password protection could not start. Reload this extension and try again.",
+  );
 export async function argon2Key(
   password: Uint8Array<ArrayBuffer>,
   salt: Uint8Array<ArrayBuffer>,
@@ -8,13 +23,20 @@ export async function argon2Key(
   const checked = validateArgon2(policy);
   signal?.throwIfAborted();
   if (typeof Worker === "undefined") {
-    const { deriveKeyHere } = await import("./kdf-engine");
-    return deriveKeyHere(password, salt, checked, signal);
+    if (nodeRunner) return nodeRunner(password, salt, checked, signal);
+    throw startError();
   }
   return new Promise<CryptoKey>((resolve, reject) => {
-    const worker = new Worker(new URL("./argon2.worker.ts", import.meta.url), {
-      type: "module",
-    });
+    let worker: Worker;
+    try {
+      worker = new Worker(new URL("./argon2.worker.ts", import.meta.url), {
+        type: "module",
+      });
+    } catch {
+      signal?.throwIfAborted();
+      reject(startError());
+      return;
+    }
     const finish = () => {
       signal?.removeEventListener("abort", abort);
       worker.terminate();
@@ -56,11 +78,7 @@ export async function argon2Key(
     };
     worker.onerror = () => {
       finish();
-      reject(
-        new Error(
-          "Password protection could not start. Reload this extension and try again.",
-        ),
-      );
+      reject(startError());
     };
     signal?.addEventListener("abort", abort, { once: true });
     if (signal?.aborted) {
@@ -70,9 +88,16 @@ export async function argon2Key(
     try {
       // Structured clone gives the worker its own wipeable password/salt buffers.
       worker.postMessage({ password, salt, policy: checked });
-    } catch (error) {
+    } catch {
       finish();
-      reject(error);
+      reject(
+        signal?.aborted
+          ? new DOMException(
+              "Password protection was cancelled by locking.",
+              "AbortError",
+            )
+          : startError(),
+      );
     }
   });
 }
