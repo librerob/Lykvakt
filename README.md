@@ -14,7 +14,7 @@ A small offline TOTP/HOTP authenticator with a password-encrypted local vault.
 - Search, favorites, groups, editing and confirmed deletion.
 - Clicked code copying; password re-authentication before plaintext OTP export or transfer QR reveal.
 - Encrypted backups with restoration testing against the actual saved file.
-- System, light, dark and true-black AMOLED themes with pink accents by default.
+- One true-black AMOLED theme with the logo’s pink accent.
 
 The only manifest permission is **`clipboardWrite`**, for copying a selected code. There are no optional or host permissions, background worker, directory lookups, website filling, tab capture, passkeys, cloud sync, telemetry or server.
 
