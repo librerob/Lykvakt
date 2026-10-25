@@ -566,6 +566,9 @@ try {
       await click("Settings");
       await click("Change master password");
       await click("Generate");
+      await expect(
+        page.getByLabel("New master password", { exact: true }),
+      ).not.toHaveValue("");
       const generated = await page
         .getByLabel("New master password", { exact: true })
         .inputValue();
@@ -579,6 +582,9 @@ try {
       await click("Recovery");
       await click("Create encrypted backup");
       await click("Generate");
+      await expect(
+        page.getByLabel("Backup passphrase", { exact: true }),
+      ).not.toHaveValue("");
       const backup = await page
         .getByLabel("Backup passphrase", { exact: true })
         .inputValue();
@@ -776,6 +782,9 @@ try {
       .getByRole("dialog")
       .getByRole("button", { name: "Generate", exact: true })
       .click();
+    await expect(
+      page.getByLabel("New master password", { exact: true }),
+    ).not.toHaveValue("");
     const generatedMaster = await page
       .getByLabel("New master password", { exact: true })
       .inputValue();
