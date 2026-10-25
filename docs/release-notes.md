@@ -10,6 +10,8 @@
 - Native keyboard-accessible help, plain-language errors and busy messages, and a dismissible first-run backup checklist.
 - Recovery warns about older HOTP counters and ignores unusable active revisions without bypassing conflict checks.
 
+**Older Lykvakt builds cannot open Argon2id vaults or backups.**
+
 The complete manifest permission set remains ["clipboardWrite"], used to copy a selected code after a click or search Enter. There are no optional or host permissions, remote code, developer servers or telemetry.
 
 See the [plain-English guide](plain-english-guide.md), [compatibility](compatibility.md), [validation](validation.md) and [recovery](recovery.md). Automated checks are not an independent audit or exhaustive interoperability certification. No Store submission or production-support promise is made.

@@ -861,6 +861,12 @@ try {
       await keyboardHelp();
       await strength.selectOption("recommended");
       await click("Recovery");
+      await expect(
+        page.getByText(
+          "Backups made with this version need this version or newer to restore.",
+          { exact: true },
+        ),
+      ).toBeVisible();
       await keyboardHelp(page, true);
       await helpAxe("recovery");
       await keyboardHelp();

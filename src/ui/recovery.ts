@@ -1,4 +1,4 @@
-import { busyCopy } from "../help";
+import { backupCompatibilityMessage, busyCopy } from "../help";
 import { savePreference } from "../preferences";
 import { withGenerator } from "./passphrase";
 import { authenticateAction } from "./reauth";
@@ -118,6 +118,7 @@ export function createRecovery(
         "div",
         { class: "settings-section" },
         el("h2", {}, "1. Save an encrypted backup"),
+        el("p", { class: "hint" }, backupCompatibilityMessage),
         helpBlock("backup"),
         el(
           "p",

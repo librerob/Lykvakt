@@ -10,6 +10,8 @@ Offline TOTP/HOTP authenticator with a password-encrypted local vault and encryp
 
 Lykvakt is an open-source, unaudited development preview. Use test accounts only and keep your existing authenticator. Generate TOTP/HOTP codes offline, organize accounts, import setup keys or user-selected QR images, and save encrypted backups with a passphrase you choose. Select the actual saved file to test restoration without replacing your accounts. The interface has one true-black and pink appearance, keyboard-accessible help, clear progress messages and a first-run backup checklist. New vaults and backups use Argon2id in bundled JavaScript, without WebAssembly. Optional local tuning shows a result before an authenticated save.
 
+**Older Lykvakt builds cannot open Argon2id vaults or backups.**
+
 Codes are hidden by default, with timed reveal and copying after a click or Enter in a non-empty account search, with the copied account announced. Optional next-code preview follows the same masking state and never changes counter-based accounts. The suggested popup shortcut is Ctrl+Shift+Y (Command+Shift+Y on Mac), rebindable at chrome://extensions/shortcuts. Master-password verification is required before plaintext setup-secret export or transfer QR reveal. Password change rotates the vault key and atomically removes the older local recovery copy. Independently exported backup files retain their own passphrases. Supported older files remain readable.
 
 Supported imports include standard OTP links, complete Google transfer batches and supported plaintext Aegis/2FAS exports. Import previews report skipped records and require confirmation. The extension has no server, telemetry, advertising, registration, subscription or paid tier.

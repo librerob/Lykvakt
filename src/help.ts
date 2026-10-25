@@ -5,6 +5,9 @@ export const emptySearchMessage =
 export const upgradePendingMessage =
   "Your vault works normally, but we couldn't finish a security upgrade. We'll try again the next time you unlock.";
 
+export const backupCompatibilityMessage =
+  "Backups made with this version need this version or newer to restore.";
+
 export const helpCopy = {
   account: {
     text: [

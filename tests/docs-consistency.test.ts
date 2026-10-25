@@ -81,6 +81,9 @@ it("current documentation matches the bundled-JavaScript, permission, shortcut a
   expect(read("README.md")).toContain("docs/plain-english-guide.md");
   expect(read("README.md")).toMatch(/no WebAssembly/i);
   expect(read("docs/compatibility.md")).toContain(
+    "Older Lykvakt builds cannot open Argon2id",
+  );
+  expect(read("docs/compatibility.md")).toContain(
     "This build reads supported older PBKDF2 vaults and backups",
   );
   expect(read("docs/plain-english-guide.md")).toContain(
@@ -95,4 +98,15 @@ it("current documentation matches the bundled-JavaScript, permission, shortcut a
   expect(
     JSON.parse(read("package.json")).dependencies["@noble/hashes"],
   ).toMatch(/^\d+\.\d+\.\d+$/);
+});
+
+it.each([
+  "README.md",
+  "docs/compatibility.md",
+  "docs/release-notes.md",
+  "docs/store/listing-draft.md",
+])("%s retains the older-build Argon2id compatibility warning", (file) => {
+  expect(readFileSync(join(root, file), "utf8")).toContain(
+    "Older Lykvakt builds cannot open Argon2id vaults or backups.",
+  );
 });

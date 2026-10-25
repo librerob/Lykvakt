@@ -4,6 +4,8 @@ The build targets Chromium 120+ and Manifest V3. Observed local and browser resu
 
 ## Existing vaults and backups
 
+**Older Lykvakt builds cannot open Argon2id vaults or backups.**
+
 This build reads supported older PBKDF2 vaults and backups, including the frozen legacy fixtures. IndexedDB identity, envelope format otp-vault and envelope version 1 remain unchanged. Payload schema 1 reads into schema 2; migrated account snapshots need new backup verification.
 
 New vaults, backups and password changes use Argon2id. Password unlock upgrades a PBKDF2 vault when it can safely save the result. A transient upgrade-write failure leaves authenticated access available with a dismissible reminder and is retried on a later unlock. A typed revision conflict clears the stale session and asks for a fresh unlock. Verifying a backup does not rewrite the file or save an upgrade.

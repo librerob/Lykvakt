@@ -113,3 +113,26 @@ it("technical error details stay separate from the friendly next step", () => {
   expect(primaryText(node)).not.toMatch(/nonce|AAD|OperationError/);
   expect(node.textContent).toContain(error.message);
 });
+
+it("Recovery shows a plain-language version note beside Save an encrypted backup", () => {
+  const session = { accounts: () => emptyVault() } as unknown as Session;
+  const view = createRecovery(
+    context(session),
+    async () => {},
+  ).backupsView() as unknown as TestElement;
+  const section = view
+    .querySelectorAll(".settings-section")
+    .find(
+      (node) =>
+        node.querySelector("h2")?.textContent === "1. Save an encrypted backup",
+    )!;
+  const note = section.querySelector(".hint")!;
+  expect(note.textContent).toBe(
+    "Backups made with this version need this version or newer to restore.",
+  );
+  expect(note.hidden).toBe(false);
+  expect(primaryText(section)).toContain(note.textContent);
+  expect(primaryText(note)).not.toMatch(
+    /\b(?:Argon2id|PBKDF2|KDF|AES|GCM|AAD|envelope|nonce|iterations|WASM)\b/i,
+  );
+});

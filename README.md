@@ -74,7 +74,7 @@ See [migration](docs/migration.md) for supported import/export formats and trans
 
 Save an encrypted backup outside the browser, then use Recovery → Verify or restore a backup to test that exact file. Keep its passphrase separately. Password changes protect future vault saves; previously exported backups keep their original passphrases. Local recovery copies are not independent backups. There is no password reset or recovery server.
 
-Password unlock remains compatible with supported older vaults and backups. New vaults, backups and successful upgrades use Argon2id. See [format compatibility](docs/compatibility.md). Encrypted third-party exports and proprietary Steam/Battle.net formats are unsupported. Google transfers require every batch part. Text imports are bounded to 2,000 accounts and 8 MB; QR images have separate size/dimension bounds.
+Password unlock remains compatible with supported older vaults and backups. New vaults, backups and successful upgrades use Argon2id. **Older Lykvakt builds cannot open Argon2id vaults or backups.** See [format compatibility](docs/compatibility.md). Encrypted third-party exports and proprietary Steam/Battle.net formats are unsupported. Google transfers require every batch part. Text imports are bounded to 2,000 accounts and 8 MB; QR images have separate size/dimension bounds.
 
 No independent audit or exhaustive phone interoperability certification has occurred. TOTP is phishable; a compromised browser or device can read unlocked secrets.
 
