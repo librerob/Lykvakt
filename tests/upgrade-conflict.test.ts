@@ -55,6 +55,28 @@ it("a concurrent write during unlock rejects the stale session and preserves the
   expect(await storage.load()).toEqual(newer);
   await expect(session.save(original.data)).rejects.toThrow("Unlock");
 }, 60_000);
+it("a concurrent change during re-unlock clears a session that was already open", async () => {
+  const old = await storedVault(),
+    session = new Session();
+  await session.unlock(password);
+  const original = await decryptEnvelope(old, password);
+  const newer = await seal(
+    { ...headerOf(old), revision: 1 },
+    original.key,
+    original.data,
+  );
+  const decrypt = crypto.subtle.decrypt.bind(crypto.subtle);
+  vi.spyOn(crypto.subtle, "decrypt").mockImplementationOnce(async (...args) => {
+    const bytes = await decrypt(...args);
+    await storage.commit(newer, old);
+    return bytes;
+  });
+  await expect(session.unlock(password)).rejects.toThrow(
+    "Your vault changed in another window. Unlock again.",
+  );
+  expectLocked(session);
+  expect(await storage.load()).toEqual(newer);
+}, 60_000);
 it("a typed save conflict preserves the original session snapshot and stored vault", async () => {
   const old = await storedVault(),
     session = new Session();

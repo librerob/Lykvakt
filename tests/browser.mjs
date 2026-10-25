@@ -44,7 +44,7 @@ async function check(name, action) {
 }
 async function click(name) {
   if (name === "Copy") {
-    await page.locator(".row-copy").click();
+    await page.locator(".row-copy").click({ position: { x: 12, y: 12 } });
     return;
   }
   await page.getByRole("button", { name, exact: true }).click();
@@ -159,6 +159,7 @@ try {
       const field = page.getByLabel("Create a master password", {
         exact: true,
       });
+      await expect(field).not.toHaveValue("");
       const generated = await field.inputValue();
       expect(generated.length).toBeGreaterThanOrEqual(27);
       await expect(page.locator(".generated-passphrase")).toHaveText(generated);
@@ -887,7 +888,7 @@ try {
           );
         })
         .toBe(true);
-      await row.locator(".row-copy").click();
+      await row.locator(".row-copy").click({ position: { x: 12, y: 12 } });
       await expect(page.getByRole("status")).toContainText(
         "Copied code for Eight synthetic. Clipboard managers may keep a copy.",
       );
@@ -1115,6 +1116,7 @@ try {
         ).toHaveCount(0);
         expect(await records()).toEqual(expected);
         await keyboardHelp();
+        await helpAxe("old-format");
         await screenshot("old-format");
         await click("Erase the old vault and start fresh");
         await expect(page.getByRole("dialog")).toContainText(
