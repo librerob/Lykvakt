@@ -1,3 +1,4 @@
+import { withGenerator } from "./passphrase";
 import { authenticateAction } from "./reauth";
 import { button, el, input, form, submit, download, readText } from "../dom";
 import { load } from "../storage";
@@ -170,7 +171,7 @@ export function createRecovery(
               "Encrypted backup exported. Verify the saved file to test restoration.",
             );
           }),
-        password.wrapper,
+        withGenerator(password),
         confirmation.wrapper,
         el(
           "p",
@@ -304,7 +305,7 @@ export function createRecovery(
           }),
         file.wrapper,
         backup.wrapper,
-        password.wrapper,
+        withGenerator(password),
         confirm.wrapper,
         submit("Test & recover accounts"),
       ),

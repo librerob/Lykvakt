@@ -1,3 +1,4 @@
+import { withGenerator } from "./passphrase";
 import { button, el, input, form, submit } from "../dom";
 import { RecoveryRequired } from "../storage";
 import { DEFAULT_ITERATIONS } from "../crypto";
@@ -67,7 +68,7 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
             new RecoveryRequired(state.recovery).message,
           )
         : null,
-      password.wrapper,
+      state.exists ? password.wrapper : withGenerator(password),
       state.exists ? null : confirmation.wrapper,
       submit(
         state.recovery

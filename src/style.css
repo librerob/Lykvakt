@@ -633,3 +633,19 @@ dialog::backdrop {
 .code-row {
   flex-wrap: wrap;
 }
+
+.password-generator {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+}
+.password-generator .field {
+  flex: 1;
+  min-width: 0;
+}
+.generated-passphrase {
+  display: block;
+  overflow-wrap: anywhere;
+  user-select: all;
+  margin-top: 8px;
+}

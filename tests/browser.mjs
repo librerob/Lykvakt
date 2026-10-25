@@ -74,6 +74,26 @@ try {
     ).toBeVisible();
     await screenshot("setup");
   });
+  await check(
+    "setup generates a passphrase and shows it only until leaving the field",
+    async () => {
+      await click("Generate");
+      const field = page.getByLabel("Create a master password", {
+        exact: true,
+      });
+      const generated = await field.inputValue();
+      expect(generated.length).toBeGreaterThanOrEqual(27);
+      await expect(page.locator(".generated-passphrase")).toHaveText(generated);
+      await expect(
+        page.getByText(
+          "Write this down before continuing. This passphrase is shown once.",
+        ),
+      ).toBeVisible();
+      await page.getByLabel("Confirm master password", { exact: true }).focus();
+      await expect(page.locator(".generated-passphrase")).toHaveCount(0);
+      await expect(field).toHaveAttribute("type", "password");
+    },
+  );
   await check("password-encrypted setup", async () => {
     await page.getByLabel("Create a master password").fill(password);
     await page.getByLabel("Confirm master password").fill(password);
@@ -364,6 +384,34 @@ try {
       );
       expect(results.violations).toEqual([]);
     });
+  await check(
+    "change-password and backup forms generate only new passwords",
+    async () => {
+      await click("Settings");
+      await click("Change master password");
+      await click("Generate");
+      const generated = await page
+        .getByLabel("New master password", { exact: true })
+        .inputValue();
+      expect(generated.length).toBeGreaterThanOrEqual(27);
+      await expect(page.locator(".generated-passphrase")).toHaveText(generated);
+      await expect(
+        page.getByLabel("Current master password", { exact: true }),
+      ).toHaveValue("");
+      await click("Close");
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await click("Recovery");
+      await click("Create encrypted backup");
+      await click("Generate");
+      const backup = await page
+        .getByLabel("Backup passphrase", { exact: true })
+        .inputValue();
+      expect(backup.length).toBeGreaterThanOrEqual(27);
+      await expect(page.locator(".generated-passphrase")).toHaveText(backup);
+      await click("Close");
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+    },
+  );
   let backupPath;
   await check("encrypted backup download", async () => {
     await page.getByRole("button", { name: "Recovery", exact: true }).click();
@@ -533,6 +581,20 @@ try {
     });
     await page.goto(base);
     await click("Restore an encrypted backup");
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Generate", exact: true })
+      .click();
+    const generatedMaster = await page
+      .getByLabel("New master password", { exact: true })
+      .inputValue();
+    expect(generatedMaster.length).toBeGreaterThanOrEqual(27);
+    await expect(
+      page.getByLabel("Backup passphrase", { exact: true }),
+    ).toHaveValue("");
+    await expect(page.locator(".generated-passphrase")).toHaveText(
+      generatedMaster,
+    );
     await page
       .getByLabel("Encrypted backup file", { exact: true })
       .setInputFiles(backupPath);
