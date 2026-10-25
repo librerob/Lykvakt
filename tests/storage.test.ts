@@ -27,7 +27,7 @@ it("atomically creates and rejects stale concurrent writes", async () => {
   ]);
   expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
   expect((await load())!.revision).toBe(1);
-});
+}, 60_000);
 it("requires unlocking for all sensitive session access and cancels late unlock", async () => {
   const session = new Session();
   expect(() => session.accounts()).toThrow("Unlock");
@@ -40,14 +40,14 @@ it("requires unlocking for all sensitive session access and cancels late unlock"
   session.lock();
   expect(() => session.current()).toThrow("Unlock");
   await expect(session.save(emptyVault())).rejects.toThrow("Unlock");
-});
+}, 60_000);
 it("locks on the next operation if timers were suspended", async () => {
   const session = new Session();
   await session.unlock("test database passphrase");
   session.timeout = 0;
   expect(() => session.accounts()).toThrow("Unlock");
   expect(session.unlocked).toBe(false);
-});
+}, 60_000);
 
 it("monotonic inactivity expiry survives a wall-clock rollback", async () => {
   const session = new Session();
@@ -64,4 +64,4 @@ it("monotonic inactivity expiry survives a wall-clock rollback", async () => {
     clock.mockRestore();
     tick.mockRestore();
   }
-});
+}, 60_000);

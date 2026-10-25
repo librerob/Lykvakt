@@ -159,4 +159,4 @@ it("preview reports skipped entries and saves valid accounts only after confirma
   expect(session.accounts().accounts).toHaveLength(0);
   await click("Import 1 account(s)");
   expect(session.accounts().accounts).toHaveLength(1);
-});
+}, 60_000);

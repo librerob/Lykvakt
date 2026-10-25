@@ -1,5 +1,7 @@
 # Backups and recovery
 
+See the [plain-English guide](plain-english-guide.md) for the first-run checklist and explanations of the help controls.
+
 1. Keep service recovery codes separately from this browser.
 2. Create an encrypted backup with a unique, strong passphrase.
 3. Save the file outside the browser profile and keep a second offline copy.
@@ -14,7 +16,13 @@ The Authenticator view reminds you when no backup has been verified or the accou
 
 An ordinary save atomically keeps the preceding encrypted envelope in the same browser database. If the active envelope is structurally unreadable or missing, a readable older revision is offered explicitly. Choose Unlock older copy and use that copy’s password. An incorrect password never causes an automatic fallback. The next save promotes the authenticated older copy with revision-conflict checks.
 
-Password change rotates the vault key and removes the older local copy atomically. The next ordinary save begins a new previous-copy chain. These copies are not independent backups and can disappear with the browser profile. Previously exported backups keep their own passphrases.
+If you use counter-based (HOTP) accounts, their counters may be behind. Do not reuse codes you already submitted. Malformed or exhausted active revisions do not prevent promotion, and the transaction still checks the actual active record.
+
+Password change rotates the vault key and removes the older local copy atomically. Successful password-protection upgrades also discard superseded local copies. The next ordinary save begins a new previous-copy chain. These copies are not independent backups and can disappear with the browser profile. Previously exported backups keep their own passphrases.
+
+## Password protection and versions
+
+New backup files use Argon2id at the recommended 64 MiB / three-pass setting and have their own password. This build opens supported older PBKDF2 backups without rewriting them. Older Lykvakt builds cannot open new Argon2id files; keep compatible software and verify an independent backup before changing an installation. Optional local tuning applies to the vault only after master-password authentication.
 
 ## Restoring or moving accounts
 

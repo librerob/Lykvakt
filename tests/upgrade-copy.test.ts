@@ -76,6 +76,7 @@ it.each(["iteration upgrade", "legacy-slot strip"])(
       session.accounts(),
     );
   },
+  60_000,
 );
 it.each(["iteration upgrade", "legacy-slot strip"])(
   "a failed %s rolls back previous deletion together with the active write",
@@ -105,4 +106,5 @@ it.each(["iteration upgrade", "legacy-slot strip"])(
     expect(session.current().revision).toBe(old.revision + 1);
     expect(await record("previous")).toBeUndefined();
   },
+  60_000,
 );

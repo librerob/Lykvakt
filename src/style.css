@@ -617,3 +617,35 @@ dialog::backdrop {
   user-select: all;
   margin-top: 8px;
 }
+
+[hidden] {
+  display: none !important;
+}
+.inline-help,
+.technical-details {
+  background: var(--surface-alt);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.inline-help > p,
+.technical-details > p,
+.inline-help > .technical-details {
+  margin-top: 10px;
+}
+.technical-details {
+  overflow-wrap: anywhere;
+}
+.next-code {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.next-code-value {
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}

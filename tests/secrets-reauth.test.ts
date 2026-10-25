@@ -68,6 +68,7 @@ it.each(["single", "bulk", "qr"])(
       expect(ui.downloads[0]!.contents).toContain(secret);
     }
   },
+  60_000,
 );
 it("locking during password verification prevents secret export and clears raw bytes", async () => {
   const session = await prepare("bulk"),
@@ -84,4 +85,4 @@ it("locking during password verification prevents secret export and clears raw b
   expect(ui.downloads).toHaveLength(0);
   expect(ui.fields.get("password")!.value).toBe("");
   expect([...(await unwrap.mock.results[0]!.value)]).toEqual(Array(32).fill(0));
-});
+}, 60_000);

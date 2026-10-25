@@ -4,11 +4,17 @@ const manifest = JSON.parse(await readFile("dist/manifest.json", "utf8"));
 assert.equal(manifest.manifest_version, 3);
 assert.deepEqual(manifest.permissions, ["clipboardWrite"]);
 assert.equal(manifest.optional_permissions, undefined);
+assert.equal(manifest.optional_host_permissions, undefined);
 assert.equal(manifest.background, undefined);
 assert.equal(manifest.host_permissions, undefined);
 assert.equal(manifest.content_scripts, undefined);
 assert.equal(manifest.externally_connectable, undefined);
 assert.equal(manifest.web_accessible_resources, undefined);
+assert(
+  !manifest.content_security_policy.extension_pages.includes(
+    "wasm-unsafe-eval",
+  ),
+);
 for (const path of ["index.html", ...Object.values(manifest.icons)])
   assert((await stat("dist/" + path)).isFile());
 async function scan(dir) {
@@ -19,10 +25,15 @@ async function scan(dir) {
       bytes += await scan(path);
       continue;
     }
+    assert(!/\.wasm$/i.test(path), "Forbidden binary module: " + path);
     const contents = await readFile(path);
     bytes += contents.length;
     if (/\.(js|html)$/.test(path)) {
       const code = contents.toString();
+      assert(
+        !/\bWebAssembly\b/.test(code),
+        "Forbidden compiled runtime: " + path,
+      );
       assert(
         !/\beval\s*\(|new Function\s*\(|https?:\/\/[^\s"']+\.js\b|chrome\.storage\.sync/.test(
           code,

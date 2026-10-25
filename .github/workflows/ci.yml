@@ -63,11 +63,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag=v0.2.0-rc.1
+          version=$(node -p "require('./package.json').version")
+          tag="v$version"
           if gh release view "$tag" --json isDraft --jq '.isDraft' > draft-state.txt 2>/dev/null; then
             test "$(cat draft-state.txt)" = true
             gh release edit "$tag" --target "$GITHUB_SHA" --notes-file docs/release-notes.md --prerelease --draft
             gh release upload "$tag" release-assets/*.zip release-assets/*.sha256 --clobber
           else
-            gh release create "$tag" release-assets/*.zip release-assets/*.sha256 --target "$GITHUB_SHA" --title "Lykvakt 0.2.0-rc.1 - unaudited preview" --notes-file docs/release-notes.md --prerelease --draft
+            gh release create "$tag" release-assets/*.zip release-assets/*.sha256 --target "$GITHUB_SHA" --title "Lykvakt $version - unaudited preview" --notes-file docs/release-notes.md --prerelease --draft
           fi

@@ -1,6 +1,7 @@
 import type { Session } from "../session";
 export interface AppState {
   exists: boolean;
+  firstRunTip?: boolean;
   recovery?: import("../storage").RecoveryOffer;
   view: "codes" | "backups" | "settings";
 }

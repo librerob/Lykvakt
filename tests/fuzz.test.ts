@@ -55,6 +55,18 @@ const twofas = JSON.stringify({
 });
 const migration =
   "otpauth-migration://offline?data=Cj4KFDEyMzQ1Njc4OTAxMjM0NTY3ODkwEhhHaXRIdWI6ZGVtb0BleGFtcGxlLnRlc3QaBkdpdEh1YiABKAEwAhABGAIgACh7";
+const argonArchive = {
+  ...archive,
+  password: {
+    kdf: "Argon2id",
+    m: 65_536,
+    t: 3,
+    p: 1,
+    salt: archive.password.salt,
+    iv: archive.password.iv,
+    wrapped: archive.password.wrapped,
+  },
+};
 const odd = ["\u0000", "\ud800", "\udfff", "å\u0301", "\u202e", "😀", "\n"];
 const cases = [
   {
@@ -101,6 +113,20 @@ const cases = [
     },
     kind: "envelope",
   },
+  {
+    name: "validateEnvelope/Argon2id",
+    seed: JSON.stringify(argonArchive),
+    parse: (s: string) => {
+      let input: unknown = s;
+      try {
+        input = JSON.parse(s);
+      } catch {
+        /* Still validate malformed input. */
+      }
+      return validateEnvelope(input);
+    },
+    kind: "envelope",
+  },
 ];
 function candidate(
   s: string,
@@ -142,7 +168,7 @@ function candidate(
     case 6:
       return s.startsWith("{")
         ? s.replace(
-            /"(version|schemaVersion|iterations|digits|period)":\d+/g,
+            /"(version|schemaVersion|iterations|m|t|p|digits|period)":\d+/g,
             '"$1":' +
               ["-1", "1e999", "9007199254740993", "null", "[]"][random(5)],
           )

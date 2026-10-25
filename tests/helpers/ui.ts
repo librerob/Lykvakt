@@ -1,3 +1,4 @@
+import { helpCopy, type HelpTopic } from "../../src/help";
 import type { AppContext } from "../../src/ui/context";
 import type { Session } from "../../src/session";
 type Action = () => void | Promise<void>;
@@ -104,4 +105,26 @@ export async function send() {
       for (const f of ui.fields.values()) f.value = "";
     },
   } as HTMLFormElement);
+}
+
+// Structural counterparts of the native details helpers for the existing UI harness.
+export function technicalDetails(...children: unknown[]) {
+  return el(
+    "details",
+    { "data-technical": "", class: "technical-details" },
+    el("summary", {}, "Technical details"),
+    ...children,
+  );
+}
+export function helpBlock(topic: HelpTopic, title = "What does this mean?") {
+  const copy: { text: string[]; technical?: string[] } = helpCopy[topic];
+  return el(
+    "details",
+    { "data-help": topic },
+    el("summary", {}, title),
+    ...copy.text.map((text) => el("p", {}, text)),
+    copy.technical
+      ? technicalDetails(...copy.technical.map((text) => el("p", {}, text)))
+      : null,
+  );
 }

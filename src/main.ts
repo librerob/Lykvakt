@@ -1,5 +1,8 @@
 import "./style.css";
-import { button, el } from "./dom";
+import { button, el, technicalDetails } from "./dom";
+import { friendlyError } from "./help";
+import { focusVault, installEscape } from "./keyboard";
+import { preferenceEnabled, readPreference } from "./preferences";
 import { Session } from "./session";
 import { load, isRecoveryOffer } from "./storage";
 import { createAccounts } from "./ui/accounts";
@@ -9,12 +12,16 @@ import { createWelcome } from "./ui/welcome";
 import type { AppContext, AppState } from "./ui/context";
 const root = document.querySelector<HTMLDivElement>("#app")!;
 const session = new Session();
-const state: AppState = { exists: false, view: "codes" };
+const state: AppState = {
+  exists: false,
+  view: "codes",
+  firstRunTip: preferenceEnabled("firstRunTips"),
+};
 let dialog: HTMLDialogElement | undefined;
 let status: HTMLElement;
 const isExtension = !!globalThis.chrome?.runtime?.id;
 const fullWindow = new URL(location.href).searchParams.has("window");
-const storedTimeout = Number(localStorage.getItem("timeout"));
+const storedTimeout = Number(readPreference("timeout"));
 session.timeout = [60_000, 300_000, 900_000, 1_800_000].includes(storedTimeout)
   ? storedTimeout
   : 300_000;
@@ -22,26 +29,28 @@ async function run(action: () => void | Promise<void>): Promise<void> {
   try {
     await action();
   } catch (error) {
-    const message =
-      error instanceof SyntaxError
-        ? "Invalid file syntax. No accounts were changed."
-        : error instanceof Error &&
-            !["OperationError", "DataError"].includes(error.name)
-          ? error.message
-          : "Authentication failed. Check the password or use an intact backup.";
-    announce(message, true);
+    const message = friendlyError(error);
+    announce(message.message, true, message.technical);
   }
 }
 
-function announce(message: string, error = false): void {
-  status.textContent = message;
-  status.className = error ? "status error" : "status";
+function announce(message: string, error = false, technical?: string): void {
+  const liveStatus =
+    dialog?.querySelector<HTMLElement>(".dialog-status") ?? status;
+  liveStatus.replaceChildren(
+    el("p", {}, message),
+    ...(technical ? [technicalDetails(el("p", {}, technical))] : []),
+  );
+  liveStatus.className =
+    (error ? "status error" : "status") + (dialog ? " dialog-status" : "");
 }
 
 function closeDialog(): void {
   dialog?.close();
   dialog?.remove();
   dialog = undefined;
+  status?.setAttribute("role", "status");
+  status?.setAttribute("aria-live", "polite");
 }
 
 function modal(title: string, content: Node): void {
@@ -57,7 +66,14 @@ function modal(title: string, content: Node): void {
       button("Close", closeDialog, "button text"),
     ),
     content,
+    el("div", {
+      class: "status dialog-status",
+      role: "status",
+      "aria-live": "polite",
+    }),
   );
+  status.removeAttribute("role");
+  status.removeAttribute("aria-live");
   const currentDialog = dialog;
   currentDialog.addEventListener(
     "close",
@@ -110,6 +126,15 @@ const accounts = createAccounts(ctx);
 const recovery = createRecovery(ctx, accounts.preview);
 const settings = createSettings(ctx);
 const welcome = createWelcome(ctx, recovery.recoverySetup);
+installEscape(
+  document,
+  accounts.clearSearch,
+  () => {
+    if (isExtension && !fullWindow) window.close();
+  },
+  () => !!dialog,
+);
+
 session.onlock = () => {
   accounts.clear();
   closeDialog();
@@ -232,6 +257,7 @@ function render(): void {
       "Local vault · No account · No telemetry",
     ),
   );
+  if (!dialog) focusVault(root, session.unlocked, state.view);
 }
 void run(async () => {
   // Until loading succeeds, never offer setup over a damaged existing database.

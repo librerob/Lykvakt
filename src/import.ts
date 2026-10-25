@@ -241,15 +241,25 @@ export async function verifyBackup(
   input: unknown,
   password: string,
   current?: VaultData,
+  signal?: AbortSignal,
 ): Promise<{
   data: VaultData;
   count: number;
   matches: boolean | null;
   fingerprint: string;
 }> {
-  const { data } = await decryptEnvelope(input, password, "backup");
-  for (const account of data.accounts)
+  const { data } = await decryptEnvelope(
+    input,
+    password,
+    "backup",
+    undefined,
+    signal,
+  );
+  for (const account of data.accounts) {
+    signal?.throwIfAborted();
     await codeFor(account, 1_234_567_890_000);
+  }
+  signal?.throwIfAborted();
   const fingerprint = await snapshot(data);
   return {
     data,

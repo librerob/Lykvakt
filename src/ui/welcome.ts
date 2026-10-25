@@ -1,7 +1,9 @@
+import { busyCopy } from "../help";
+import { savePreference } from "../preferences";
 import { withGenerator } from "./passphrase";
-import { button, el, input, form, submit } from "../dom";
+import { button, el, input, form, submit, helpBlock } from "../dom";
 import { RecoveryRequired } from "../storage";
-import { DEFAULT_ITERATIONS } from "../crypto";
+import { DEFAULT_KDF } from "../crypto";
 import type { AppContext } from "./context";
 export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
   const { session, state, run, render } = ctx;
@@ -36,15 +38,14 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
           if (!state.exists && password !== data.get("confirmation"))
             throw new Error("Passwords do not match.");
           try {
+            ctx.announce(state.exists ? busyCopy.unlock : busyCopy.setup);
             if (state.exists)
-              await session.unlock(
-                password,
-                DEFAULT_ITERATIONS,
-                state.recovery,
-              );
+              await session.unlock(password, DEFAULT_KDF, state.recovery);
             else {
               await session.setup(password);
               state.exists = true;
+              state.firstRunTip = true;
+              savePreference("firstRunTips", "true");
             }
           } catch (error) {
             if (error instanceof RecoveryRequired) {
@@ -68,7 +69,9 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
             new RecoveryRequired(state.recovery).message,
           )
         : null,
+      state.recovery ? helpBlock("olderCopy") : null,
       state.exists ? password.wrapper : withGenerator(password),
+      helpBlock("password"),
       state.exists ? null : confirmation.wrapper,
       submit(
         state.recovery

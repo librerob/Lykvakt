@@ -1,8 +1,19 @@
+import { busyCopy } from "../help";
+import { savePreference } from "../preferences";
 import { withGenerator } from "./passphrase";
 import { authenticateAction } from "./reauth";
-import { button, el, input, form, submit, download, readText } from "../dom";
+import {
+  button,
+  el,
+  input,
+  form,
+  submit,
+  download,
+  readText,
+  helpBlock,
+} from "../dom";
 import { load } from "../storage";
-import { createEnvelope, snapshot } from "../crypto";
+import { createEnvelope, snapshot, DEFAULT_KDF } from "../crypto";
 import { toURI, verifyBackup } from "../import";
 import type { Account, VaultData } from "../model";
 import type { AppContext } from "./context";
@@ -27,7 +38,7 @@ export function createRecovery(
         el("dt", {}, "Accounts"),
         el("dd", {}, String(data.accounts.length)),
         el("dt", {}, "Storage"),
-        el("dd", {}, "Encrypted · AES-256-GCM"),
+        el("dd", {}, "Password protected on this device"),
         el("dt", {}, "Unlock methods"),
         el("dd", {}, "Master password"),
         el("dt", {}, "Last matching file verification"),
@@ -62,10 +73,23 @@ export function createRecovery(
         "A backup is useful when you know it restores.",
       ),
       health,
+      helpBlock("backup"),
+      el(
+        "div",
+        { class: "settings-section stack" },
+        el("h2", {}, "Recent copy"),
+        el(
+          "p",
+          {},
+          "This browser keeps a recent locked copy for recovery when the current copy cannot be read. It is separate from the backup file you save elsewhere.",
+        ),
+        helpBlock("olderCopy"),
+      ),
       el(
         "div",
         { class: "settings-section" },
         el("h2", {}, "Move to another authenticator"),
+        helpBlock("export"),
         el(
           "p",
           {},
@@ -94,6 +118,7 @@ export function createRecovery(
         "div",
         { class: "settings-section" },
         el("h2", {}, "1. Save an encrypted backup"),
+        helpBlock("backup"),
         el(
           "p",
           {},
@@ -109,6 +134,7 @@ export function createRecovery(
         "div",
         { class: "settings-section" },
         el("h2", {}, "2. Test the file you saved"),
+        helpBlock("verify"),
         el(
           "p",
           {},
@@ -153,9 +179,18 @@ export function createRecovery(
             const data = session.accounts(),
               epoch = session.epoch();
             let contents: string;
+            announce(busyCopy.backup);
             try {
               contents = JSON.stringify(
-                (await createEnvelope(password, data, "backup")).envelope,
+                (
+                  await createEnvelope(
+                    password,
+                    data,
+                    "backup",
+                    DEFAULT_KDF,
+                    session.cancellationSignal(),
+                  )
+                ).envelope,
               );
             } finally {
               f.reset();
@@ -172,6 +207,7 @@ export function createRecovery(
             );
           }),
         withGenerator(password),
+        helpBlock("backup"),
         confirmation.wrapper,
         el(
           "p",
@@ -198,11 +234,13 @@ export function createRecovery(
               epoch = session.epoch();
             const passwordValue = password.control.value;
             let result: Awaited<ReturnType<typeof verifyBackup>>;
+            announce(busyCopy.verify);
             try {
               result = await verifyBackup(
                 JSON.parse(await readText(selected)),
                 passwordValue,
                 current,
+                session.cancellationSignal(),
               );
             } finally {
               f.reset();
@@ -257,6 +295,8 @@ export function createRecovery(
           }),
         file.wrapper,
         password.wrapper,
+        helpBlock("verify"),
+        helpBlock("backup"),
         submit("Decrypt & test restoration"),
       ),
     );
@@ -283,20 +323,26 @@ export function createRecovery(
             if (password.control.value !== confirm.control.value)
               throw new Error("Passwords do not match.");
             const epoch = session.epoch();
+            announce(busyCopy.verify);
             const result = await verifyBackup(
               JSON.parse(await readText(selected)),
               backup.control.value,
+              undefined,
+              session.cancellationSignal(),
             );
             if (epoch !== session.epoch())
               throw new Error("Recovery cancelled by locking.");
             const masterPassword = password.control.value;
             f.reset();
+            announce(busyCopy.setup);
             await session.setup(masterPassword, {
               ...result.data,
               verifiedAt: null,
               verifiedSnapshot: null,
             });
             state.exists = true;
+            state.firstRunTip = true;
+            savePreference("firstRunTips", "true");
             closeDialog();
             render();
             announce(
@@ -305,7 +351,9 @@ export function createRecovery(
           }),
         file.wrapper,
         backup.wrapper,
+        helpBlock("backup"),
         withGenerator(password),
+        helpBlock("password"),
         confirm.wrapper,
         submit("Test & recover accounts"),
       ),

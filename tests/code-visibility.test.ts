@@ -54,6 +54,7 @@ vi.mock("../src/dom", () => ({
     n.action = action;
     return n;
   },
+  helpBlock: () => new Node("details"),
   input: () => ({
     control: { addEventListener() {} },
     wrapper: new Node("label"),

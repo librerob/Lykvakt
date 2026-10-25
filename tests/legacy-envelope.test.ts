@@ -33,7 +33,7 @@ it("password unlock authenticates a legacy header with slots, then strips them a
     group: "Legacy",
     origins: ["https://example.test"],
   });
-});
+}, 60_000);
 it("failed legacy strip commit does not block password unlock, and a later save retries", async () => {
   await storage.commit(legacy);
   vi.spyOn(storage, "commit").mockRejectedValueOnce(
@@ -47,7 +47,7 @@ it("failed legacy strip commit does not block password unlock, and a later save 
   await session.save(session.accounts());
   expect(session.current().passkeys).toEqual([]);
   expect((await storage.load())!.passkeys).toEqual([]);
-});
+}, 60_000);
 it("failed resealing during strip still permits authenticated password access", async () => {
   await storage.commit(legacy);
   const encrypt = vi
@@ -59,7 +59,7 @@ it("failed resealing during strip still permits authenticated password access", 
   expect(session.unlocked).toBe(true);
   expect(session.current()).toEqual(legacy);
   expect(await storage.load()).toEqual(legacy);
-});
+}, 60_000);
 it("new envelopes require the empty legacy field, while stripping before authentication fails", async () => {
   expect(() => validateEnvelope(legacy)).toThrow("passkey");
   const { key, data } = await decryptEnvelope(legacy, password);
@@ -69,7 +69,7 @@ it("new envelopes require the empty legacy field, while stripping before authent
   await expect(
     decryptEnvelope({ ...legacy, passkeys: [] }, password),
   ).rejects.toThrow();
-});
+}, 60_000);
 it("locking during a failed legacy strip still cancels unlock", async () => {
   await storage.commit(legacy);
   const session = new Session();
@@ -79,4 +79,4 @@ it("locking during a failed legacy strip still cancels unlock", async () => {
   });
   await expect(session.unlock(password)).rejects.toThrow("cancelled");
   expect(session.unlocked).toBe(false);
-});
+}, 60_000);

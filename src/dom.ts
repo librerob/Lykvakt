@@ -1,3 +1,4 @@
+import { helpCopy, type HelpTopic } from "./help";
 export type Child = Node | string | null | undefined | false;
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -70,15 +71,21 @@ export function form(
     for (const shown of node.querySelectorAll("[data-generated-passphrase]"))
       shown.replaceChildren();
   });
+  let pending = false;
   node.addEventListener("submit", (event) => {
     event.preventDefault();
+    if (pending) return;
+    pending = true;
+    node.setAttribute("aria-busy", "true");
     const submits = [
       ...node.querySelectorAll<HTMLButtonElement>('button[type="submit"]'),
     ];
     submits.forEach((b) => (b.disabled = true));
-    void action(new FormData(node), node).finally(() =>
-      submits.forEach((b) => (b.disabled = false)),
-    );
+    void action(new FormData(node), node).finally(() => {
+      pending = false;
+      node.setAttribute("aria-busy", "false");
+      submits.forEach((b) => (b.disabled = false));
+    });
   });
   return node;
 }
@@ -95,4 +102,28 @@ export function download(contents: string, name: string): void {
 export async function readText(file: File): Promise<string> {
   if (file.size > 8_000_000) throw new Error("File exceeds the 8 MB limit.");
   return file.text();
+}
+
+export function technicalDetails(...children: Child[]): HTMLDetailsElement {
+  return el(
+    "details",
+    { class: "technical-details", "data-technical": "" },
+    el("summary", {}, "Technical details"),
+    ...children,
+  );
+}
+export function helpBlock(
+  topic: HelpTopic,
+  title = "What does this mean?",
+): HTMLDetailsElement {
+  const copy: { text: string[]; technical?: string[] } = helpCopy[topic];
+  return el(
+    "details",
+    { class: "inline-help", "data-help": topic },
+    el("summary", {}, title),
+    ...copy.text.map((text) => el("p", {}, text)),
+    copy.technical
+      ? technicalDetails(...copy.technical.map((text) => el("p", {}, text)))
+      : null,
+  );
 }

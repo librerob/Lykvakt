@@ -57,7 +57,7 @@ it("password change rotates the actual session key: an old envelope/password can
     session.accounts(),
   );
   expect(ui.messages.join(" ")).toMatch(/vault key rotated/i);
-}, 15_000);
+}, 60_000);
 it("failed rotation commit preserves the old session key and stored vault", async () => {
   const session = await settings(),
     before = session.current();
@@ -71,7 +71,7 @@ it("failed rotation commit preserves the old session key and stored vault", asyn
   expect((await decryptEnvelope(session.current(), oldPassword)).data).toEqual(
     session.accounts(),
   );
-});
+}, 60_000);
 it("password-change verification failure clears every password input", async () => {
   const session = await settings(),
     before = session.current();
@@ -80,4 +80,4 @@ it("password-change verification failure clears every password input", async () 
   expect(session.current()).toEqual(before);
   for (const name of ["current", "next", "confirm"])
     expect(ui.fields.get(name)!.value).toBe("");
-});
+}, 60_000);

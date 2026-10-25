@@ -1,4 +1,6 @@
-import { button, el, input } from "../dom";
+import { button, el, input, helpBlock } from "../dom";
+import { bindSearch } from "../keyboard";
+import { preferenceEnabled, savePreference } from "../preferences";
 import { codeFor } from "../otp";
 import { needsBackup } from "./recovery";
 import { createEnrollment } from "./enrollment";
@@ -8,16 +10,21 @@ export function createAccounts(ctx: AppContext) {
   let search = "",
     favorites = false;
   let list: HTMLElement | undefined;
+  let searchControl: HTMLInputElement | undefined;
+  let matchingIds: string[] = [];
   let displayEpoch = 0;
   let backupEpoch = 0;
   let backupNotice: HTMLElement | undefined;
   const revealed = new Map<string, ReturnType<typeof setTimeout>>();
-  const alwaysShow = () => localStorage.getItem("alwaysShowCodes") === "true";
+  const alwaysShow = () => preferenceEnabled("alwaysShowCodes");
   function maskAll() {
     for (const timer of revealed.values()) clearTimeout(timer);
     revealed.clear();
   }
-  const codeCache = new Map<string, { step: string; code: string }>();
+  const codeCache = new Map<
+    string,
+    { step: string; code: string; next?: string }
+  >();
   const { addAccount, preview, importAccounts, editAccount } = createEnrollment(
     ctx,
     drawAccounts,
@@ -27,11 +34,73 @@ export function createAccounts(ctx: AppContext) {
     backupEpoch++;
     backupNotice = undefined;
     maskAll();
+    for (const code of list?.querySelectorAll<HTMLElement>(".otp") ?? []) {
+      code.textContent = "••• •••";
+      code.setAttribute("aria-label", "Code hidden");
+      code.setAttribute("aria-pressed", "false");
+    }
+    for (const next of list?.querySelectorAll<HTMLElement>(".next-code") ??
+      []) {
+      next.hidden = true;
+      next.querySelector(".next-code-value")!.textContent = "";
+    }
     codeCache.clear();
+    matchingIds = [];
+    searchControl = undefined;
     search = "";
     list = undefined;
   }
 
+  function clearSearch(): boolean {
+    if (!search || !searchControl) return false;
+    search = "";
+    searchControl.value = "";
+    drawAccounts();
+    searchControl.focus();
+    return true;
+  }
+  async function copyAccount(id: string): Promise<void> {
+    session.check();
+    const epoch = session.epoch();
+    const current = session
+      .accounts()
+      .accounts.find((account) => account.id === id);
+    if (!current)
+      throw new Error("That account changed. Clear the search and try again.");
+    const value = await codeFor(current);
+    session.check();
+    if (epoch !== session.epoch()) return;
+    await navigator.clipboard.writeText(value);
+    announce("Code copied. Clipboard managers may keep a copy.");
+  }
+  function firstRunTip(): HTMLElement | null {
+    if (!ctx.state.firstRunTip) return null;
+    const tip = el(
+      "aside",
+      { class: "notice stack", "aria-label": "Getting started" },
+      el("h2", {}, "Three things to keep safe"),
+      el("p", {}, "Remember your vault password and keep a safe written copy."),
+      helpBlock("tipsPassword"),
+      el("p", {}, "Save an encrypted backup somewhere outside this browser."),
+      helpBlock("tipsBackup"),
+      el(
+        "p",
+        {},
+        "Choose Verify or restore a backup to test the actual file you saved.",
+      ),
+      helpBlock("tipsVerify"),
+      button(
+        "Got it",
+        () => {
+          ctx.state.firstRunTip = false;
+          savePreference("firstRunTips", "false");
+          tip.remove();
+        },
+        "button tonal",
+      ),
+    );
+    return tip;
+  }
   function codesView(): HTMLElement {
     const add = button("+ Add account", () => addAccount(), "button primary");
     const heading = el(
@@ -47,6 +116,13 @@ export function createAccounts(ctx: AppContext) {
     );
     const searchInput = input("search", "Search accounts", "search", search);
     searchInput.control.placeholder = "Search accounts";
+    searchControl = searchInput.control;
+    bindSearch(searchInput.control, () =>
+      run(async () => {
+        if (matchingIds[0]) await copyAccount(matchingIds[0]);
+        else announce("No matching account. Try a different search.");
+      }),
+    );
     searchInput.control.addEventListener("input", () => {
       search = searchInput.control.value;
       drawAccounts();
@@ -76,12 +152,14 @@ export function createAccounts(ctx: AppContext) {
         },
         "button text",
       ),
+      helpBlock("reminder"),
     );
     backupNotice.hidden = true;
     const section = el(
       "section",
       { class: "content" },
       heading,
+      firstRunTip(),
       backupNotice,
       el("div", { class: "search-row" }, searchInput.wrapper, filter),
       list,
@@ -116,7 +194,18 @@ export function createAccounts(ctx: AppContext) {
           a.issuer.localeCompare(b.issuer) ||
           a.label.localeCompare(b.label),
       );
+    matchingIds = accounts.map((account) => account.id);
     const rows = accounts.map((a) => {
+      const next = el(
+        "div",
+        {
+          class: "next-code",
+          "aria-label": "Next code, valid after the current one expires",
+        },
+        el("span", { class: "hint" }, "Next"),
+        el("span", { class: "next-code-value" }),
+      );
+      next.hidden = true;
       const label = `${a.issuer} ${a.label}`;
       const code = button(
         "••• •••",
@@ -134,6 +223,8 @@ export function createAccounts(ctx: AppContext) {
                 setTimeout(() => {
                   revealed.delete(a.id);
                   code.textContent = "••• •••";
+                  next.hidden = true;
+                  next.querySelector(".next-code-value")!.textContent = "";
                   code.setAttribute(
                     "aria-label",
                     `Reveal code for ${label} (hidden)`,
@@ -190,24 +281,9 @@ export function createAccounts(ctx: AppContext) {
           { class: "code-row" },
           code,
           remaining,
-          button(
-            "Copy",
-            () =>
-              run(async () => {
-                session.check();
-                const epoch = session.epoch();
-                const current = session
-                  .accounts()
-                  .accounts.find((x) => x.id === a.id)!;
-                const value = await codeFor(current);
-                session.check();
-                if (epoch !== session.epoch()) return;
-                await navigator.clipboard.writeText(value);
-                announce("Code copied. Clipboard managers may keep a copy.");
-              }),
-            "button tonal",
-          ),
+          button("Copy", () => run(() => copyAccount(a.id)), "button tonal"),
         ),
+        a.type === "totp" ? next : null,
       );
       const star = row.querySelector(".favorite")!;
       star.setAttribute(
@@ -288,7 +364,23 @@ export function createAccounts(ctx: AppContext) {
           codeCache.set(a.id, cached);
         }
         if (epoch !== displayEpoch || !session.unlocked) return;
+        const preview = preferenceEnabled("showNextCode") && a.type === "totp";
+        if (preview && (alwaysShow() || revealed.has(a.id)) && !cached.next) {
+          cached.next = await codeFor(a, now + a.period * 1000);
+          if (epoch !== displayEpoch || !session.unlocked) return;
+        }
         const visible = alwaysShow() || revealed.has(a.id);
+        const next = row.querySelector<HTMLElement>(".next-code");
+        if (next) {
+          next.hidden = !preview || !visible;
+          const value = next.querySelector(".next-code-value")!;
+          value.textContent =
+            preview && visible && cached.next
+              ? cached.next.slice(0, cached.next.length / 2) +
+                " " +
+                cached.next.slice(cached.next.length / 2)
+              : "";
+        }
         const code = row.querySelector(".otp")!;
         code.textContent = visible
           ? cached.code.slice(0, cached.code.length / 2) +
@@ -320,5 +412,5 @@ export function createAccounts(ctx: AppContext) {
     );
   }
 
-  return { codesView, tick, clear, preview };
+  return { codesView, tick, clear, clearSearch, preview };
 }

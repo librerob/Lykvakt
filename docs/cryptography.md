@@ -1,37 +1,55 @@
 # Cryptography and format v1
 
-Original application framing around Web Crypto primitives; no independent security audit has occurred.
+Original application framing around bundled cryptographic code and Web Crypto; no independent security audit has occurred.
+
+## Password protection
+
+New vaults, backups and master-password changes use Argon2id version 0x13 with 32-byte output. Recommended parameters are m=65,536 KiB (64 MiB), t=3 and p=1. Extra strong uses 131,072 KiB, t=3 and p=1. The exact-pinned @noble/hashes 2.4.0 Argon2 module is bundled as JavaScript with its MIT license. The extension ships and uses no WebAssembly.
+
+Stored Argon2id parameters must be safe integers: m=19,456–262,144 KiB, t=2–10 and p=1. Exact-field validation rejects missing, extra and out-of-range fields before starting a worker or allocating the working matrix. The implementation also passes an explicit memory budget to the primitive.
+
+PBKDF2-HMAC-SHA256 slots retain their original authenticated encoding and accept the fixed 600,000–5,000,000 iteration range. They remain readable for compatibility. The exported legacy test policy retains a 2,000,000-iteration default; the application creates new slots with Argon2id.
 
 ## Keys and authenticated data
 
-A fresh vault uses 32 random key bytes. A PBKDF2-HMAC-SHA256 password key wraps them with AES-256-GCM, a random 32-byte salt, 12-byte IV and 128-bit tag. Wrapper AAD binds format/version, purpose, vault ID, archive kind and KDF parameters. The vault key is imported as nonextractable AES-256-KW.
+A fresh vault uses 32 random key bytes, imported as nonextractable AES-256-KW. The password-derived AES-256-GCM key wraps them using a random 32-byte salt, 12-byte IV and 128-bit tag. Wrapper AAD binds format/version, purpose, vault ID, archive kind, KDF and salt. PBKDF2 binds iterations; Argon2id binds m, t and p. Envelope version remains 1.
 
-Every save generates a fresh AES-256-GCM content key and random 12-byte IV, encrypts the validated payload once, then wraps the content key with AES-KW. The complete canonical header is content AAD, including revision and compatibility metadata. Removing header fields before authentication would break decryption.
+Every save generates a fresh AES-256-GCM content key and random 12-byte IV, encrypts the validated payload once, then wraps that content key with AES-KW. The complete canonical header is payload AAD. Header fields must be authenticated before migration or removal.
 
 For legacy compatibility, new envelopes retain an empty `passkeys` array, and old slots are authenticated and stripped on password unlock when saving succeeds.
 
-The read path accepts only the bounded legacy structure needed to authenticate original AAD. Cleanup increments the revision and follows the same compare-and-swap path as a KDF upgrade. Successful unlock upgrades delete the previous encrypted copy in the same transaction, so it cannot retain a superseded password wrapper or legacy slots; the next ordinary save preserves the upgraded envelope. A transient legacy-cleanup write failure leaves password access available; a later save retries it. A compare-and-swap conflict keeps the session locked and requires a fresh unlock. Cleanup alone does not rotate the vault key or revoke a key recovered from an older copy.
+## Derivation, normalization and cancellation
 
-## Passwords and rotation
+Argon2id normally runs in a bundled one-job module Web Worker. The worker imports its 32-byte result immediately as a nonextractable AES-GCM key and sends only that CryptoKey to the page. A Node-only or worker-unavailable path uses the yielding async primitive. Derived output and UTF-8 password bytes are cleared in finally blocks on success and failure; the primitive also clears its working matrix on normal completion.
 
-Validation uses a fixed minimum of 600,000 PBKDF2 iterations and a maximum of 5,000,000; new slots currently use 2,000,000. Raising the new-slot default does not raise the compatibility floor. Successful password unlock upgrades a weaker accepted slot and reseals its authenticated header. A typed compare-and-swap conflict rejects the stale unlock, clears session keys and data, and asks for a fresh unlock. Other optional-upgrade write failures keep authenticated access and the original session envelope; the read-only upgradePending state records that the prepared upgrade was not saved. A later unlock retries it and clears that state after a successful upgrade or when none is needed. Lock cancellation takes precedence over either failure and clears pending state. Backup verification does not persist upgrades.
+Locking aborts the current operation, terminates its browser worker and advances the session epoch. Late work cannot reopen the session or expose a secret. Termination, JavaScript strings, garbage collection, library internals, browser memory and OS paging prevent guaranteed zeroization; this is best-effort cleanup, not forensic erasure.
 
-New slots derive from NFKC-normalized UTF-8 passwords. Unlock tries NFKC first and, on authentication failure when normalization changes the string, can retry the raw encoding for an old archive. New master/backup passphrases require 14–1024 input characters. The optional generator chooses seven distinct EFF words with unbiased rejection sampling over `crypto.getRandomValues`. Temporary raw key and UTF-8 arrays are cleared in finally blocks where practical.
+New passwords use NFKC-normalized UTF-8. Only legacy PBKDF2 slots can retry the raw encoding after a normalization-changing authentication failure. Argon2id never retries a second memory-heavy raw-string derivation. New passwords require 14–1024 input characters. The optional seven-word generator uses unbiased rejection sampling over browser-provided random values.
 
-Password change verifies the current password, generates a fresh vault key and password wrapper, and reseals atomically. The same transaction deletes the older local recovery copy. Failure leaves both stored copies and the session key unchanged; session key adoption follows a successful commit. The next ordinary save creates a previous copy under the new key. A key recovered from an old envelope/password cannot decrypt later saves, but independently retained old files cannot be revoked.
+## Authenticated upgrades and rotation
 
-PBKDF2 is CPU-bound rather than memory-hard. No broad-device calibration or equivalence to a memory-hard KDF is claimed.
+Password unlock first authenticates and decrypts the stored vault. PBKDF2 slots then migrate to Argon2id through the revision-checked upgrade path. Weaker accepted Argon2id slots are strengthened, keeping the maximum existing/requested memory and pass costs so unlock never silently lowers either cost.
 
-## Canonicalization, payloads and recovery
+After successful authentication, upgrade preparation and non-conflict write failures are best effort. A typed compare-and-swap conflict rejects the stale unlock, clears session keys and data, and asks for a fresh unlock. Other write failures keep the original stored envelope as the session envelope and permit access. The read-only upgradePending state records a prepared upgrade that could not be saved; a later successful or unnecessary upgrade clears it. Lock cancellation takes precedence over either failure and clears pending state. A successful upgrade or legacy-slot cleanup deletes the previous encrypted copy in the same transaction, and the next ordinary save preserves only the upgraded envelope. Backup verification never persists an upgrade.
 
-Canonical JSON sorts object keys by plain JavaScript code-unit comparison and preserves array order. Existing lowercase ASCII header keys keep byte-identical encodings. Snapshot ordering uses the same comparison. Tests pin sample-header bytes and restore frozen legacy archives.
+Password change verifies the current password, creates a fresh random vault key and Argon2id slot, and reseals atomically. The same transaction removes the older local copy. Failure retains both stored copies and the old session key. A key recovered from an old envelope/password cannot decrypt later saves, but independently retained files cannot be revoked.
 
-Payload schema 1 is read into schema 2; new saves use schema 2. Legacy account metadata remains validated and encrypted for compatibility, without granting page access. Encrypted backups use independent key material and their own passphrases. Verification authenticates the selected file, validates records and compares account snapshots.
+## Optional local tuning
 
-Ordinary saves preserve the exact previous encrypted envelope in the active-write transaction. Structural corruption can offer that older copy; selection and password authentication are explicit. Recovered HOTP counters may be behind; the recovery offer warns against reusing previously submitted codes. Promotion still compares against the actual active record. Only a nonnegative safe active revision below Number.MAX_SAFE_INTEGER - 2 advances the recovered revision; malformed or exhausted active revisions are ignored for numbering, without bypassing compare-and-swap. There is no trusted anti-rollback anchor or guaranteed forensic erasure.
+Calibration runs only after Test this computer. It derives once with t=1, a chosen 64/128/256 MiB memory setting, and throwaway random password/salt bytes. It measures performance.now(), then suggests t=clamp(round(1000/measuredMs),3,10). A one-pass probe is never accepted as a stored slot.
 
-## Limits
+The measured and estimated times are shown before any save. Apply protection requires the current master password and the authenticated upgrade path; password change can also adopt the selected policy. Existing stronger protection is retained. The clock and probe are injectable for tests, which do not run a real calibration by default.
 
-The complete manifest permission set is `["clipboardWrite"]`. Plaintext OTP-link export and transfer QR reveal require master-password re-authentication; temporary verified key bytes and the password input are cleared before a secret is exposed.
+Parameters are plaintext authenticated metadata. A tuned setting can reveal approximate machine speed. Local timing does not throttle an attacker's GPU or optimized native code; it is not an attacker-cost equivalence. Argon2id's memory requirement raises offline-guessing cost but does not replace a long, unique password.
 
-JavaScript strings, garbage collection, browser internals and OS paging prevent guaranteed zeroization. Nonextractable keys cannot protect against hostile code in an unlocked extension. There is no password reset, escrow, developer backend or weak recovery bypass.
+## Canonicalization and recovery
+
+Canonical JSON sorts keys by JavaScript code-unit comparison and preserves array order. Snapshot ordering uses the same comparison. Tests pin the old sample header's exact bytes and restore frozen legacy archives.
+
+Payload schema 1 reads into schema 2. Backups use independent key material and passwords. Verification authenticates the selected file, validates every record and compares the account snapshot without replacing accounts.
+
+Ordinary saves retain the exact previous encrypted envelope in the active-write transaction. Structural corruption can offer it only with explicit choice and password authentication. Recovery warns that HOTP counters may lag and codes already submitted must not be reused.
+
+Promotion still compares against the actual active record. Only a nonnegative safe active revision below Number.MAX_SAFE_INTEGER - 2 influences numbering; malformed or exhausted active revisions are ignored without bypassing compare-and-swap. There is no trusted anti-rollback anchor.
+
+The manifest permission set remains exactly ["clipboardWrite"]. Plaintext secret export and QR reveal require fresh master-password verification. Clipboard writes follow a click or Enter in search. Nonextractable keys cannot protect unlocked data from hostile extension code or a compromised device.

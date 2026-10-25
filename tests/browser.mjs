@@ -59,6 +59,56 @@ async function importURI(value) {
   await expect(page.getByRole("dialog")).toContainText("Review import");
   await click("Import 1 account(s)");
 }
+const openedHelpTopics = new Set();
+async function plainPrimaryUI() {
+  const text = await page.evaluate(() => {
+    const body = document.body.cloneNode(true);
+    body.querySelectorAll("[data-technical]").forEach((node) => node.remove());
+    return body.textContent;
+  });
+  expect(text).not.toMatch(
+    /\b(?:Argon2id|PBKDF2|KDF|AES|GCM|AAD|envelope|nonce|iterations|WASM)\b/i,
+  );
+}
+async function keyboardHelp(scope = page, leaveOpen = false) {
+  const blocks = scope.locator("details[data-help], details[data-technical]");
+  const opened = [];
+  for (let i = 0; i < (await blocks.count()); i++) {
+    const block = blocks.nth(i);
+    if (!(await block.isVisible())) continue;
+    const summary = block.locator(":scope > summary");
+    expect(
+      await summary.evaluate((node) => node.tabIndex),
+    ).toBeGreaterThanOrEqual(0);
+    await summary.focus();
+    if ((await block.getAttribute("open")) !== null)
+      await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+    await expect(block).toHaveAttribute("open", "");
+    await expect(block.locator(":scope > p").first()).toBeVisible();
+    const topic = await block.getAttribute("data-help");
+    if (topic) openedHelpTopics.add(topic);
+    opened.push(block);
+  }
+  await plainPrimaryUI();
+  if (!leaveOpen)
+    for (const block of opened.reverse()) {
+      await block.locator(":scope > summary").focus();
+      await page.keyboard.press("Enter");
+      await expect(block).not.toHaveAttribute("open", "");
+    }
+}
+async function helpAxe(name) {
+  const results = await new AxeBuilder({ page })
+    .setLegacyMode()
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+    .analyze();
+  await writeFile(
+    "artifacts/axe-help-" + name + ".json",
+    JSON.stringify(results.violations, null, 2),
+  );
+  expect(results.violations).toEqual([]);
+}
 async function screenshot(name) {
   await page.screenshot({
     path: `artifacts/screenshots/${name}.png`,
@@ -74,6 +124,15 @@ try {
     ).toBeVisible();
     await screenshot("setup");
   });
+  await check(
+    "setup focuses the password and opens plain-language help by keyboard",
+    async () => {
+      await expect(
+        page.getByLabel("Create a master password", { exact: true }),
+      ).toBeFocused();
+      await keyboardHelp();
+    },
+  );
   await check(
     "setup generates a passphrase and shows it only until leaving the field",
     async () => {
@@ -101,12 +160,48 @@ try {
     await expect(page.getByText("A fresh start.")).toBeVisible();
     await screenshot("empty");
   });
+  await check(
+    "first-run guidance is keyboard accessible and dismissal survives reopening",
+    async () => {
+      const tips = page.getByRole("complementary", { name: "Getting started" });
+      await expect(tips).toBeVisible();
+      await expect(
+        page.getByLabel("Search accounts", { exact: true }),
+      ).toBeFocused();
+      await keyboardHelp();
+      await click("Got it");
+      await expect(tips).toHaveCount(0);
+      await page.reload();
+      await expect(
+        page.getByLabel("Master password", { exact: true }),
+      ).toBeFocused();
+      await unlock();
+      await expect(tips).toHaveCount(0);
+      await expect(
+        page.getByLabel("Search accounts", { exact: true }),
+      ).toBeFocused();
+    },
+  );
   await check("standard URI preview and import", async () => {
     await importURI(uri);
     await expect(
       page.getByRole("heading", { name: "GitHub", exact: true }),
     ).toBeVisible();
   });
+  await check(
+    "search Enter copies a current code without reveal and Escape clears the search",
+    async () => {
+      const search = page.getByLabel("Search accounts", { exact: true });
+      await expect(search).toBeFocused();
+      await search.fill("GitHub");
+      await search.press("Enter");
+      await expect(page.getByRole("status")).toContainText("Code copied");
+      await expect(page.locator(".account .otp")).toHaveText("••• •••");
+      await search.press("Escape");
+      await expect(search).toHaveValue("");
+      await expect(search).toBeFocused();
+    },
+  );
   await check(
     "codes start hidden; copy does not reveal; keyboard reveal expires",
     async () => {
@@ -638,6 +733,114 @@ try {
     await screenshot("desktop-eight-digit");
   });
   await check(
+    "optional next-code preview preserves masking, settings and current-only copy",
+    async () => {
+      await click("Settings");
+      const setting = page.getByLabel("Show next code", { exact: true });
+      await expect(setting).not.toBeChecked();
+      await setting.check();
+      await click("Authenticator");
+      const row = page.locator(".account").filter({
+        has: page.getByRole("heading", { name: "Eight", exact: true }),
+      });
+      const next = row.locator(".next-code");
+      await expect(row.locator(".otp")).toHaveText("••• •••");
+      await expect(next).toBeHidden();
+      await row.locator(".otp").click();
+      await expect(next).toBeVisible();
+      await expect(next).toHaveAccessibleName(
+        "Next code, valid after the current one expires",
+      );
+      await expect
+        .poll(async () => {
+          const now = await page.evaluate(() => Date.now());
+          const message = Buffer.alloc(8);
+          message.writeBigUInt64BE(BigInt(Math.floor(now / 45_000) + 1));
+          const mac = createHmac("sha256", "12345678901234567890123456789012")
+            .update(message)
+            .digest();
+          const value = ((mac.readUInt32BE(mac.at(-1) & 15) & 0x7fffffff) % 1e8)
+            .toString()
+            .padStart(8, "0");
+          return (
+            (await row.locator(".next-code-value").textContent()) ===
+            value.slice(0, 4) + " " + value.slice(4)
+          );
+        })
+        .toBe(true);
+      await row.getByRole("button", { name: "Copy", exact: true }).click();
+      await expect(page.getByRole("status")).toContainText("Code copied");
+      await row.locator(".otp").click();
+      await expect(next).toBeHidden();
+      await expect(row.locator(".next-code-value")).toHaveText("");
+      const hotp = page.locator(".account").filter({
+        has: page.getByRole("heading", { name: "Counter", exact: true }),
+      });
+      await expect(hotp.locator(".next-code")).toHaveCount(0);
+      await page.setViewportSize({ width: 360, height: 760 });
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page.reload();
+      await unlock();
+      await expect(next).toBeHidden();
+      await click("Settings");
+      await expect(setting).toBeChecked();
+      await setting.uncheck();
+      await click("Authenticator");
+    },
+  );
+  await check(
+    "settings, backup and export help work by keyboard with expanded axe checks",
+    async () => {
+      await click("Settings");
+      const strength = page.getByLabel(
+        "How strongly should we protect your vault?",
+        { exact: true },
+      );
+      await expect(strength).toHaveValue("recommended");
+      await strength.selectOption("tune");
+      await expect(
+        page.getByRole("button", { name: "Test this computer", exact: true }),
+      ).toBeVisible();
+      await expect(page.locator("[data-calibration-result]")).toBeHidden();
+      // A real speed probe is an explicit user action, never run by this suite.
+      await keyboardHelp(page, true);
+      await helpAxe("settings");
+      await keyboardHelp();
+      await strength.selectOption("recommended");
+      await click("Recovery");
+      await keyboardHelp(page, true);
+      await helpAxe("recovery");
+      await keyboardHelp();
+      for (const name of [
+        "Create encrypted backup",
+        "Verify or restore a backup",
+        "Export plaintext OTP links…",
+      ]) {
+        await click(name);
+        await keyboardHelp(page.getByRole("dialog"));
+        await click("Close");
+      }
+      await click("Authenticator");
+      for (const name of ["+ Add account", "Import accounts"]) {
+        await click(name);
+        await keyboardHelp(page.getByRole("dialog"));
+        await click("Close");
+      }
+      await page
+        .locator(".account")
+        .first()
+        .getByRole("button", { name: "Edit", exact: true })
+        .click();
+      await click("Show transfer QR…");
+      await keyboardHelp(page.getByRole("dialog"));
+      await click("Close");
+    },
+  );
+  await check(
     "older vault requires explicit recovery confirmation",
     async () => {
       const revision = await page.evaluate(async () => {
@@ -690,6 +893,7 @@ try {
         "Authentication failed",
       );
       await expect(page.locator(".account")).toHaveCount(0);
+      await keyboardHelp();
       await page.getByLabel("Master password", { exact: true }).fill(password);
       await click("Unlock older copy");
       await expect(page.locator(".account")).toHaveCount(3);
@@ -704,6 +908,106 @@ try {
       await expect(page.locator(".account")).toHaveCount(3);
     },
   );
+  await check(
+    "protection changes require the password and save only after authentication",
+    async () => {
+      async function metadata() {
+        return page.evaluate(async () => {
+          const db = await new Promise((resolve, reject) => {
+            const request = indexedDB.open("otp-vault", 1);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+          try {
+            return await new Promise((resolve, reject) => {
+              const tx = db.transaction("vault"),
+                store = tx.objectStore("vault");
+              const active = store.get("active"),
+                previous = store.get("previous");
+              tx.oncomplete = () =>
+                resolve({
+                  password: active.result.password,
+                  revision: active.result.revision,
+                  hasPrevious: previous.result !== undefined,
+                });
+              tx.onerror = tx.onabort = () =>
+                reject(new Error("Could not read test metadata"));
+            });
+          } finally {
+            db.close();
+          }
+        });
+      }
+      const before = await metadata();
+      await click("Settings");
+      await page
+        .getByLabel("How strongly should we protect your vault?", {
+          exact: true,
+        })
+        .selectOption("extra");
+      await click("Apply protection");
+      await page
+        .getByLabel("Master password", { exact: true })
+        .fill("wrong synthetic password");
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Apply protection", exact: true })
+        .click();
+      await expect(page.getByRole("status")).toContainText("Caps Lock", {
+        timeout: 60_000,
+      });
+      expect(await metadata()).toEqual(before);
+      await expect(
+        page.getByLabel("Master password", { exact: true }),
+      ).toHaveValue("");
+      await page.getByLabel("Master password", { exact: true }).fill(password);
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Apply protection", exact: true })
+        .click();
+      await expect(page.getByRole("dialog")).toHaveCount(0, {
+        timeout: 60_000,
+      });
+      const after = await metadata();
+      expect(after.password).toMatchObject({
+        kdf: "Argon2id",
+        m: 131072,
+        t: 3,
+        p: 1,
+      });
+      expect(after.revision).toBe(before.revision + 1);
+      expect(after.hasPrevious).toBe(false);
+      await expect(page.getByRole("status")).toContainText(
+        "Your password and codes are unchanged",
+      );
+      await click("Authenticator");
+      await expect(page.locator(".account")).toHaveCount(3);
+    },
+  );
+  await check("every help topic was opened with the keyboard", async () => {
+    for (const topic of [
+      "account",
+      "import",
+      "password",
+      "backup",
+      "verify",
+      "reminder",
+      "export",
+      "nextCode",
+      "shortcut",
+      "olderCopy",
+      "timeout",
+      "protection",
+      "tipsPassword",
+      "tipsBackup",
+      "tipsVerify",
+    ])
+      expect(
+        openedHelpTopics.has(topic),
+        "Missing keyboard help: " + topic,
+      ).toBe(true);
+    await plainPrimaryUI();
+  });
   await check("no external requests during vault workflows", async () =>
     expect(network).toEqual([]),
   );

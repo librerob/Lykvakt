@@ -1,5 +1,6 @@
 import {
-  DEFAULT_ITERATIONS,
+  DEFAULT_KDF,
+  type KDFPolicy,
   createEnvelope,
   decryptEnvelope,
   headerOf,
@@ -67,10 +68,23 @@ export class Session {
     this.check();
     return structuredClone(this.envelope!);
   }
-  async setup(password: string, data = emptyVault()): Promise<void> {
+  cancellationSignal(): AbortSignal {
+    return this.cancellation.signal;
+  }
+  async setup(
+    password: string,
+    data = emptyVault(),
+    policy: KDFPolicy = DEFAULT_KDF,
+  ): Promise<void> {
     const epoch = this.generation,
       signal = this.cancellation.signal;
-    const result = await createEnvelope(password, data);
+    const result = await createEnvelope(
+      password,
+      data,
+      "vault",
+      policy,
+      signal,
+    );
     if (epoch !== this.generation)
       throw new Error("Setup was cancelled by locking.");
     await storage.commit(result.envelope, undefined, signal);
@@ -83,7 +97,7 @@ export class Session {
   }
   async unlock(
     password: string,
-    defaultIterations = DEFAULT_ITERATIONS,
+    policy: KDFPolicy | number = DEFAULT_KDF,
     confirmedRecovery?: storage.RecoveryOffer,
   ): Promise<void> {
     const epoch = this.generation,
@@ -106,7 +120,8 @@ export class Session {
       saved,
       password,
       "vault",
-      recovery ? undefined : defaultIterations,
+      recovery ? undefined : policy,
+      signal,
     );
     if (epoch !== this.generation) throw new Error("Unlock cancelled.");
     let pendingUpgrade: string | undefined;

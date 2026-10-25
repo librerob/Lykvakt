@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0-rc.1 — 25 October 2026
+
+Unaudited development preview. Use test accounts only and keep your existing authenticator and verified backups.
+
+- Add Argon2id password protection in a bundled JavaScript worker, with authenticated parameter bounds, cancellation and optional explicit local tuning. New files use 64 MiB, three passes and one lane; no WebAssembly is shipped or used by the extension.
+- Keep supported PBKDF2 vaults/backups readable and upgrade vaults through the authenticated save path. Optional upgrade failures preserve password access; successful upgrades discard superseded local recovery copies atomically.
+- Add optional next-code preview with the existing masking rules, plus a popup shortcut and search Enter-to-copy. Copy always uses the current code; HOTP counters never advance automatically.
+- Add shared keyboard-accessible help, friendly errors/progress, a first-run backup checklist and a plain-English guide.
+- Warn about older HOTP counters during recovery and ignore unusable active revisions without bypassing conflict checks.
+- New Argon2id files require this or a later compatible Lykvakt build. Keep existing verified backups and a working installation when updating.
+
 ## 0.2.0-rc.1 — 25 October 2026
 
 Unaudited development preview. Use test accounts only and keep your existing authenticator and verified backups.

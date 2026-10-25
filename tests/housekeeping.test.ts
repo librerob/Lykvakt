@@ -23,7 +23,7 @@ it("settings reads the runtime manifest version", async () => {
   expect(JSON.stringify(createSettings(ctx).settingsView())).toContain(
     "Development preview · 7.8.9",
   );
-});
+}, 60_000);
 it("backup downloads use the Lykvakt date prefix without changing the envelope format", async () => {
   const session = new Session();
   await session.setup("synthetic settings password");
@@ -40,4 +40,4 @@ it("backup downloads use the Lykvakt date prefix without changing the envelope f
     format: "otp-vault",
     kind: "backup",
   });
-});
+}, 60_000);

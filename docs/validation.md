@@ -1,31 +1,25 @@
 # Validation record
 
-## Current checks
+## Current development branch
 
-The local suite for this documentation update passes build, lint, formatting and **168 Vitest tests in 21 files**, including the new documentation consistency guard. Runtime code is unchanged by this update.
+A fresh local source snapshot passed npm ci --ignore-scripts, build, lint, format:check and all 269 tests in 29 files. The install audited 176 packages and reported zero vulnerabilities. The runtime package guard and ZIP packaging also passed. The current feature browser run will be recorded here after it finishes; no feature browser success is claimed yet.
 
-Current checks cover RFC OTP vectors and independent HMAC references; bounded Base32/URI/transfer parsing; partial import reports and conflicts; encryption, tampering and legacy fixtures; password normalization and key rotation; atomic previous-copy recovery and rotation cleanup; session locking, cancellation and stale writes; secret-export re-authentication; code masking; backup reminders; passphrase generation; and CSS contrast.
+The preceding security-fix build passed [full PR CI](https://github.com/librerob/otp-vault/actions/runs/40205186659): 186 unit tests, 34 browser scenarios, the existing AMOLED axe scan with zero violations, the headed tab-lock check, and an audit with zero reported vulnerabilities. Those results describe that PBKDF2 build, not the new Argon2id interface.
 
-`tests/fuzz.test.ts` runs 5,000 seeded mutations each for OTP URI parsing, URI/Aegis/2FAS imports, Google transfer decoding and envelope validation: 30,000 calls total. It requires Error objects for failures, valid account results and completion within a 250 ms per-call budget. This is bounded regression coverage, not exhaustive image-decoder fuzzing or an independent audit.
+## Checks included in this change
 
-The package check validates Manifest V3, the exact `["clipboardWrite"]` permission set, required bundled files and forbidden remote/dynamic-code patterns. `tests/docs-consistency.test.ts` checks the live documentation, with dated changelog history excluded.
+Known-answer Argon2id vector, authenticated slot tampering and bounded parameters before allocation; real-default create/unlock and password rotation; supported frozen PBKDF2 files; best-effort upgrade retries; worker cancellation and buffer cleanup; pure calibration clamp tests with injected clock/probe; independent HMAC next-code boundaries, masking and preference persistence; focus/Enter/Escape behavior; rendered primary-UI language checks; and exact manifest/runtime constraints.
 
-## Observed CI evidence
+The parser fuzz suite retains every prior case and adds an Argon2id envelope seed: seven entry points, 5,000 deterministic mutations each, 35,000 calls total. The Error-only, account-validity and 250 ms per-call budgets remain unchanged. This is bounded regression coverage, not an independent audit.
 
-The [latest green CI run observed when preparing this update](https://github.com/librerob/otp-vault/actions/runs/40179869571) tested commit `2a78ae1f6a9266802e377e9c76755678fd048757` on Linux Chrome for Testing 156.0.8078.4. It passed **167 unit tests in 20 files** before the documentation guard was added, plus:
+The package guard checks exact clipboardWrite-only permissions, absent host/optional/background entries, required local files, no compiled binary modules, no WebAssembly allowance in the CSP, and no WebAssembly references or forbidden dynamic/remote code in bundled JavaScript.
 
-- 34 browser scenarios against the actual unpacked extension and synthetic accounts.
-- Setup, reference OTP generation, account management, local QR images, complete Google transfer batches, re-authenticated QR/plaintext export and HOTP advancement/persistence.
-- Masked-code copying, keyboard reveal and expiry, remasking on navigation/lock, and the persistent always-show preference.
-- Encrypted backup download, saved-file verification, tamper rejection and fresh-profile restoration.
-- Explicit recovery of an older encrypted revision after active-envelope corruption.
-- The single AMOLED view’s axe scan, with zero violations under the existing WCAG tags and no disabled rules.
-- Narrow/eight-digit layouts, zero observed external requests and zero uncaught errors.
-- A separate headed Chromium tab-switch lock check.
-- Dependency audit with zero reported vulnerabilities at that time, plus the synthetic benchmark and packaging scripts.
+KDF integration tests alone have user-approved finite time budgets up to 60 seconds for real JavaScript derivations. No assertion, fixture, cost bound or fuzz per-call budget is weakened. Test concurrency remains limited to two workers.
 
-See [branch CI](https://github.com/librerob/otp-vault/actions?query=branch%3Acleanup-1) for results on newer revisions. The earlier run’s count does not include the new documentation test. [Screenshots](screenshots.md) are actual synthetic-account captures from a successful browser run.
+## Local benchmark
+
+Node v24.22.1 on Windows, with 500 synthetic accounts: the default 64 MiB / three-pass / one-lane Argon2id derivation measured 1,213.59 ms. Create took 1,319.20 ms, unlock 2,522.76 ms, encrypted backup 2,382.80 ms and verification 2,271.61 ms. These are one-run Node measurements, not browser startup or low-end-device guarantees.
 
 ## Limits
 
-Local Windows browser launch was blocked, so browser results above are attributed to Linux CI. Manual screen-reader testing, exhaustive destination-app migration tests, long-duration storage testing, low-end-device performance and an independent security audit remain unverified. Passing axe does not establish full WCAG conformance. Use test accounts only and keep your existing authenticator and independent backups.
+The default local Playwright Chromium executable was absent. A test:browser attempt using installed Windows Chrome stopped before any scenario: extension discovery timed out after 30 seconds because the unpacked extension was not found. No local browser success is claimed; Linux CI remains the source for browser evidence. Manual screen-reader testing, physical shortcut activation, exhaustive app interoperability, low-end-device performance, long-duration storage testing and an independent security audit remain unverified. Passing axe is not full WCAG certification. Use test accounts only and keep your existing authenticator and independent verified backups.

@@ -1,19 +1,25 @@
 import { withGenerator } from "./passphrase";
-import { button, el, input, select, form, submit } from "../dom";
+import { button, el, input, select, form, submit, helpBlock } from "../dom";
+import { createProtection } from "./protection";
+import { preferenceEnabled, savePreference } from "../preferences";
+import { busyCopy } from "../help";
+import type { Argon2Policy } from "../crypto";
 import { rotatePassword } from "../crypto";
 import type { AppContext } from "./context";
 export function createSettings(ctx: AppContext) {
   const { session, isExtension, run, announce, modal, closeDialog, render } =
     ctx;
   function settingsView(): HTMLElement {
+    const protection = createProtection(ctx);
+    const nextCode = input("showNextCode", "Show next code", "checkbox");
+    nextCode.control.checked = preferenceEnabled("showNextCode");
+    nextCode.control.addEventListener("change", () =>
+      savePreference("showNextCode", String(nextCode.control.checked)),
+    );
     const showCodes = input("alwaysShowCodes", "Always show codes", "checkbox");
-    showCodes.control.checked =
-      localStorage.getItem("alwaysShowCodes") === "true";
+    showCodes.control.checked = preferenceEnabled("alwaysShowCodes");
     showCodes.control.addEventListener("change", () => {
-      localStorage.setItem(
-        "alwaysShowCodes",
-        String(showCodes.control.checked),
-      );
+      savePreference("alwaysShowCodes", String(showCodes.control.checked));
     });
     const timeout = select(
       "timeout",
@@ -28,7 +34,7 @@ export function createSettings(ctx: AppContext) {
     );
     timeout.control.addEventListener("change", () => {
       session.timeout = Number(timeout.control.value);
-      localStorage.setItem("timeout", String(session.timeout));
+      savePreference("timeout", String(session.timeout));
     });
     return el(
       "section",
@@ -39,22 +45,45 @@ export function createSettings(ctx: AppContext) {
         { class: "settings-section stack" },
         el("h2", {}, "Make it yours"),
         showCodes.wrapper,
+        nextCode.wrapper,
+        helpBlock("nextCode"),
       ),
+      protection.panel,
       el(
         "div",
         { class: "settings-section stack" },
         el("h2", {}, "Vault security"),
         timeout.wrapper,
+        helpBlock("timeout"),
         el(
           "p",
           { class: "hint" },
-          "Also locks immediately when this page is hidden or closed. Keys are never saved in session storage. No OS-lock detection is claimed.",
+          "Also locks as soon as you hide or close this page. Keep your password handy.",
         ),
         button(
           "Change master password",
-          () => changePassword(),
+          () => run(async () => changePassword(protection.forPasswordChange())),
           "button tonal",
         ),
+      ),
+      el(
+        "div",
+        { class: "settings-section stack" },
+        el("h2", {}, "Keyboard shortcut"),
+        el("p", {}, "Alt+Shift+Y · Command+Shift+Y on Mac"),
+        helpBlock("shortcut"),
+        isExtension
+          ? button(
+              "Change shortcut",
+              () => {
+                session.lock();
+                void chrome.tabs.create({
+                  url: "chrome://extensions/shortcuts",
+                });
+              },
+              "button tonal",
+            )
+          : null,
       ),
       el(
         "aside",
@@ -73,7 +102,7 @@ export function createSettings(ctx: AppContext) {
     );
   }
 
-  function changePassword(): void {
+  function changePassword(policy: Argon2Policy): void {
     const current = input("current", "Current master password", "password"),
       next = input("next", "New master password", "password"),
       confirm = input("confirm", "Confirm new master password", "password");
@@ -87,10 +116,13 @@ export function createSettings(ctx: AppContext) {
             try {
               if (next.control.value !== confirm.control.value)
                 throw new Error("Passwords do not match.");
+              announce(busyCopy.setup);
               const rotation = await rotatePassword(
                 session.current(),
                 current.control.value,
                 next.control.value,
+                policy,
+                session.cancellationSignal(),
               );
               session.check();
               if (epoch !== session.epoch()) return;
@@ -111,6 +143,7 @@ export function createSettings(ctx: AppContext) {
             );
           }),
         current.wrapper,
+        helpBlock("password"),
         withGenerator(next),
         confirm.wrapper,
         submit("Change password"),
