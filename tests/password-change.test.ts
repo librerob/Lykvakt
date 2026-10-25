@@ -57,7 +57,7 @@ it("password change rotates the actual session key: an old envelope/password can
     session.accounts(),
   );
   expect(ui.messages.join(" ")).toMatch(/vault key rotated/i);
-});
+}, 15_000);
 it("failed rotation commit preserves the old session key and stored vault", async () => {
   const session = await settings(),
     before = session.current();

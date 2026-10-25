@@ -674,6 +674,11 @@ try {
         ),
       ).toBeVisible();
       await expect(
+        page.getByText(
+          "If you use counter-based (HOTP) accounts, their counters may be behind. Do not reuse codes you already submitted.",
+        ),
+      ).toBeVisible();
+      await expect(
         page.getByRole("button", { name: "Unlock vault", exact: true }),
       ).toHaveCount(0);
       await expect(page.locator(".account")).toHaveCount(0);

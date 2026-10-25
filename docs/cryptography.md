@@ -10,11 +10,11 @@ Every save generates a fresh AES-256-GCM content key and random 12-byte IV, encr
 
 For legacy compatibility, new envelopes retain an empty `passkeys` array, and old slots are authenticated and stripped on password unlock when saving succeeds.
 
-The read path accepts only the bounded legacy structure needed to authenticate original AAD. Cleanup increments the revision and follows the same compare-and-swap path as a KDF upgrade. A failed legacy cleanup leaves password access available; a later save retries it. Cleanup alone does not rotate the vault key or revoke a key recovered from an older copy.
+The read path accepts only the bounded legacy structure needed to authenticate original AAD. Cleanup increments the revision and follows the same compare-and-swap path as a KDF upgrade. Successful unlock upgrades delete the previous encrypted copy in the same transaction, so it cannot retain a superseded password wrapper or legacy slots; the next ordinary save preserves the upgraded envelope. A transient legacy-cleanup write failure leaves password access available; a later save retries it. A compare-and-swap conflict keeps the session locked and requires a fresh unlock. Cleanup alone does not rotate the vault key or revoke a key recovered from an older copy.
 
 ## Passwords and rotation
 
-Validation uses a fixed minimum of 600,000 PBKDF2 iterations and a maximum of 5,000,000; new slots currently use 600,000. Raising the new-slot default does not raise the compatibility floor. Successful password unlock upgrades a weaker accepted slot and reseals its authenticated header. Failed ordinary KDF-upgrade commits leave the session locked; combined legacy cleanup remains best effort. Backup verification does not persist upgrades.
+Validation uses a fixed minimum of 600,000 PBKDF2 iterations and a maximum of 5,000,000; new slots currently use 2,000,000. Raising the new-slot default does not raise the compatibility floor. Successful password unlock upgrades a weaker accepted slot and reseals its authenticated header. A typed compare-and-swap conflict rejects the stale unlock, clears session keys and data, and asks for a fresh unlock. Other optional-upgrade write failures keep authenticated access and the original session envelope; the read-only upgradePending state records that the prepared upgrade was not saved. A later unlock retries it and clears that state after a successful upgrade or when none is needed. Lock cancellation takes precedence over either failure and clears pending state. Backup verification does not persist upgrades.
 
 New slots derive from NFKC-normalized UTF-8 passwords. Unlock tries NFKC first and, on authentication failure when normalization changes the string, can retry the raw encoding for an old archive. New master/backup passphrases require 14–1024 input characters. The optional generator chooses seven distinct EFF words with unbiased rejection sampling over `crypto.getRandomValues`. Temporary raw key and UTF-8 arrays are cleared in finally blocks where practical.
 
@@ -28,7 +28,7 @@ Canonical JSON sorts object keys by plain JavaScript code-unit comparison and pr
 
 Payload schema 1 is read into schema 2; new saves use schema 2. Legacy account metadata remains validated and encrypted for compatibility, without granting page access. Encrypted backups use independent key material and their own passphrases. Verification authenticates the selected file, validates records and compares account snapshots.
 
-Ordinary saves preserve the exact previous encrypted envelope in the active-write transaction. Structural corruption can offer that older copy; selection and password authentication are explicit. Promotion still compares against the actual active record. There is no trusted anti-rollback anchor or guaranteed forensic erasure.
+Ordinary saves preserve the exact previous encrypted envelope in the active-write transaction. Structural corruption can offer that older copy; selection and password authentication are explicit. Recovered HOTP counters may be behind; the recovery offer warns against reusing previously submitted codes. Promotion still compares against the actual active record. Only a nonnegative safe active revision below Number.MAX_SAFE_INTEGER - 2 advances the recovered revision; malformed or exhausted active revisions are ignored for numbering, without bypassing compare-and-swap. There is no trusted anti-rollback anchor or guaranteed forensic erasure.
 
 ## Limits
 

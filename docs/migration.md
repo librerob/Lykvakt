@@ -2,13 +2,13 @@
 
 Lykvakt is an unaudited development preview. Use test accounts only and keep your existing authenticator until the destination is verified.
 
-## If you want to leave
+## Moving to another authenticator
 
 Moving accounts does not require a developer account, subscription or migration server. While you can unlock your vault, Recovery → Export plaintext OTP links gives you a portable copy of every account after master-password re-authentication. For one account at a time, open its editor and choose Show transfer QR or plaintext OTP URI export.
 
 Use a destination that accepts standard `otpauth` links or QR codes. There is no promise that every app accepts a bulk text file or preserves every setting. Check algorithms, digit counts, periods and HOTP counters, then test a service login before removing the old copy. The export contains setup seeds: keep it private and remove temporary plaintext files after verifying the move.
 
-If development stops or project ownership changes, the installed vault has no developer server to depend on. Keep a copy of the source or installation package and an encrypted backup outside the browser, with its passphrase separately. The encrypted backup is for restoring with compatible Lykvakt software; it is not an interchange format that other authenticators can necessarily read. Browser compatibility and future maintenance cannot be guaranteed.
+Lykvakt runs locally without a developer account or server. Keep an encrypted backup outside the browser, with its passphrase separately, so you can restore your vault independently. Use compatible Lykvakt software to restore that backup, and standard OTP links or QR codes to transfer accounts to other authenticators.
 
 ## Import
 

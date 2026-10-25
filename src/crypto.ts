@@ -8,7 +8,7 @@ import {
 } from "./model";
 
 export const MIN_ITERATIONS = 600_000;
-export const DEFAULT_ITERATIONS = 600_000;
+export const DEFAULT_ITERATIONS = 2_000_000;
 export const MAX_ITERATIONS = 5_000_000;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });

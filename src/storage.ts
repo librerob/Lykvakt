@@ -10,10 +10,16 @@ export function isRecoveryOffer(
 ): value is RecoveryOffer {
   return value.kind === "recovery";
 }
+export class StorageConflictError extends Error {
+  constructor() {
+    super("Vault changed in another window. Lock and unlock before retrying.");
+    this.name = "StorageConflictError";
+  }
+}
 export class RecoveryRequired extends Error {
   constructor(readonly offer: RecoveryOffer) {
     super(
-      `The current vault could not be read. An older copy from revision ${offer.previous.revision} exists. Unlock it to recover?`,
+      `The current vault could not be read. An older copy from revision ${offer.previous.revision} exists. Unlock it to recover? If you use counter-based (HOTP) accounts, their counters may be behind. Do not reuse codes you already submitted.`,
     );
   }
 }
@@ -124,7 +130,7 @@ export async function commit(
           // Preserve the stored ciphertext byte-for-byte, in the same transaction.
           // A recovery promotion retains the authenticated older copy, not corrupt active data.
           if (discardPrevious) {
-            // Key rotation must not leave a copy encrypted with the superseded key.
+            // Rotation and unlock upgrades must not retain superseded keys or slots.
             store.delete("previous");
           } else {
             const previous = recovery ? recovery.previous : old;
@@ -142,13 +148,11 @@ export async function commit(
       tx.onabort = tx.onerror = () => {
         cleanup();
         reject(
-          new Error(
-            signal?.aborted
-              ? "Save cancelled by locking."
-              : conflict
-                ? "Vault changed in another window. Lock and unlock before retrying."
-                : "Save failed. The previous vault is unchanged.",
-          ),
+          signal?.aborted
+            ? new Error("Save cancelled by locking.")
+            : conflict
+              ? new StorageConflictError()
+              : new Error("Save failed. The previous vault is unchanged."),
         );
       };
     });

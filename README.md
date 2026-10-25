@@ -2,6 +2,8 @@
 
 A small offline TOTP/HOTP authenticator with a password-encrypted local vault.
 
+Lykvakt is a coined Nordic-inspired name, meant to evoke a watch over your keys.
+
 **Unaudited development preview. Use test accounts only and keep your existing authenticator and recovery codes.**
 
 ## Features
@@ -31,11 +33,11 @@ These are real extension captures with synthetic test accounts.
 
 See [all interface screenshots](docs/screenshots.md) for setup, locked and full-window views.
 
-## A personal project, with a way out
+## A personal project
 
-I built Lykvakt for myself and use it daily. It is a personal, independently maintained project, and I intend to keep it that way for the long term. That is my intention, not a lifetime support guarantee; the unaudited-preview warning above still applies.
+I built Lykvakt for myself and use it daily. I plan to keep it personal and independent, and to maintain it for the long term.
 
-You should be able to leave without depending on me. The vault runs locally without a developer account or server. If development stops or ownership changes, your accounts can be exported as standard OTP links or individual QR codes for a compatible authenticator. The source for this version remains available under GPL-3.0-or-later for others to maintain or fork.
+Portability is part of the design. The vault runs locally without a developer account or server, and you can move your accounts to a compatible authenticator using standard OTP links or individual QR codes. The source is available under GPL-3.0-or-later for others to maintain or fork.
 
 Keep an encrypted backup outside your browser and its passphrase separately. Before switching authenticators, verify the destination's settings and test a service login. See [moving accounts](docs/migration.md) for supported imports, exports and their limits.
 

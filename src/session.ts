@@ -18,12 +18,19 @@ export class Session {
   private generation = 0;
   private cancellation = new AbortController();
   private writing = false;
+  private pendingUpgrade?: string;
   private lastActivity = 0;
   private lastActivityWall = 0;
   timeout = 5 * 60_000;
   onlock = () => {};
   get unlocked(): boolean {
     return !!this.key;
+  }
+  get upgradePending(): boolean {
+    return this.pendingUpgrade !== undefined;
+  }
+  get upgradePendingDetail(): string | undefined {
+    return this.pendingUpgrade;
   }
   touch(): void {
     if (this.key) {
@@ -49,6 +56,7 @@ export class Session {
     this.data = undefined;
     this.envelope = undefined;
     this.recovery = undefined;
+    this.pendingUpgrade = undefined;
     this.onlock();
   }
   accounts(): VaultData {
@@ -70,6 +78,7 @@ export class Session {
     this.key = result.key;
     this.data = data;
     this.envelope = result.envelope;
+    this.pendingUpgrade = undefined;
     this.touch();
   }
   async unlock(
@@ -100,12 +109,24 @@ export class Session {
       recovery ? undefined : defaultIterations,
     );
     if (epoch !== this.generation) throw new Error("Unlock cancelled.");
+    let pendingUpgrade: string | undefined;
     if (result.envelope.revision !== saved.revision) {
       try {
-        await storage.commit(result.envelope, saved, signal);
+        await storage.commit(result.envelope, saved, signal, true);
       } catch (error) {
-        if (!saved.passkeys.length) throw error;
+        if (epoch !== this.generation || signal.aborted)
+          throw new Error("Unlock cancelled.", { cause: error });
+        if (error instanceof storage.StorageConflictError) {
+          this.lock();
+          throw new Error(
+            "Your vault changed in another window. Unlock again.",
+            { cause: error },
+          );
+        }
+        // Other optional write failures preserve authenticated access to this copy.
         result.envelope = saved;
+        pendingUpgrade =
+          error instanceof Error ? error.message : "Upgrade write failed.";
       }
     }
     if (epoch !== this.generation) throw new Error("Unlock cancelled.");
@@ -113,6 +134,7 @@ export class Session {
     this.key = result.key;
     this.data = result.data;
     this.envelope = result.envelope;
+    this.pendingUpgrade = pendingUpgrade;
     this.touch();
   }
   epoch(): number {
@@ -132,7 +154,9 @@ export class Session {
     try {
       const active = this.recovery?.active as Partial<Envelope> | undefined;
       const activeRevision =
-        Number.isSafeInteger(active?.revision) && active!.revision! >= 0
+        Number.isSafeInteger(active?.revision) &&
+        active!.revision! >= 0 &&
+        active!.revision! < Number.MAX_SAFE_INTEGER - 2
           ? active!.revision!
           : 0;
       const header = {
@@ -161,6 +185,7 @@ export class Session {
       this.recovery = undefined;
       this.envelope = next;
       this.data = validated;
+      if (nextKey !== undefined) this.pendingUpgrade = undefined;
     } finally {
       this.writing = false;
     }
