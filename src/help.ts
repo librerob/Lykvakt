@@ -1,10 +1,8 @@
+import { OldFormatError, oldFormatMessage } from "./format";
 import { StorageConflictError } from "./storage";
 
 export const emptySearchMessage =
   "Type part of an account name, then press Enter to copy its code.";
-export const upgradePendingMessage =
-  "Your vault works normally, but we couldn't finish a security upgrade. We'll try again the next time you unlock.";
-
 export const backupCompatibilityMessage =
   "Backups made with this version need this version or newer to restore.";
 
@@ -33,19 +31,13 @@ export const helpCopy = {
       "Save the file somewhere outside this browser, such as a USB drive. Keep its password somewhere separate.",
     ],
     technical: [
-      "New backup files use Argon2id at 64 MiB, three passes and one lane, plus authenticated AES-256-GCM and AES-KW. The file stores its protection parameters.",
+      "Files use format 2 and payload schema 3, with Argon2id at 64 MiB, three passes and one lane, plus AES-256-GCM and AES-KW.",
     ],
   },
   verify: {
     text: [
       "Choose the backup file you actually saved, then enter that file's password. We open it in memory and compare it with your accounts.",
       "This test does not replace your accounts. For example, it can tell you that an older file is missing a recently added account.",
-    ],
-  },
-  reminder: {
-    text: [
-      "Your accounts have changed since the last backup you tested, or you have not tested one yet. Save a new backup and choose Verify or restore a backup to check the real file.",
-      "Using a counter-based code changes its saved counter too. That can make an older backup out of date.",
     ],
   },
   export: {
@@ -78,15 +70,15 @@ export const helpCopy = {
       "Hiding or closing this page locks it right away. Unlock again with your password when you need a code.",
     ],
   },
-  protection: {
+  oldFormat: {
     text: [
-      "When you enter your password, the app does slow math on purpose. That is a short wait for you, but it adds work to each password guess made by someone with a stolen vault file.",
-      "A stronger setting uses more time or temporary memory. Your password and sign-in codes stay the same; a long, unique password still matters.",
+      "Earlier previews used a different file format. Keep the old app until you have moved your accounts.",
+      "Export OTP links from Recovery in the old app, erase this old local vault only when you are ready, then import the links into a new vault. The exported file contains secrets; keep it private and remove temporary copies after checking the new vault.",
     ],
-    technical: [
-      "Argon2id version 0x13 derives 32 bytes. Recommended uses 65,536 KiB, t=3 and p=1. Extra strong uses 131,072 KiB, t=3 and p=1.",
-      "Stored bounds are 19,456–262,144 KiB, t=2–10 and p=1. Calibration uses a throwaway one-pass probe, then clamps the suggested passes to 3–10. Parameters are authenticated as AAD.",
-      "Local calibration does not slow an attacker's GPU to your computer's speed. Plaintext parameters can reveal an approximate speed setting. JavaScript cannot guarantee memory zeroization.",
+  },
+  preview: {
+    text: [
+      "This is an unaudited preview. Use test accounts and keep your existing authenticator and verified backups. Sign-in codes can be phished, and there is no password reset.",
     ],
   },
   tipsPassword: {
@@ -110,8 +102,6 @@ export const busyCopy = {
   setup:
     "Locking your vault with your password… this takes a moment on purpose, to help protect it.",
   unlock: "Unlocking… this can take a second or two.",
-  protect: "Saving your stronger protection… this can take a moment.",
-  test: "Testing how fast this computer is… this can take a second or two.",
   backup: "Locking your backup with its password… this can take a moment.",
   verify:
     "Opening and checking your backup… your accounts will stay as they are.",
@@ -122,6 +112,8 @@ export function friendlyError(error: unknown): {
 } {
   const original =
     error instanceof Error ? error.name + ": " + error.message : String(error);
+  if (error instanceof OldFormatError)
+    return { message: oldFormatMessage, technical: original };
   if (
     error instanceof Error &&
     ["OperationError", "DataError"].includes(error.name)

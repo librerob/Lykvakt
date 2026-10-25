@@ -46,7 +46,6 @@ it("password change rotates the actual session key: an old envelope/password can
   await send();
   const changed = session.current();
   await expect(open(changed, oldKey)).rejects.toThrow();
-  expect(changed.passkeys).toEqual([]);
   expect((await decryptEnvelope(changed, newPassword)).data).toEqual(
     session.accounts(),
   );

@@ -49,6 +49,7 @@ class Node {
 }
 vi.mock("../src/dom", () => ({
   el: (...args: ConstructorParameters<typeof Node>) => new Node(...args),
+  svg: (...args: ConstructorParameters<typeof Node>) => new Node(...args),
   button: (label: string, action: () => unknown, cls: string) => {
     const n = new Node("button", { type: "button", class: cls }, label);
     n.action = action;

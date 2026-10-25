@@ -1,4 +1,14 @@
+import { isOlderFormat } from "./format";
 import { validateEnvelope, type Envelope } from "./crypto";
+
+export interface OldVaultOffer {
+  kind: "old-format";
+  active: unknown;
+  previous: unknown;
+}
+export const isOldVault = (
+  value: Envelope | RecoveryOffer | OldVaultOffer,
+): value is OldVaultOffer => value.kind === "old-format";
 
 export interface RecoveryOffer {
   kind: "recovery";
@@ -6,7 +16,7 @@ export interface RecoveryOffer {
   active: unknown;
 }
 export function isRecoveryOffer(
-  value: Envelope | RecoveryOffer,
+  value: Envelope | RecoveryOffer | OldVaultOffer,
 ): value is RecoveryOffer {
   return value.kind === "recovery";
 }
@@ -44,7 +54,9 @@ function database(): Promise<IDBDatabase> {
       reject(new Error("Close other vault windows and retry."));
   });
 }
-export async function load(): Promise<Envelope | RecoveryOffer | undefined> {
+export async function load(): Promise<
+  Envelope | RecoveryOffer | OldVaultOffer | undefined
+> {
   const db = await database();
   try {
     return await new Promise((resolve, reject) => {
@@ -54,9 +66,20 @@ export async function load(): Promise<Envelope | RecoveryOffer | undefined> {
         previous = store.get("previous");
       tx.oncomplete = () => {
         try {
+          if (
+            isOlderFormat(active.result) ||
+            (active.result === undefined && isOlderFormat(previous.result))
+          ) {
+            resolve({
+              kind: "old-format",
+              active: active.result,
+              previous: previous.result,
+            });
+            return;
+          }
           if (active.result !== undefined) {
             try {
-              resolve(validateEnvelope(active.result, "vault", true));
+              resolve(validateEnvelope(active.result, "vault"));
               return;
             } catch {
               /* Only structural corruption offers recovery, never a bad password. */
@@ -65,7 +88,15 @@ export async function load(): Promise<Envelope | RecoveryOffer | undefined> {
             resolve(undefined);
             return;
           }
-          const older = validateEnvelope(previous.result, "vault", true);
+          if (isOlderFormat(previous.result)) {
+            resolve({
+              kind: "old-format",
+              active: active.result,
+              previous: previous.result,
+            });
+            return;
+          }
+          const older = validateEnvelope(previous.result, "vault");
           resolve({ kind: "recovery", previous: older, active: active.result });
         } catch {
           reject(
@@ -130,7 +161,7 @@ export async function commit(
           // Preserve the stored ciphertext byte-for-byte, in the same transaction.
           // A recovery promotion retains the authenticated older copy, not corrupt active data.
           if (discardPrevious) {
-            // Rotation and unlock upgrades must not retain superseded keys or slots.
+            // A rotation must not retain the superseded vault key.
             store.delete("previous");
           } else {
             const previous = recovery ? recovery.previous : old;
@@ -155,6 +186,53 @@ export async function commit(
               : new Error("Save failed. The previous vault is unchanged."),
         );
       };
+    });
+  } finally {
+    db.close();
+  }
+}
+
+export async function eraseOldVault(expected: OldVaultOffer): Promise<void> {
+  const db = await database();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction("vault", "readwrite", { durability: "strict" });
+      const store = tx.objectStore("vault"),
+        active = store.get("active"),
+        previous = store.get("previous");
+      let conflict = false;
+      previous.onsuccess = () => {
+        let unchanged = false;
+        try {
+          unchanged =
+            JSON.stringify(active.result) === JSON.stringify(expected.active) &&
+            JSON.stringify(previous.result) ===
+              JSON.stringify(expected.previous);
+        } catch {
+          /* Unserializable corruption cannot pass this confirmation check. */
+        }
+        if (
+          !unchanged ||
+          (!isOlderFormat(active.result) && !isOlderFormat(previous.result))
+        ) {
+          conflict = true;
+          tx.abort();
+          return;
+        }
+        try {
+          store.delete("active");
+          store.delete("previous");
+        } catch {
+          tx.abort();
+        }
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = tx.onabort = () =>
+        reject(
+          conflict
+            ? new StorageConflictError()
+            : new Error("The old vault could not be erased. It is unchanged."),
+        );
     });
   } finally {
     db.close();

@@ -1,7 +1,6 @@
-import { button, el, input, helpBlock } from "../dom";
+import { button, el, svg, helpBlock } from "../dom";
 import { bindSearch } from "../keyboard";
 import { emptySearchMessage } from "../help";
-import { upgradeNotice } from "./upgrade-notice";
 import { preferenceEnabled, savePreference } from "../preferences";
 import { codeFor } from "../otp";
 import { needsBackup } from "./recovery";
@@ -81,16 +80,9 @@ export function createAccounts(ctx: AppContext) {
     const tip = el(
       "aside",
       { class: "notice stack", "aria-label": "Getting started" },
-      el("h2", {}, "Three things to keep safe"),
-      el("p", {}, "Remember your vault password and keep a safe written copy."),
+      el("p", {}, "Keep your password. Save and test a backup."),
       helpBlock("tipsPassword"),
-      el("p", {}, "Save an encrypted backup somewhere outside this browser."),
       helpBlock("tipsBackup"),
-      el(
-        "p",
-        {},
-        "Choose Verify or restore a backup to test the actual file you saved.",
-      ),
       helpBlock("tipsVerify"),
       button(
         "Got it",
@@ -106,22 +98,17 @@ export function createAccounts(ctx: AppContext) {
   }
   function codesView(): HTMLElement {
     const add = button("+ Add account", () => addAccount(), "button primary");
-    const heading = el(
-      "div",
-      { class: "section-head" },
-      el(
-        "div",
-        {},
-        el("h1", {}, "Authenticator"),
-        el("p", { class: "muted" }, "Ready when you need them."),
-      ),
-      add,
-    );
-    const searchInput = input("search", "Search accounts", "search", search);
-    searchInput.control.placeholder = "Search accounts";
-    searchControl = searchInput.control;
+    const searchInput = el("input", {
+      name: "search",
+      type: "search",
+      placeholder: "Search accounts",
+      "aria-label": "Search accounts",
+      autocomplete: "off",
+    });
+    searchInput.value = search;
+    searchControl = searchInput;
     bindSearch(
-      searchInput.control,
+      searchInput,
       () =>
         run(async () => {
           if (matchingIds[0]) await copyAccount(matchingIds[0]);
@@ -129,8 +116,8 @@ export function createAccounts(ctx: AppContext) {
         }),
       () => announce(emptySearchMessage),
     );
-    searchInput.control.addEventListener("input", () => {
-      search = searchInput.control.value;
+    searchInput.addEventListener("input", () => {
+      search = searchInput.value;
       drawAccounts();
     });
     const filter = button(
@@ -148,9 +135,9 @@ export function createAccounts(ctx: AppContext) {
     backupNotice = el(
       "aside",
       { class: "notice backup-notice" },
-      el("p", {}, "Your accounts changed since your last verified backup."),
+      el("span", {}, "Backup not verified."),
       button(
-        "Go to Recovery",
+        "Review backup",
         () => {
           ctx.state.view = "backups";
           clear();
@@ -158,19 +145,22 @@ export function createAccounts(ctx: AppContext) {
         },
         "button text",
       ),
-      helpBlock("reminder"),
     );
     backupNotice.hidden = true;
     const section = el(
       "section",
       { class: "content" },
-      heading,
-      upgradeNotice(ctx),
+      el("h1", { class: "sr-only" }, "Accounts"),
+      el(
+        "div",
+        { class: "account-tools" },
+        add,
+        button("Import accounts", () => importAccounts(), "button text"),
+      ),
       firstRunTip(),
       backupNotice,
-      el("div", { class: "search-row" }, searchInput.wrapper, filter),
+      el("div", { class: "search-row" }, searchInput, filter),
       list,
-      button("Import accounts", () => importAccounts(), "button text"),
     );
     drawAccounts();
     return section;
@@ -246,59 +236,60 @@ export function createAccounts(ctx: AppContext) {
       );
       code.setAttribute("aria-label", `Reveal code for ${label} (hidden)`);
       code.setAttribute("aria-pressed", "false");
-      const remaining = el("span", {
-        class: "remaining",
-        "aria-label":
-          a.type === "hotp" ? "Counter based code" : "Seconds remaining",
-      });
-      const row = el(
-        "article",
-        { class: "account", "data-account": a.id },
-        el(
-          "div",
-          { class: "account-top" },
-          el(
-            "div",
-            { class: "initials", "aria-hidden": "true" },
-            (a.issuer || a.label).slice(0, 2).toUpperCase(),
+      code.setAttribute("title", "Reveal or hide this code");
+      const remaining = el("span", { class: "remaining", role: "img" });
+      if (a.type === "totp")
+        remaining.append(
+          svg(
+            "svg",
+            {
+              viewBox: "0 0 24 24",
+              width: "20",
+              height: "20",
+              "aria-hidden": "true",
+            },
+            svg("circle", { cx: "12", cy: "12", r: "9", class: "ring-track" }),
+            svg("circle", {
+              cx: "12",
+              cy: "12",
+              r: "9",
+              class: "ring-progress",
+              pathLength: "100",
+              "stroke-dasharray": "100",
+            }),
           ),
-          el(
-            "div",
-            { class: "account-name" },
-            el("h2", {}, a.issuer || a.label),
-            el("p", {}, a.label),
-            a.group ? el("small", {}, a.group) : null,
-          ),
-          button(
-            a.favorite ? "★" : "☆",
-            () =>
-              run(async () => {
-                const data = session.accounts(),
-                  account = data.accounts.find((x) => x.id === a.id)!;
-                account.favorite = !account.favorite;
-                await session.save(data);
-                drawAccounts();
-              }),
-            "button icon favorite",
-          ),
-          button("Edit", () => editAccount(a.id), "button text"),
-        ),
-        el(
-          "div",
-          { class: "code-row" },
-          code,
-          remaining,
-          button("Copy", () => run(() => copyAccount(a.id)), "button tonal"),
-        ),
-        a.type === "totp" ? next : null,
+          el("span", { class: "expiring-label", "aria-hidden": "true" }),
+        );
+      const copy = button(
+        "Copy",
+        () => run(() => copyAccount(a.id)),
+        "button row-copy",
       );
-      const star = row.querySelector(".favorite")!;
-      star.setAttribute(
+      copy.setAttribute("aria-label", `Copy code for ${label}`);
+      const favorite = button(
+        a.favorite ? "★" : "☆",
+        () =>
+          run(async () => {
+            const data = session.accounts(),
+              account = data.accounts.find((x) => x.id === a.id)!;
+            account.favorite = !account.favorite;
+            await session.save(data);
+            drawAccounts();
+          }),
+        "button text favorite",
+      );
+      favorite.setAttribute(
         "aria-label",
-        `${a.favorite ? "Remove" : "Add"} favorite: ${a.issuer} ${a.label}`,
+        `${a.favorite ? "Remove" : "Add"} favorite: ${label}`,
+      );
+      const actions = el(
+        "div",
+        { class: "row-menu stack" },
+        button("Edit", () => editAccount(a.id), "button text"),
+        favorite,
       );
       if (a.type === "hotp")
-        row.append(
+        actions.append(
           button(
             "Advance counter…",
             () =>
@@ -317,6 +308,30 @@ export function createAccounts(ctx: AppContext) {
             "button text advance",
           ),
         );
+      const row = el(
+        "article",
+        { class: "account", "data-account": a.id },
+        copy,
+        el(
+          "div",
+          { class: "account-name" },
+          el("h2", {}, a.issuer || a.label),
+          el("p", {}, a.label),
+        ),
+        el(
+          "div",
+          { class: "code-cell" },
+          code,
+          a.type === "totp" ? next : null,
+        ),
+        remaining,
+        el(
+          "details",
+          { class: "account-more" },
+          el("summary", { "aria-label": `More for ${label}` }, "More"),
+          actions,
+        ),
+      );
       return row;
     });
     list.replaceChildren(...rows);
@@ -402,19 +417,25 @@ export function createAccounts(ctx: AppContext) {
             : `Reveal code for ${a.issuer} ${a.label} (hidden)`,
         );
         const remaining = a.period - (Math.floor(now / 1000) % a.period);
-        row.querySelector(".remaining")!.textContent =
-          a.type === "hotp" ? "HOTP" : `${remaining}s`;
-        row.classList.toggle("expiring", a.type === "totp" && remaining <= 5);
-        row
-          .querySelector(".remaining")!
-          .setAttribute(
-            "title",
-            a.type === "hotp"
-              ? `Counter ${a.counter}`
-              : remaining <= 5
-                ? "Expiring soon. Wait for the next code if needed."
-                : "Seconds until the code changes",
+        const indicator = row.querySelector(".remaining")!;
+        if (a.type === "hotp") {
+          indicator.textContent = a.counter;
+          indicator.setAttribute("aria-label", `Counter ${a.counter}`);
+        } else {
+          indicator
+            .querySelector(".ring-progress")!
+            .setAttribute(
+              "stroke-dashoffset",
+              String(100 * (1 - remaining / a.period)),
+            );
+          indicator.querySelector(".expiring-label")!.textContent =
+            remaining <= 5 ? `${remaining}s left` : "";
+          indicator.setAttribute(
+            "aria-label",
+            `${remaining} seconds remaining${remaining <= 5 ? ", expiring soon" : ""}`,
           );
+        }
+        row.classList.toggle("expiring", a.type === "totp" && remaining <= 5);
       }),
     );
   }

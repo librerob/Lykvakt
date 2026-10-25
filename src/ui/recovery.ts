@@ -13,7 +13,7 @@ import {
   helpBlock,
 } from "../dom";
 import { load } from "../storage";
-import { createEnvelope, snapshot, DEFAULT_KDF } from "../crypto";
+import { createEnvelope, snapshot } from "../crypto";
 import { toURI, verifyBackup } from "../import";
 import type { Account, VaultData } from "../model";
 import type { AppContext } from "./context";
@@ -188,7 +188,6 @@ export function createRecovery(
                     password,
                     data,
                     "backup",
-                    DEFAULT_KDF,
                     session.cancellationSignal(),
                   )
                 ).envelope,

@@ -1,25 +1,17 @@
 # Privacy
 
-Lykvakt development preview, 25 October 2026.
+Lykvakt processes accounts and selected files locally. There is no developer server, registration, advertising, telemetry or account-data upload.
 
-OTP secrets, service/account identifiers, favorites, groups, legacy metadata and backup-verification history are stored in an authenticated encrypted IndexedDB document. Its envelope exposes format/version, random vault ID, revision, ciphertext size and password KDF parameters. Argon2id memory/pass settings are authenticated but plaintext; optional local tuning can reveal an approximate machine-speed setting.
+The manifest permission set is exactly ["clipboardWrite"]. There are no host/optional permissions, background worker or content scripts. Clipboard writes follow a click or Enter after a non-empty account search; the confirmation names the account. The extension never reads the clipboard. Clipboard history and other apps may keep copied values.
 
-Ordinary saves retain the previous encrypted envelope in the same database for explicit corruption recovery. Password change rotates the vault key and deletes that older copy in the same transaction. Successful password-protection upgrades also remove superseded local recovery copies atomically; a transient optional-upgrade write failure leaves authenticated access available with a retry reminder. A revision conflict clears the stale session and requires a fresh unlock. This does not erase exported files, OS backups or browser-managed remnants.
+The encrypted vault and its previous revision use IndexedDB. Timeout, code-visibility, next-code and first-run-tip preferences use localStorage. Keys exist only while the page is unlocked. Closing or hiding it locks the Session.
 
-Unlocked data and nonextractable CryptoKeys live in the extension page. Code-visibility, next-code-preview, timeout and first-run-tip preferences use unencrypted localStorage. Protection settings are stored in the authenticated file header; choosing or testing a setting does not save it without password authentication. JavaScript strings, browser internals and OS paging prevent guaranteed memory erasure.
+Ordinary saves keep the previous encrypted revision atomically. Password change rotates the key and removes that local copy in the same transaction. Structural recovery requires explicit selection and a password. Earlier-preview vaults are not opened or recovered; erasing them requires a separate confirmation and never deletes external files.
 
-There is no developer backend, telemetry, analytics, advertising, registration or cloud sync. Executable code, the JavaScript Argon2id worker, QR components and the passphrase wordlist are bundled locally. The extension ships and uses no WebAssembly. The worker returns a nonextractable key, is terminated when its operation ends or is cancelled, and makes no network requests. Calibration runs only after an explicit click and uses throwaway random inputs. Imported files and account data are not uploaded or logged.
+Argon2id runs in bundled JavaScript, normally in a local worker. There is no WebAssembly or remote runtime code. Public format/password parameters are authenticated but not encrypted. JavaScript cannot guarantee memory erasure.
 
-## Permissions
+Backups are files you choose to save. Verification tests a selected saved file without replacing accounts. Plaintext export and transfer QR require fresh password verification; those outputs contain secrets. Password changes cannot revoke independently retained files.
 
-The complete manifest permission set is `["clipboardWrite"]`, for copying a selected OTP after a click or Enter in a non-empty account search. The confirmation names the copied account. The extension does not read the clipboard. OS history, other apps and clipboard managers may retain copied codes. There are no optional or host permissions.
+Browser sync/profile backups, installed extensions, the OS and malware are outside the app's control. There is no password reset or developer recovery service.
 
-Full-window locking uses tab IDs and activation events without reading page URLs. The vault uses IndexedDB and UI preferences use localStorage.
-
-## Import, export and deletion
-
-Only supplied text/files and user-selected QR image files are decoded. Invalid individual records are reported before the user confirms an import. Structural errors and incomplete transfer batches save nothing.
-
-Encrypted backups have independent passphrases. Plaintext OTP-link exports and transfer QRs contain setup secrets and require master-password verification. The user controls any later sharing or pasting.
-
-Deleting an account replaces the active encrypted document; there is no application trash. The previous revision or independently saved copies can still contain it. Browser databases and OS backups can retain older ciphertext, so physical erasure is not guaranteed. Uninstalling removes browser-managed local data: verify an independently stored backup first.
+See [design and recovery](docs/design.md). No Chrome Web Store submission or approval is claimed.

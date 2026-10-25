@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0-rc.1 — 25 October 2026
+
+**Before you update: export your accounts from the old version through Recovery → Export plaintext OTP links. Earlier previews cannot be opened by this version. Keep the export private and verify the import before removing it.**
+
+Unaudited development preview; use test accounts and keep your existing authenticator.
+
+- Use envelope format 2 and payload schema 3, one Argon2id default, strict authenticated headers and current-format backups only.
+- Remove legacy password/payload readers, website associations, unlock upgrades, strength choices, speed tuning and retry notices.
+- Explain earlier formats without treating them as corruption; erasing old local data requires a separate confirmation and a transaction conflict check.
+- Compact copyable rows, explicit timed reveal, native More menus and a stepped countdown ring with a text warning near expiry.
+- Preserve backup-file verification, key rotation, typed conflicts, explicit older-revision recovery, optional Next preview, keyboard controls and accessibility checks.
+- Consolidate documentation into the design and recovery guide.
+
 ## 0.3.0-rc.1 — 25 October 2026
 
 Unaudited development preview. Use test accounts only and keep your existing authenticator and verified backups.

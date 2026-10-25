@@ -66,6 +66,12 @@ it("rendered primary screens and secret-export forms contain no cryptography jar
     active: {},
   };
   views.push(createWelcome(ctx, () => {}).locked() as unknown as TestElement);
+  ctx.state.oldVault = {
+    kind: "old-format",
+    active: { format: "otp-vault", version: 1 },
+    previous: undefined,
+  };
+  views.push(createWelcome(ctx, () => {}).locked() as unknown as TestElement);
   const enrollment = createEnrollment(ctx, () => {});
   enrollment.addAccount();
   enrollment.importAccounts();

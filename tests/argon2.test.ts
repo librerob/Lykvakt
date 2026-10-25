@@ -12,14 +12,12 @@ import {
   validateEnvelope,
   type Envelope,
 } from "../src/crypto";
-import { DEFAULT_KDF, MIN_MEMORY_KIB, upgradePolicy } from "../src/kdf-policy";
-import { Session } from "../src/session";
+import { DEFAULT_KDF } from "../src/kdf-policy";
 import { emptyVault } from "../src/model";
-import { verifyBackup } from "../src/import";
+import { parseURI, verifyBackup } from "../src/import";
 import * as storage from "../src/storage";
 import * as kdf from "../src/kdf";
 import { passwordVault } from "./helpers/vault";
-import oldBackup from "./fixtures/v1-backup.json";
 
 const password = "synthetic Argon2id roundtrip password";
 let fixture: Awaited<ReturnType<typeof createEnvelope>>;
@@ -60,8 +58,8 @@ it("matches the RFC 9106 section 5.3 Argon2id v19 small-memory known-answer vect
     result?.fill(0);
   }
 });
-it("creates version-1 vaults with the exact default Argon2id slot and unlocks non-extractable keys", async () => {
-  expect(fixture.envelope.version).toBe(1);
+it("creates version-2 vaults with the exact default Argon2id slot and unlocks non-extractable keys", async () => {
+  expect(fixture.envelope.version).toBe(2);
   expect(fixture.envelope.password).toMatchObject(DEFAULT_KDF);
   expect(Object.keys(fixture.envelope.password).sort()).toEqual([
     "iv",
@@ -142,64 +140,6 @@ it("rejects missing and extra Argon2id fields before derivation", async () => {
   }
   expect(derive).not.toHaveBeenCalled();
 });
-it("ordinary unlock migrates a frozen-cost 600k vault to the production Argon2id policy", async () => {
-  const old = await passwordVault(password);
-  await storage.commit(old);
-  const session = new Session();
-  await session.unlock(password);
-  expect(session.current().password).toMatchObject(DEFAULT_KDF);
-  expect(session.current().revision).toBe(old.revision + 1);
-  expect(await storage.load()).toEqual(session.current());
-  expect((await decryptEnvelope(session.current(), password)).data).toEqual(
-    session.accounts(),
-  );
-  session.lock();
-  await session.unlock(password);
-  expect(session.current().revision).toBe(old.revision + 1);
-}, 60_000);
-it.each(["conflict", "generic"])(
-  "a %s migration write failure keeps authenticated access and retries on later unlock",
-  async (kind) => {
-    const old = await passwordVault(password);
-    await storage.commit(old);
-    const commit = vi
-      .spyOn(storage, "commit")
-      .mockRejectedValueOnce(new Error(kind));
-    const session = new Session();
-    await session.unlock(password);
-    expect(session.current()).toEqual(old);
-    expect(session.unlocked).toBe(true);
-    expect(await storage.load()).toEqual(old);
-    session.lock();
-    await session.unlock(password);
-    expect(session.current().password).toMatchObject(DEFAULT_KDF);
-    expect(await storage.load()).toEqual(session.current());
-    expect(commit).toHaveBeenCalledTimes(2);
-  },
-  60_000,
-);
-it("ordinary unlock strengthens an accepted weaker Argon2id slot", async () => {
-  const old = await createEnvelope(password, emptyVault(), "vault", {
-    kdf: "Argon2id",
-    m: MIN_MEMORY_KIB,
-    t: 2,
-    p: 1,
-  });
-  await storage.commit(old.envelope);
-  const session = new Session();
-  await session.unlock(password);
-  expect(session.current().password).toMatchObject(DEFAULT_KDF);
-  expect(session.current().revision).toBe(old.envelope.revision + 1);
-}, 60_000);
-it("upgrade policy never lowers existing Argon2id memory or pass costs", () => {
-  expect(
-    upgradePolicy({ kdf: "Argon2id", m: 262_144, t: 2, p: 1 }, DEFAULT_KDF),
-  ).toEqual({ kdf: "Argon2id", m: 262_144, t: 3, p: 1 });
-  expect(
-    upgradePolicy({ kdf: "Argon2id", m: 131_072, t: 5, p: 1 }, DEFAULT_KDF),
-  ).toBeUndefined();
-  expect(upgradePolicy(DEFAULT_KDF, 2_000_000)).toBeUndefined();
-});
 it("password changes produce an Argon2id slot and rotate the actual vault key", async () => {
   const old = await passwordVault(password);
   const original = await decryptEnvelope(old, password);
@@ -207,7 +147,7 @@ it("password changes produce an Argon2id slot and rotate the actual vault key", 
   const rotated = await rotatePassword(old, password, nextPassword);
   expect(rotated.password).toMatchObject(DEFAULT_KDF);
   const next = await seal(
-    { ...headerOf(old), revision: 1, password: rotated.password, passkeys: [] },
+    { ...headerOf(old), revision: 1, password: rotated.password },
     rotated.key,
     original.data,
   );
@@ -216,26 +156,18 @@ it("password changes produce an Argon2id slot and rotate the actual vault key", 
     original.data,
   );
 }, 60_000);
-it("new backups use Argon2id while frozen PBKDF2 backups still verify without persisting upgrades", async () => {
-  const commit = vi.spyOn(storage, "commit");
-  const restored = await verifyBackup(
-    oldBackup,
-    "synthetic legacy backup passphrase",
+it("new backups restore precise HOTP state without any database writes", async () => {
+  const commit = vi.spyOn(storage, "commit"),
+    data = emptyVault();
+  data.accounts.push(
+    parseURI(
+      "otpauth://hotp/Test:user?secret=JBSWY3DPEHPK3PXP&counter=9007199254740993&digits=8&algorithm=SHA512",
+    ),
   );
-  expect(restored.data.accounts[0]!.counter).toBe("9007199254740993");
-  expect(commit).not.toHaveBeenCalled();
-  const next = await createEnvelope(password, restored.data, "backup");
+  const next = await createEnvelope(password, data, "backup");
   expect(next.envelope.password).toMatchObject(DEFAULT_KDF);
-  expect((await verifyBackup(next.envelope, password)).data).toEqual(
-    restored.data,
-  );
+  const restored = await verifyBackup(next.envelope, password);
+  expect(restored.data.accounts[0]!.counter).toBe("9007199254740993");
+  expect(restored.data).toEqual(data);
   expect(commit).not.toHaveBeenCalled();
-}, 60_000);
-it("an explicitly calibrated policy round-trips as an authenticated slot", async () => {
-  const policy = { kdf: "Argon2id" as const, m: 65_536, t: 4, p: 1 as const };
-  const next = await createEnvelope(password, emptyVault(), "vault", policy);
-  expect(next.envelope.password).toMatchObject(policy);
-  expect((await decryptEnvelope(next.envelope, password)).data).toEqual(
-    emptyVault(),
-  );
 }, 60_000);

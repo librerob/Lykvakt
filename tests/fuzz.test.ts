@@ -3,7 +3,24 @@ import { parseURI, parseImport, type ImportResult } from "../src/import";
 import { parseMigration, type Transfer } from "../src/migration";
 import { validateEnvelope } from "../src/crypto";
 import { validateAccount, type Account } from "../src/model";
-import archive from "./fixtures/v1-backup.json";
+const binary = (n: number) => btoa("\0".repeat(n));
+const archive = {
+  format: "otp-vault",
+  version: 2,
+  kind: "backup",
+  id: "fuzz",
+  revision: 0,
+  password: {
+    kdf: "Argon2id",
+    m: 65536,
+    t: 3,
+    p: 1,
+    salt: binary(32),
+    iv: binary(12),
+    wrapped: binary(48),
+  },
+  payload: { key: binary(40), iv: binary(12), ciphertext: binary(16) },
+};
 
 // xorshift32: deterministic mutation choices; never used by production code.
 function seeded(seed: number) {
@@ -59,8 +76,8 @@ const argonArchive = {
   ...archive,
   password: {
     kdf: "Argon2id",
-    m: 65_536,
-    t: 3,
+    m: 262_144,
+    t: 10,
     p: 1,
     salt: archive.password.salt,
     iv: archive.password.iv,

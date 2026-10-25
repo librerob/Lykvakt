@@ -3,23 +3,24 @@ import { canonical, snapshot } from "../src/crypto";
 import { emptyVault } from "../src/model";
 import { parseURI } from "../src/import";
 const header = {
-  version: 1,
+  version: 2,
   revision: 7,
   password: {
     wrapped: "wrapped",
     salt: "salt",
-    kdf: "PBKDF2-SHA256",
+    kdf: "Argon2id",
     iv: "iv",
-    iterations: 600000,
+    m: 65536,
+    t: 3,
+    p: 1,
   },
-  passkeys: [],
   kind: "vault",
   id: "sample-vault",
   format: "otp-vault",
 };
-it("pins the exact canonical bytes of an existing ASCII header", () => {
+it("pins the exact canonical bytes of the format-2 ASCII header", () => {
   expect(canonical(header)).toBe(
-    '{"format":"otp-vault","id":"sample-vault","kind":"vault","passkeys":[],"password":{"iterations":600000,"iv":"iv","kdf":"PBKDF2-SHA256","salt":"salt","wrapped":"wrapped"},"revision":7,"version":1}',
+    '{"format":"otp-vault","id":"sample-vault","kind":"vault","password":{"iv":"iv","kdf":"Argon2id","m":65536,"p":1,"salt":"salt","t":3,"wrapped":"wrapped"},"revision":7,"version":2}',
   );
 });
 it("canonical ordering uses code units even for Unicode and punctuation", () => {

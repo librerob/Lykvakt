@@ -1,47 +1,59 @@
 import { button, el } from "../dom";
-import { generatePassphrase } from "../passphrase";
-
 export function withGenerator(field: {
   wrapper: HTMLElement;
   control: HTMLInputElement;
 }): HTMLElement {
   const shown = el("div", { "data-generated-passphrase": "", role: "status" });
+  let request = 0;
   const clear = () => {
-    // Keep a centered dialog still between pointer-down (blur) and pointer-up.
+    request++;
     shown.style.minHeight = `${shown.getBoundingClientRect().height}px`;
     shown.replaceChildren();
   };
   field.control.addEventListener("input", clear);
   field.control.addEventListener("blur", clear);
-  return el(
-    "div",
-    {},
-    el(
-      "div",
-      { class: "password-generator" },
-      field.wrapper,
-      button(
-        "Generate",
-        () => {
-          const phrase = generatePassphrase();
-          field.control.value = phrase;
-          field.control.focus();
+  const generate = button(
+    "Generate",
+    async () => {
+      const ticket = ++request;
+      try {
+        const { generatePassphrase } = await import("../passphrase");
+        if (ticket !== request || field.control.isConnected === false) return;
+        const phrase = generatePassphrase();
+        field.control.value = phrase;
+        field.control.focus();
+        shown.replaceChildren(
+          el(
+            "p",
+            { class: "notice" },
+            el(
+              "strong",
+              {},
+              "Write this down before continuing. This passphrase is shown once.",
+            ),
+            el("code", { class: "generated-passphrase" }, phrase),
+          ),
+        );
+      } catch {
+        if (ticket === request)
           shown.replaceChildren(
             el(
               "p",
-              { class: "notice" },
-              el(
-                "strong",
-                {},
-                "Write this down before continuing. This passphrase is shown once.",
-              ),
-              el("code", { class: "generated-passphrase" }, phrase),
+              {},
+              "The suggested password could not load. Enter your own long password.",
             ),
           );
-        },
-        "button tonal",
-      ),
-    ),
+      }
+    },
+    "button tonal",
+  );
+  generate.addEventListener("blur", () => {
+    request++;
+  });
+  return el(
+    "div",
+    {},
+    el("div", { class: "password-generator" }, field.wrapper, generate),
     shown,
   );
 }

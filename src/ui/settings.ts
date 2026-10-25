@@ -1,17 +1,13 @@
 import { withGenerator } from "./passphrase";
 import { button, el, input, select, form, submit, helpBlock } from "../dom";
-import { createProtection } from "./protection";
-import { upgradeNotice } from "./upgrade-notice";
 import { preferenceEnabled, savePreference } from "../preferences";
 import { busyCopy } from "../help";
-import type { Argon2Policy } from "../crypto";
 import { rotatePassword } from "../crypto";
 import type { AppContext } from "./context";
 export function createSettings(ctx: AppContext) {
   const { session, isExtension, run, announce, modal, closeDialog, render } =
     ctx;
   function settingsView(): HTMLElement {
-    const protection = createProtection(ctx);
     const nextCode = input("showNextCode", "Show next code", "checkbox");
     nextCode.control.checked = preferenceEnabled("showNextCode");
     nextCode.control.addEventListener("change", () =>
@@ -41,7 +37,6 @@ export function createSettings(ctx: AppContext) {
       "section",
       { class: "content stack" },
       el("h1", {}, "Settings"),
-      upgradeNotice(ctx),
       el(
         "div",
         { class: "settings-section stack" },
@@ -50,7 +45,6 @@ export function createSettings(ctx: AppContext) {
         nextCode.wrapper,
         helpBlock("nextCode"),
       ),
-      protection.panel,
       el(
         "div",
         { class: "settings-section stack" },
@@ -64,7 +58,7 @@ export function createSettings(ctx: AppContext) {
         ),
         button(
           "Change master password",
-          () => run(async () => changePassword(protection.forPasswordChange())),
+          () => run(async () => changePassword()),
           "button tonal",
         ),
       ),
@@ -104,7 +98,7 @@ export function createSettings(ctx: AppContext) {
     );
   }
 
-  function changePassword(policy: Argon2Policy): void {
+  function changePassword(): void {
     const current = input("current", "Current master password", "password"),
       next = input("next", "New master password", "password"),
       confirm = input("confirm", "Confirm new master password", "password");
@@ -123,14 +117,13 @@ export function createSettings(ctx: AppContext) {
                 session.current(),
                 current.control.value,
                 next.control.value,
-                policy,
                 session.cancellationSignal(),
               );
               session.check();
               if (epoch !== session.epoch()) return;
               await session.save(
                 session.accounts(),
-                (h) => ({ ...h, password: rotation.password, passkeys: [] }),
+                (h) => ({ ...h, password: rotation.password }),
                 rotation.key,
               );
               session.check();

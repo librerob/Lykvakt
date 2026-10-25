@@ -1,10 +1,11 @@
+import { OldFormatError } from "./format";
 import "./style.css";
-import { button, el, technicalDetails } from "./dom";
+import { button, el, helpBlock, technicalDetails } from "./dom";
 import { friendlyError } from "./help";
 import { focusVault, installEscape } from "./keyboard";
 import { preferenceEnabled, readPreference } from "./preferences";
 import { Session } from "./session";
-import { load, isRecoveryOffer } from "./storage";
+import { load, isRecoveryOffer, isOldVault } from "./storage";
 import { createAccounts } from "./ui/accounts";
 import { createRecovery } from "./ui/recovery";
 import { createSettings } from "./ui/settings";
@@ -29,8 +30,13 @@ async function run(action: () => void | Promise<void>): Promise<void> {
   try {
     await action();
   } catch (error) {
+    if (error instanceof OldFormatError && state.oldVault) return;
     const message = friendlyError(error);
     announce(message.message, true, message.technical);
+    if (error instanceof OldFormatError)
+      (dialog?.querySelector(".dialog-status") ?? status).append(
+        helpBlock("oldFormat"),
+      );
   }
 }
 
@@ -136,7 +142,6 @@ installEscape(
 );
 
 session.onlock = () => {
-  state.upgradeNoticeDismissed = false;
   accounts.clear();
   closeDialog();
 
@@ -265,6 +270,7 @@ void run(async () => {
   state.exists = true;
   const loaded = await load();
   state.exists = !!loaded;
+  state.oldVault = loaded && isOldVault(loaded) ? loaded : undefined;
   state.recovery = loaded && isRecoveryOffer(loaded) ? loaded : undefined;
   render();
 });

@@ -22,7 +22,7 @@ const records = Array.from({ length: 500 }, (_, i) => ({
   id: `synthetic-${i}`,
 }));
 const data = {
-  version: 1,
+  version: 3,
   accounts: records,
   verifiedAt: null,
   verifiedSnapshot: null,

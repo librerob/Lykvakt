@@ -32,6 +32,23 @@ jobs:
       - run: xvfb-run -a node tests/visibility.mjs
       - run: npm run bench
       - run: npm run package
+      - run: node scripts/metrics.mjs artifacts/metrics-after.json
+      - run: node tests/performance.mjs artifacts/popup-after.json
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        if: github.event_name == 'pull_request' && github.head_ref == 'minimal-1'
+        with:
+          ref: 3689ddcec64ca8c0efaf9ee501ca78e103c27151
+          path: .baseline
+      - name: Measure the pre-change build on this same runner
+        if: github.event_name == 'pull_request' && github.head_ref == 'minimal-1'
+        run: |
+          cd .baseline
+          npm ci --ignore-scripts
+          npm run build
+          npm run bench
+          node ../scripts/metrics.mjs ../artifacts/metrics-before.json
+          node ../tests/performance.mjs ../artifacts/popup-before.json
+          cp artifacts/bench.json ../artifacts/bench-before.json
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
@@ -41,7 +58,9 @@ jobs:
             artifacts/axe-*.json
             artifacts/browser-results.json
             artifacts/browser-failure.txt
-            artifacts/bench.json
+            artifacts/bench*.json
+            artifacts/metrics-*.json
+            artifacts/popup-*.json
             artifacts/*.zip
             artifacts/*.sha256
           if-no-files-found: ignore
@@ -63,12 +82,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          node -e "const fs=require('fs');const text=fs.readFileSync('CHANGELOG.md','utf8').split(/\n## /)[1];fs.writeFileSync('release-notes.md','## '+text)"
           version=$(node -p "require('./package.json').version")
           tag="v$version"
           if gh release view "$tag" --json isDraft --jq '.isDraft' > draft-state.txt 2>/dev/null; then
             test "$(cat draft-state.txt)" = true
-            gh release edit "$tag" --target "$GITHUB_SHA" --notes-file docs/release-notes.md --prerelease --draft
+            gh release edit "$tag" --target "$GITHUB_SHA" --notes-file release-notes.md --prerelease --draft
             gh release upload "$tag" release-assets/*.zip release-assets/*.sha256 --clobber
           else
-            gh release create "$tag" release-assets/*.zip release-assets/*.sha256 --target "$GITHUB_SHA" --title "Lykvakt $version - unaudited preview" --notes-file docs/release-notes.md --prerelease --draft
+            gh release create "$tag" release-assets/*.zip release-assets/*.sha256 --target "$GITHUB_SHA" --title "Lykvakt $version - unaudited preview" --notes-file release-notes.md --prerelease --draft
           fi

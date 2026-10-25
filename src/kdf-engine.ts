@@ -7,12 +7,11 @@ export async function deriveKeyHere(
   salt: Uint8Array<ArrayBuffer>,
   policy: Argon2Policy,
   signal?: AbortSignal,
-  calibration = false,
   synchronous = false,
 ): Promise<CryptoKey> {
   let derived: Uint8Array<ArrayBuffer> | undefined;
   try {
-    const checked = validateArgon2(policy, calibration);
+    const checked = validateArgon2(policy);
     if (salt.length !== 32 || !password.length || password.length > 65_536)
       throw new Error("Invalid password-protection input.");
     signal?.throwIfAborted();

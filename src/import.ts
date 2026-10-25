@@ -248,13 +248,7 @@ export async function verifyBackup(
   matches: boolean | null;
   fingerprint: string;
 }> {
-  const { data } = await decryptEnvelope(
-    input,
-    password,
-    "backup",
-    undefined,
-    signal,
-  );
+  const { data } = await decryptEnvelope(input, password, "backup", signal);
   for (const account of data.accounts) {
     signal?.throwIfAborted();
     await codeFor(account, 1_234_567_890_000);

@@ -1,6 +1,4 @@
 import {
-  DEFAULT_KDF,
-  type KDFPolicy,
   createEnvelope,
   decryptEnvelope,
   headerOf,
@@ -9,6 +7,7 @@ import {
   type Header,
 } from "./crypto";
 import { emptyVault, validateData, type VaultData } from "./model";
+import { OldFormatError } from "./format";
 import * as storage from "./storage";
 
 export class Session {
@@ -19,19 +18,18 @@ export class Session {
   private generation = 0;
   private cancellation = new AbortController();
   private writing = false;
-  private pendingUpgrade?: string;
   private lastActivity = 0;
   private lastActivityWall = 0;
-  timeout = 5 * 60_000;
+  timeout = 300_000;
   onlock = () => {};
   get unlocked(): boolean {
     return !!this.key;
   }
-  get upgradePending(): boolean {
-    return this.pendingUpgrade !== undefined;
+  epoch(): number {
+    return this.generation;
   }
-  get upgradePendingDetail(): string | undefined {
-    return this.pendingUpgrade;
+  cancellationSignal(): AbortSignal {
+    return this.cancellation.signal;
   }
   touch(): void {
     if (this.key) {
@@ -57,7 +55,6 @@ export class Session {
     this.data = undefined;
     this.envelope = undefined;
     this.recovery = undefined;
-    this.pendingUpgrade = undefined;
     this.onlock();
   }
   accounts(): VaultData {
@@ -68,36 +65,21 @@ export class Session {
     this.check();
     return structuredClone(this.envelope!);
   }
-  cancellationSignal(): AbortSignal {
-    return this.cancellation.signal;
-  }
-  async setup(
-    password: string,
-    data = emptyVault(),
-    policy: KDFPolicy = DEFAULT_KDF,
-  ): Promise<void> {
+  async setup(password: string, data = emptyVault()): Promise<void> {
     const epoch = this.generation,
       signal = this.cancellation.signal;
-    const result = await createEnvelope(
-      password,
-      data,
-      "vault",
-      policy,
-      signal,
-    );
+    const result = await createEnvelope(password, data, "vault", signal);
     if (epoch !== this.generation)
-      throw new Error("Setup was cancelled by locking.");
+      throw new Error("Setup cancelled by locking.");
     await storage.commit(result.envelope, undefined, signal);
     if (epoch !== this.generation) return;
     this.key = result.key;
     this.data = data;
     this.envelope = result.envelope;
-    this.pendingUpgrade = undefined;
     this.touch();
   }
   async unlock(
     password: string,
-    policy: KDFPolicy | number = DEFAULT_KDF,
     confirmedRecovery?: storage.RecoveryOffer,
   ): Promise<void> {
     const epoch = this.generation,
@@ -105,6 +87,7 @@ export class Session {
     const loaded = await storage.load();
     if (epoch !== this.generation) throw new Error("Unlock cancelled.");
     if (!loaded) throw new Error("No vault exists.");
+    if (storage.isOldVault(loaded)) throw new OldFormatError();
     const recovery = storage.isRecoveryOffer(loaded) ? loaded : undefined;
     if (recovery && !confirmedRecovery)
       throw new storage.RecoveryRequired(recovery);
@@ -114,46 +97,32 @@ export class Session {
         !storage.sameActive(recovery.active, confirmedRecovery.active) ||
         !storage.sameActive(recovery.previous, confirmedRecovery.previous))
     )
-      throw new Error("Vault changed. Review the recovery offer again.");
+      throw new storage.StorageConflictError();
     const saved = recovery ? recovery.previous : (loaded as Envelope);
-    const result = await decryptEnvelope(
-      saved,
-      password,
-      "vault",
-      recovery ? undefined : policy,
-      signal,
-    );
+    const result = await decryptEnvelope(saved, password, "vault", signal);
     if (epoch !== this.generation) throw new Error("Unlock cancelled.");
-    let pendingUpgrade: string | undefined;
-    if (result.envelope.revision !== saved.revision) {
-      try {
-        await storage.commit(result.envelope, saved, signal, true);
-      } catch (error) {
-        if (epoch !== this.generation || signal.aborted)
-          throw new Error("Unlock cancelled.", { cause: error });
-        if (error instanceof storage.StorageConflictError) {
-          this.lock();
-          throw new Error(
-            "Your vault changed in another window. Unlock again.",
-            { cause: error },
-          );
-        }
-        // Other optional write failures preserve authenticated access to this copy.
-        result.envelope = saved;
-        pendingUpgrade =
-          error instanceof Error ? error.message : "Upgrade write failed.";
-      }
+    const latest = await storage.load();
+    if (epoch !== this.generation) throw new Error("Unlock cancelled.");
+    const unchanged = recovery
+      ? latest &&
+        storage.isRecoveryOffer(latest) &&
+        storage.sameActive(latest.active, recovery.active) &&
+        storage.sameActive(latest.previous, recovery.previous)
+      : latest &&
+        !storage.isRecoveryOffer(latest) &&
+        !storage.isOldVault(latest) &&
+        storage.sameActive(latest, saved);
+    if (!unchanged) {
+      this.lock();
+      throw new Error("Your vault changed in another window. Unlock again.", {
+        cause: new storage.StorageConflictError(),
+      });
     }
-    if (epoch !== this.generation) throw new Error("Unlock cancelled.");
     this.recovery = recovery;
     this.key = result.key;
     this.data = result.data;
     this.envelope = result.envelope;
-    this.pendingUpgrade = pendingUpgrade;
     this.touch();
-  }
-  epoch(): number {
-    return this.generation;
   }
   async save(
     data: VaultData,
@@ -177,7 +146,6 @@ export class Session {
       const header = {
         ...headerOf(previous),
         revision: Math.max(previous.revision, activeRevision) + 1,
-        passkeys: [],
       };
       const validated = validateData(data);
       const next = await seal(
@@ -200,7 +168,10 @@ export class Session {
       this.recovery = undefined;
       this.envelope = next;
       this.data = validated;
-      if (nextKey !== undefined) this.pendingUpgrade = undefined;
+    } catch (error) {
+      if (epoch !== this.generation || signal.aborted)
+        throw new Error("Save cancelled by locking.", { cause: error });
+      throw error;
     } finally {
       this.writing = false;
     }
