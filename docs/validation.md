@@ -1,30 +1,31 @@
 # Validation record
 
-Development checks on 24 October 2026:
+## Current checks
 
-- Strict TypeScript and Vite build passed.
-- 109 Vitest tests passed locally using the thread pool. Tests include RFC 4226 vectors, all RFC 6238 SHA variants, independent Node HMAC comparisons, strict Base32/URI parsing, import conflicts, encryption/tampering, password rewrapping, serialized backup round trips, locked session isolation, stale writer rejection, and phishing/public/private-suffix cases.
-- npm audit reported zero known vulnerabilities in the dependency graph at the time checked. This is not an audit of the source.
-- Runtime package validation checks MV3, exact permission lists, required files and forbidden dynamic/remote code patterns.
+The local suite for this documentation update passes build, lint, formatting and **168 Vitest tests in 21 files**, including the new documentation consistency guard. Runtime code is unchanged by this update.
 
-The initial Vite 8 native bundler was blocked by Windows application-control policy. The maintained Vite 7 build uses pinned WebAssembly aliases for Rollup/esbuild instead. Vitest’s fork/temp cache failed in this sandbox; the thread pool passed. Local Chrome for Testing execution was also blocked by OS application-control policy, so browser integration is delegated to the GitHub Actions test runner, not claimed as a local success.
+Current checks cover RFC OTP vectors and independent HMAC references; bounded Base32/URI/transfer parsing; partial import reports and conflicts; encryption, tampering and legacy fixtures; password normalization and key rotation; atomic previous-copy recovery and rotation cleanup; session locking, cancellation and stale writes; secret-export re-authentication; code masking; backup reminders; passphrase generation; and CSS contrast.
 
-`tests/browser.mjs` loads the actual unpacked extension in Chromium with generated secrets. It checks setup, reference OTPs, favorites/search, duplicates, malformed import preservation, QR, HOTP advancement/persistence, restart locking, ciphertext storage, backup download/verification/tamper rejection, themes, axe rules, overflow and network silence. Screenshots and reports are synthetic-only workflow artifacts. Physical authenticator, native permission prompts and screen-reader testing still require supervised work. Passing axe does not establish WCAG conformance.
+`tests/fuzz.test.ts` runs 5,000 seeded mutations each for OTP URI parsing, URI/Aegis/2FAS imports, Google transfer decoding and envelope validation: 30,000 calls total. It requires Error objects for failures, valid account results and completion within a 250 ms per-call budget. This is bounded regression coverage, not exhaustive image-decoder fuzzing or an independent audit.
 
-No independent security audit, physical biometric tests, exhaustive migration interoperability, fuzzing or long-duration usage study has occurred. Actual synthetic Windows/Node measurements for 500 accounts: unlock 178.12 ms, generate 500 OTPs 16.80 ms, encrypted backup 100.86 ms, verify and compare backup 187.57 ms. These single-run measurements do not establish popup startup, browser memory, idle CPU, low-end-device performance, or hardware compatibility.
+The package check validates Manifest V3, the exact `["clipboardWrite"]` permission set, required bundled files and forbidden remote/dynamic-code patterns. `tests/docs-consistency.test.ts` checks the live documentation, with dated changelog history excluded.
 
-## Browser evidence
+## Observed CI evidence
 
-[Validated workflow run](https://github.com/librerob/otp-vault/actions/runs/40133156015) passed all checks on Linux Chrome for Testing 156.0.8078.4:
+The [latest green CI run observed when preparing this update](https://github.com/librerob/otp-vault/actions/runs/40179869571) tested commit `2a78ae1f6a9266802e377e9c76755678fd048757` on Linux Chrome for Testing 156.0.8078.4. It passed **167 unit tests in 20 files** before the documentation guard was added, plus:
 
-- 28 core browser checks, including fresh-profile recovery, eight-digit layouts at 360/600/760/1200 pixels, zero observed external requests, and zero uncaught errors.
-- Six CDP virtual-authenticator checks: master-password enrollment gate, repeated PRF key wrap/unwrap, actual PRF unlock, rejection of a non-PRF authenticator without changing the vault, wrapper revocation, and password fallback.
-- A separate headed Chromium test switched tabs through the real tabs API and verified locking.
-- Four headed tab-action checks used a real keyboard invocation of the action popup, with no added website permissions: capture → local QR preview/import; explicit exact-origin approval and actual scripting fill; no overwrite or submission; rejection of ambiguous/hidden/password/disabled/short/unapproved fields.
-- Core additions exercised incomplete/complete Google transfer QR batches, generated transfer-QR decoding and portable bulk export.
-- The 109 local unit tests additionally include a frozen encrypted backup generated by untouched 0.1.0 source, exact int64 HOTP state, origin-approval encryption and adversarial transfer parsing. The linked first feature run had 108 unit tests; the final release workflow also runs the added legacy fixture test.
-- axe reported zero applicable automated-rule violations in light, dark and AMOLED account-list views. Manual screen-reader testing and full WCAG conformance remain unverified.
+- 34 browser scenarios against the actual unpacked extension and synthetic accounts.
+- Setup, reference OTP generation, account management, local QR images, complete Google transfer batches, re-authenticated QR/plaintext export and HOTP advancement/persistence.
+- Masked-code copying, keyboard reveal and expiry, remasking on navigation/lock, and the persistent always-show preference.
+- Encrypted backup download, saved-file verification, tamper rejection and fresh-profile restoration.
+- Explicit recovery of an older encrypted revision after active-envelope corruption.
+- The single AMOLED view’s axe scan, with zero violations under the existing WCAG tags and no disabled rules.
+- Narrow/eight-digit layouts, zero observed external requests and zero uncaught errors.
+- A separate headed Chromium tab-switch lock check.
+- Dependency audit with zero reported vulnerabilities at that time, plus the synthetic benchmark and packaging scripts.
 
-Earlier runs exposed an ambiguous select label, a headless visibility-test limitation and the lack of dependable visibility events for extension pages. Explicit labels and a native tab-activation lock trigger addressed the product issues. Accessibility scanning runs within the same page so its own temporary tabs do not trigger the lock. A later screenshot inspection caught a malformed search placeholder; the text and source line-ending policy were corrected before release preparation.
+See [branch CI](https://github.com/librerob/otp-vault/actions?query=branch%3Acleanup-1) for results on newer revisions. The earlier run’s count does not include the new documentation test. [Screenshots](screenshots.md) are actual synthetic-account captures from a successful browser run.
 
-The passkey results establish behavior with Chromium's virtual authenticator only. No physical Windows Hello, Touch ID, external FIDO2 key or third-party passkey provider was tested. Native optional-permission prompts, long-term storage failure, comprehensive third-party migration fixtures, image-decoder fuzzing, clipboard-manager behavior, popup startup/memory/idle CPU and an independent audit remain outstanding.
+## Limits
+
+Local Windows browser launch was blocked, so browser results above are attributed to Linux CI. Manual screen-reader testing, exhaustive destination-app migration tests, long-duration storage testing, low-end-device performance and an independent security audit remain unverified. Passing axe does not establish full WCAG conformance. Use test accounts only and keep your existing authenticator and independent backups.
