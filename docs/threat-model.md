@@ -25,6 +25,6 @@ For legacy compatibility, new envelopes retain an empty `passkeys` array, and ol
 
 Failed legacy cleanup does not block password access or bypass cancellation checks. Retained schema metadata grants no access beyond the extension page. Removing old wrappers alone does not revoke a previously recovered key; password change performs that rotation.
 
-KDF validation is bounded to 600,000–5,000,000 iterations, with a current new-slot default of 600,000. NFKC-first unlock with a legacy raw-string fallback can require two bounded derivations. Canonical header/snapshot ordering uses deterministic code-unit comparison.
+KDF validation is bounded to 600,000–5,000,000 iterations, with a current new-slot default of 2,000,000. NFKC-first unlock with a legacy raw-string fallback can require two bounded derivations. Canonical header/snapshot ordering uses deterministic code-unit comparison.
 
 The current parser fuzz suite exercises 30,000 deterministic mutations; this is bounded regression coverage, not exhaustive adversarial review. Independent review, recovery drills, manual screen-reader testing and long-duration storage testing remain necessary before important-account use.

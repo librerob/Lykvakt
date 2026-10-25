@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build && node scripts/check-package.mjs",
-    "test": "vitest run --pool=threads",
+    "test": "vitest run --pool=threads --maxWorkers=2",
     "test:browser": "node tests/browser.mjs",
     "lint": "eslint src tests/*.ts",
     "format": "prettier --write .",
