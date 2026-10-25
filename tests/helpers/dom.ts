@@ -124,6 +124,7 @@ export class TestElement extends EventTarget {
 export const testDocument = {
   activeElement: null as TestElement | null,
   createElement: (tag: string) => new TestElement(tag),
+  createElementNS: (_ns: string, tag: string) => new TestElement(tag),
   body: new TestElement("body"),
 };
 export function keyEvent(key: string, extra: Record<string, unknown> = {}) {

@@ -1,11 +1,13 @@
 # Security policy
 
-This is an unaudited development preview. Use test accounts only and keep your existing authenticator and recovery codes. Automated tests and AI-assisted review are not an independent security audit.
+This is an unaudited development preview. Use test accounts only and keep your existing authenticator, service recovery codes and independently verified backups.
 
-Use GitHub’s private vulnerability-reporting facility if enabled on this repository. If it is unavailable, open an issue asking for a private reporting channel without posting secrets, exploit payloads or private vaults. Do not attach real OTP seeds, passwords, recovery codes or production backups.
+TOTP is phishable. Malware or hostile code in an unlocked extension can read secrets. Nonextractable keys and best-effort buffer clearing cannot guarantee protection from a compromised device or forensic erasure. There is no password reset or server recovery.
 
-Only the latest development revision is maintained. There is no production support promise or security-response SLA. Confirmed issues should receive a reproducible synthetic test, a fix, regression validation and a clear advisory where warranted.
+The extension uses fixed Argon2id defaults with bounded input costs, Web Crypto AES-GCM/AES-KW, strict schemas, authenticated headers, transactional revision checks and page-scoped keys. Read [the design](docs/design.md) for limits and recovery behavior.
 
-See the [threat model](docs/threat-model.md) and [cryptographic format](docs/cryptography.md). Password-based encryption protects a closed vault against profile theft; it cannot protect unlocked secrets from a compromised browser or machine. Key rotation protects future saves and removes the older local recovery copy, but it cannot revoke independently saved files.
+Earlier previews cannot be opened by this version. Export OTP links using the old app before updating; keep them private and verify the import.
 
-Keep and verify an encrypted backup before uninstalling, changing extension origin or attempting recovery. The local previous revision is a recovery aid, not an independent backup.
+Use the repository's private vulnerability-reporting channel when available. If it is unavailable, open an issue requesting a private reporting route without exploit details or secret material. Never attach real passwords, OTP secrets, QR codes, plaintext exports or browser profiles.
+
+Include the version, browser/OS, synthetic reproduction steps and expected/observed behavior. Automated tests, pinned dependencies and vulnerability feeds do not constitute an independent audit.

@@ -75,11 +75,9 @@ it("offers previous when active is missing and only unlocks after confirmation",
   await expect(session.unlock(password)).rejects.toThrow(
     "Unlock it to recover?",
   );
-  await expect(
-    session.unlock("wrong password", undefined, offered),
-  ).rejects.toThrow();
+  await expect(session.unlock("wrong password", offered)).rejects.toThrow();
   expect(session.unlocked).toBe(false);
-  await session.unlock(password, undefined, offered);
+  await session.unlock(password, offered);
   expect(session.current()).toEqual(first);
   expect(await record("active")).toBeUndefined();
   await session.save(session.accounts());
@@ -136,7 +134,7 @@ it("promotes recovery past the active revision and rejects stale writers", async
   const offered = (await load())!;
   if (!isRecoveryOffer(offered)) throw new Error("Missing recovery offer");
   const session = new Session();
-  await session.unlock(password, undefined, offered);
+  await session.unlock(password, offered);
   await session.save(session.accounts());
   expect(session.current().revision).toBe(second.revision + 1);
   expect(await record("previous")).toEqual(first);
@@ -150,12 +148,10 @@ it("rejects recovery promotion and old confirmation when active changes", async 
   const offered = (await load())!;
   if (!isRecoveryOffer(offered)) throw new Error("Missing recovery offer");
   const session = new Session();
-  await session.unlock(password, undefined, offered);
+  await session.unlock(password, offered);
   await record("active", second, true);
   const other = new Session();
-  await expect(other.unlock(password, undefined, offered)).rejects.toThrow(
-    "changed",
-  );
+  await expect(other.unlock(password, offered)).rejects.toThrow("changed");
   // Same identity and revision retains the existing compare-and-set semantics.
   await record("active", { ...second, revision: second.revision + 1 }, true);
   await expect(session.save(session.accounts())).rejects.toThrow(
@@ -206,7 +202,7 @@ it.each([
     const offered = (await load())!;
     if (!isRecoveryOffer(offered)) throw new Error("Missing recovery offer");
     const session = new Session();
-    await session.unlock(password, undefined, offered);
+    await session.unlock(password, offered);
     await session.save(session.accounts());
     expect(session.current().revision).toBe(first.revision + 1);
     expect(await load()).toEqual(session.current());
@@ -228,7 +224,7 @@ it("recovery accepts the last safe active revision below the reserved headroom",
   const offered = (await load())!;
   if (!isRecoveryOffer(offered)) throw new Error("Missing recovery offer");
   const session = new Session();
-  await session.unlock(password, undefined, offered);
+  await session.unlock(password, offered);
   await session.save(session.accounts());
   expect(session.current().revision).toBe(revision + 1);
   expect(await load()).toEqual(session.current());
@@ -244,7 +240,7 @@ it("recovery still rejects a changed corrupt active record when its revision was
   const offered = (await load())!;
   if (!isRecoveryOffer(offered)) throw new Error("Missing recovery offer");
   const session = new Session();
-  await session.unlock(password, undefined, offered);
+  await session.unlock(password, offered);
   const changed = { ...corrupt, revision: Number.MAX_SAFE_INTEGER - 1 };
   await record("active", changed, true);
   await expect(session.save(session.accounts())).rejects.toThrow(

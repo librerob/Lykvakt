@@ -3,15 +3,25 @@ import { writeFile, mkdir } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 await mkdir("artifacts", { recursive: true });
 await build({
-  entryPoints: ["src/crypto.ts", "src/import.ts", "src/otp.ts", "src/kdf.ts"],
+  entryPoints: [
+    "src/crypto.ts",
+    "src/import.ts",
+    "src/otp.ts",
+    "src/kdf.ts",
+    "src/kdf-engine.ts",
+  ],
   outdir: "artifacts/bench-modules",
   bundle: true,
+  splitting: true,
   platform: "node",
   format: "esm",
   packages: "external",
 });
 const cryptoModule = await import("../artifacts/bench-modules/crypto.js");
 const kdfModule = await import("../artifacts/bench-modules/kdf.js");
+const { deriveKeyHere } =
+  await import("../artifacts/bench-modules/kdf-engine.js");
+kdfModule.setKdfRunner(deriveKeyHere);
 const importer = await import("../artifacts/bench-modules/import.js");
 const otp = await import("../artifacts/bench-modules/otp.js");
 const records = Array.from({ length: 500 }, (_, i) => ({
@@ -22,7 +32,7 @@ const records = Array.from({ length: 500 }, (_, i) => ({
   id: `synthetic-${i}`,
 }));
 const data = {
-  version: 1,
+  version: 3,
   accounts: records,
   verifiedAt: null,
   verifiedSnapshot: null,

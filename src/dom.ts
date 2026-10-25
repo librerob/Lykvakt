@@ -127,3 +127,15 @@ export function helpBlock(
       : null,
   );
 }
+
+export function svg<K extends keyof SVGElementTagNameMap>(
+  tag: K,
+  attributes: Record<string, string>,
+  ...children: SVGElement[]
+): SVGElementTagNameMap[K] {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [key, value] of Object.entries(attributes))
+    node.setAttribute(key, value);
+  node.append(...children);
+  return node;
+}

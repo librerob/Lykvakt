@@ -1,18 +1,45 @@
 import { busyCopy } from "../help";
+import { OldFormatError, oldFormatMessage } from "../format";
 import { savePreference } from "../preferences";
 import { withGenerator } from "./passphrase";
 import { button, el, input, form, submit, helpBlock } from "../dom";
-import { RecoveryRequired } from "../storage";
-import { DEFAULT_KDF } from "../crypto";
+import { RecoveryRequired, load, isOldVault, eraseOldVault } from "../storage";
 import type { AppContext } from "./context";
+
 export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
   const { session, state, run, render } = ctx;
-
+  function oldVault(): HTMLElement {
+    return el(
+      "section",
+      { class: "welcome stack" },
+      el("h1", {}, "Earlier preview"),
+      el("p", {}, oldFormatMessage),
+      helpBlock("oldFormat"),
+      button(
+        "Erase the old vault and start fresh",
+        () => {
+          const expected = state.oldVault!;
+          ctx.confirmAction(
+            "Erase the old vault?",
+            "This permanently removes the old local vault and its local recovery copy. Export your accounts using the old app first. No file outside this browser is erased.",
+            "Erase old vault",
+            async () => {
+              await eraseOldVault(expected);
+              session.lock();
+              state.oldVault = undefined;
+              state.recovery = undefined;
+              state.exists = false;
+              ctx.closeDialog();
+              render();
+            },
+          );
+        },
+        "button tonal",
+      ),
+    );
+  }
   function locked(): HTMLElement {
-    const title = state.exists ? "Welcome back." : "Your codes. Your vault.";
-    const subtitle = state.exists
-      ? "Unlock your encrypted vault to access your codes."
-      : "A quiet, private home for your two-factor codes. Protected with a password you control.";
+    if (state.oldVault) return oldVault();
     const password = input(
       "password",
       state.exists ? "Master password" : "Create a master password",
@@ -34,15 +61,14 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
     const signIn = form(
       async (data, f) =>
         run(async () => {
-          const password = String(data.get("password"));
-          if (!state.exists && password !== data.get("confirmation"))
+          const value = String(data.get("password"));
+          if (!state.exists && value !== data.get("confirmation"))
             throw new Error("Passwords do not match.");
           try {
             ctx.announce(state.exists ? busyCopy.unlock : busyCopy.setup);
-            if (state.exists)
-              await session.unlock(password, DEFAULT_KDF, state.recovery);
+            if (state.exists) await session.unlock(value, state.recovery);
             else {
-              await session.setup(password);
+              await session.setup(value);
               state.exists = true;
               state.firstRunTip = true;
               savePreference("firstRunTips", "true");
@@ -52,12 +78,17 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
               state.recovery = error.offer;
               render();
             }
+            if (error instanceof OldFormatError) {
+              const stored = await load();
+              state.oldVault =
+                stored && isOldVault(stored) ? stored : undefined;
+              render();
+            }
             throw error;
           } finally {
             f.reset();
           }
           if (session.unlocked) {
-            state.upgradeNoticeDismissed = false;
             state.recovery = undefined;
             state.view = "codes";
             render();
@@ -82,46 +113,27 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
             : "Create encrypted vault",
       ),
     );
-    const panel = el(
+    return el(
       "section",
-      { class: "welcome" },
+      { class: "welcome stack" },
       el(
         "div",
         { class: "brand-mark", "aria-hidden": "true" },
         el("img", { src: "icons/128.png", width: "64", height: "64", alt: "" }),
       ),
       el("p", { class: "eyebrow" }, "SECURITY WITHOUT THE CLUTTER"),
-      el("h1", {}, title),
-      el("p", { class: "muted" }, subtitle),
+      el("h1", {}, state.exists ? "Welcome back." : "Your codes. Your vault."),
       signIn,
-    );
-    if (!state.exists)
-      panel.append(
-        el(
-          "p",
-          { class: "hint" },
-          "Use a unique passphrase of at least 14 characters. There is no password reset. Save your service recovery codes separately.",
-        ),
-        button(
-          "Restore an encrypted backup",
-          () => recoverySetup(),
-          "button text",
-        ),
-      );
-    panel.append(
+      state.exists
+        ? null
+        : button("Restore an encrypted backup", recoverySetup, "button text"),
       el(
         "aside",
-        { class: "notice" },
-        el("strong", {}, "Test accounts only"),
-        el(
-          "p",
-          {},
-          "This preview has not had an independent security audit. Keep your existing authenticator and backups.",
-        ),
+        { class: "notice inline-notice" },
+        el("strong", {}, "Test accounts only."),
+        helpBlock("preview"),
       ),
     );
-    return panel;
   }
-
   return { locked };
 }

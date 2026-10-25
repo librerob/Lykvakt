@@ -93,3 +93,8 @@ it("keeps one dark palette, visible focus, and explicit high-contrast disabled c
   expect(disabled).toContain("background: var(--surface-alt);");
   expect(disabled).toContain("border-color: var(--line);");
 });
+
+it("the normal countdown arc remains distinguishable from its visible track", () => {
+  expect(contrast("--text", "--line")).toBeGreaterThanOrEqual(3);
+  expect(css).toMatch(/\.ring-progress\s*\{[^}]*stroke: var\(--text\)/);
+});

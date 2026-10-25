@@ -1,7 +1,5 @@
 import { it, expect, beforeAll } from "vitest";
 import {
-  MIN_ITERATIONS,
-  MAX_ITERATIONS,
   createEnvelope,
   decryptEnvelope,
   headerOf,
@@ -12,8 +10,6 @@ import {
   snapshot,
   unwrapPassword,
   validateEnvelope,
-  base64,
-  random,
   canonical,
 } from "../src/crypto";
 import { emptyVault } from "../src/model";
@@ -27,10 +23,8 @@ data.accounts = [
   ),
 ];
 let result: Awaited<ReturnType<typeof createEnvelope>>;
-let legacyResult: Awaited<ReturnType<typeof createEnvelope>>;
 beforeAll(async () => {
   result = await createEnvelope(password, data);
-  legacyResult = await createEnvelope(password, data, "vault", MIN_ITERATIONS);
 }, 60_000);
 it("encrypts and restores complete records without plaintext metadata", async () => {
   const { data: restored, key } = await decryptEnvelope(
@@ -58,36 +52,22 @@ it("rejects modified ciphertext and wrapped content key", async () => {
     await expect(open(e, result.key)).rejects.toThrow();
   }
 });
-it.each(["Argon2id", "PBKDF2-SHA256"])(
-  "authenticates metadata and all unlock slots with %s",
-  async (kdf) => {
-    const target = kdf === "Argon2id" ? result : legacyResult;
-    const changes = [
-      { revision: 3 },
-      { id: crypto.randomUUID() },
-      { kind: "backup" },
-      { password: { ...target.envelope.password, iterations: 600001 } },
-      {
-        passkeys: [
-          {
-            id: "test",
-            credential: base64(random(32)),
-            salt: base64(random(32)),
-            iv: base64(random(12)),
-            wrapped: base64(random(48)),
-          },
-        ],
-      },
-    ];
-    for (const change of changes)
-      await expect(
-        open(
-          { ...target.envelope, ...change } as typeof target.envelope,
-          target.key,
-        ),
-      ).rejects.toThrow();
-  },
-);
+it("authenticates metadata and every remaining header field", async () => {
+  const changes = [
+    { revision: 3 },
+    { id: crypto.randomUUID() },
+    { kind: "backup" },
+    { password: { ...result.envelope.password, t: 4 } },
+    { extra: [] },
+  ];
+  for (const change of changes)
+    await expect(
+      open(
+        { ...result.envelope, ...change } as typeof result.envelope,
+        result.key,
+      ),
+    ).rejects.toThrow();
+});
 it("uses a fresh content key and nonce for each save", async () => {
   const writes = await Promise.all(
     Array.from({ length: 30 }, (_, i) =>
@@ -145,18 +125,18 @@ it("verifies an actual serialized backup and compares records", async () => {
   await expect(
     decryptEnvelope(file, "separate test backup passphrase", "vault"),
   ).rejects.toThrow();
-  expect(archive.envelope.passkeys).toEqual([]);
 }, 60_000);
 it("rejects malformed format and unbounded KDF work before deriving", () => {
-  const e = legacyResult.envelope;
+  const e = result.envelope;
   for (const change of [
-    { version: 2 },
+    { version: 3 },
     { extra: "x" },
-    { password: { ...e.password, iterations: 5 } },
-    { password: { ...e.password, iterations: MAX_ITERATIONS + 1 } },
-    { password: { ...e.password, iterations: MIN_ITERATIONS - 1 } },
+    { password: { ...e.password, m: 5 } },
+    { password: { ...e.password, m: 262145 } },
+    { password: { ...e.password, t: 11 } },
+    { password: { ...e.password, p: 2 } },
     { payload: { ...e.payload, key: "bad!" } },
-    { passkeys: Array(6).fill({}) },
+    { removedSlots: [] },
   ])
     expect(() => validateEnvelope({ ...e, ...change })).toThrow();
 });

@@ -1,9 +1,11 @@
 # Contributing
 
-Use Node 24, `npm ci --ignore-scripts`, then the checks in the README. Tests must use synthetic secrets. Keep runtime dependencies small, bundled and license-compatible.
+Use Node 24. Install with npm ci --ignore-scripts, then run npm run build, npm run lint, npm run format:check and npm test. Browser tests require Playwright Chromium; npm run test:browser uses synthetic accounts. CI also runs axe and a headed tab-lock check.
 
-Changes to the encrypted format, import semantics, permissions or lock lifecycle need a design explanation, failure tests and a recovery analysis. Do not silently downgrade KDF parameters, change OTP settings or discard unsupported imported records. New migration adapters need versioned fixtures from the source application before broad compatibility claims.
+Keep the extension offline, exact-pinned and small. Do not add permissions, remote code, WebAssembly or runtime dependencies without an explicit design discussion. Preserve authenticated encryption, typed conflicts, atomic writes, explicit recovery, masking and saved-file backup verification.
 
-Documentation must describe the implemented build. Run `tests/docs-consistency.test.ts` through `npm test`, update links when moving a guide, and record observed validation separately from untested behavior. Dated release history belongs in CHANGELOG.md.
+Add regression tests for security changes. Do not weaken retained security assertions or invent browser/benchmark results. Separate observed checks from manual/unverified behavior. Read [the design](docs/design.md).
 
-Use ordinary, descriptive commits. Do not publish real vaults or private signing keys. Security reports belong in a private channel; see SECURITY.md. Contributions are licensed GPL-3.0-or-later.
+Never include real passwords, OTP secrets, QR codes, plaintext exports or browser profiles in commits or issue reports. Report vulnerabilities using [SECURITY.md](SECURITY.md).
+
+Original contributions are GPL-3.0-or-later. Preserve bundled license notices.
