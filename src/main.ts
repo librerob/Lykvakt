@@ -94,6 +94,11 @@ function modal(title: string, content: Node): void {
   status.removeAttribute("role");
   status.removeAttribute("aria-live");
   const currentDialog = dialog;
+  currentDialog.addEventListener("cancel", (event) => {
+    // Escape must abort synchronously, before the native queued close event.
+    event.preventDefault();
+    if (dialog === currentDialog) closeDialog();
+  });
   currentDialog.addEventListener(
     "close",
     () => {

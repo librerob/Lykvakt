@@ -1786,8 +1786,20 @@ try {
           await expect
             .poll(() => page.evaluate(() => typeof window.__releaseReviewKdf))
             .toBe("function");
-          if (kind === "qr") await page.keyboard.press("Escape");
-          else await click("Close");
+          if (kind === "qr") {
+            await page.evaluate(() => {
+              document
+                .querySelector("dialog")
+                .addEventListener("cancel", () => {
+                  window.__reviewCancelledSynchronously =
+                    window.__reviewKdfTerminated;
+                });
+            });
+            await page.keyboard.press("Escape");
+            expect(
+              await page.evaluate(() => window.__reviewCancelledSynchronously),
+            ).toBe(true);
+          } else await click("Close");
           await expect(page.getByRole("dialog")).toHaveCount(0);
           await expect
             .poll(() => page.evaluate(() => window.__reviewKdfTerminated))
