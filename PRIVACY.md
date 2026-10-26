@@ -1,6 +1,6 @@
 # Privacy
 
-Lykvakt processes your accounts and the files you select on your device. There is no developer server, registration, advertising, telemetry or account-data upload. It has not been submitted to or approved by the Chrome Web Store.
+Lykvakt processes your accounts and the files you select on your device. There is no developer server, registration, advertising, telemetry or account-data upload. Store review does not provide an independent security audit.
 
 ## Browser access and copying
 

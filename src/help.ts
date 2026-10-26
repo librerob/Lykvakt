@@ -89,9 +89,10 @@ export const helpCopy = {
       "Export OTP links from Recovery in the old app, erase this old local vault only when you are ready, then import the links into a new vault. The exported file contains secrets; keep it private and remove temporary copies after checking the new vault.",
     ],
   },
-  preview: {
+  security: {
     text: [
-      "This is an unaudited preview. Use test accounts and keep your existing authenticator and verified backups. Sign-in codes can be phished, and there is no password reset.",
+      "Codes can be stolen by a fake sign-in page. Check the site before entering a code.",
+      "Software on a compromised device may read unlocked accounts. Keep your device updated and save an independent backup.",
     ],
   },
   tipsPassword: {

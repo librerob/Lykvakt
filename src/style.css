@@ -72,14 +72,6 @@ header {
 .wordmark strong {
   font-size: var(--t3);
 }
-.wordmark span {
-  display: block;
-}
-.preview {
-  color: var(--muted);
-  font-size: var(--t1);
-  letter-spacing: 1px;
-}
 h1,
 h2,
 p {

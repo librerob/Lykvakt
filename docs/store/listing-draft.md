@@ -1,23 +1,23 @@
-# Store listing draft — not submitted
+# Chrome Web Store listing
 
-Lykvakt is a small offline authenticator for TOTP, HOTP and Steam sign-in codes. It keeps your accounts in an encrypted vault on your device and asks for just one browser permission: copying to the clipboard.
+Lykvakt is a small offline authenticator for Chrome. Generate TOTP and counter-based HOTP codes, with Steam support, and keep your accounts in an encrypted vault on your device.
 
-Codes start hidden. Click an account row to copy its code, or reveal it separately when you need to read it. The app has encrypted backups you can test, keyboard controls, built-in help and a single black-and-pink appearance.
+Codes start hidden. Click an account to copy its current code, or reveal it when you need to read it. Search, favorites, groups and keyboard controls help you find accounts quickly.
 
-This is an unaudited preview. Use test accounts and keep your existing authenticator. TOTP codes can be phished, and there is no password reset.
+Import accounts from setup links, QR images you choose or compatible export files. Review what will be added or skipped before saving. You can also export your accounts as OTP links or a transfer QR after confirming your master password.
 
-## Moving your accounts
+Save an encrypted backup with a separate passphrase, then open the saved file to test restoration without replacing your accounts.
 
-Imports are recognised and processed locally. Supported inputs include OTP links, QR images, complete Google transfers, plaintext or password-protected Aegis and 2FAS files, andOTP, Bitwarden OTP fields only, Raivo JSON, Proton Authenticator plaintext JSON, Stratum plaintext JSON and Steam .maFile files. You'll see skipped entries before deciding what to save. Compatibility tests use synthetic fixtures; real exports remain unverified.
+Lykvakt asks for one browser permission: clipboardWrite, used when you choose to copy a code. It has no content scripts, host permissions or background service worker, and never reads or changes web pages. There is no cloud account, advertising, subscription or telemetry.
 
-Earlier previews cannot be opened by this version. Before updating, open the old app and choose **Recovery → Export plaintext OTP links**, then import that file into a fresh vault. If you no longer have the old version, reinstall it in the same folder (the same extension), export through **Recovery → Export plaintext OTP links**, then update.
+Keep your backup and its passphrase somewhere safe: there is no password reset. Steam support covers authentication codes, not trade or market confirmations.
 
-Steam support covers sign-in codes, not trade or market confirmations. Steam's own app doesn't show its setup secret; that usually comes from another authenticator or a .maFile. Creating an encrypted backup, exporting plaintext OTP links and revealing a transfer QR ask for your master password again.
+Free and open source.
+Source, supported formats and recovery guide: https://github.com/librerob/lykvakt
+Privacy: https://github.com/librerob/lykvakt/blob/main/PRIVACY.md
 
-## Privacy and security
+## Submission details
 
-The permission set is exactly ["clipboardWrite"]. Lykvakt has no host or optional permissions, background worker, remote code, WebAssembly, telemetry, advertising, subscriptions or developer server. Argon2id and Web Crypto AES-GCM/AES-KW protect the vault.
+Name: Lykvakt. Category: Privacy & Security. Language: English. Price: Free. The only permission is clipboardWrite. No remote code is used.
 
-For details, see the [privacy policy](../../PRIVACY.md), [design guide](../design.md) and [extension screenshots](../screenshots/). The screenshots use synthetic accounts.
-
-This is draft listing copy, not a claim of Store approval. Store payment, upload, publisher verification, asset sizing and submission still need to be completed and checked manually.
+The previous submission was rejected for a list of authenticator brand names in the description. This replacement describes import/export generally; the supported-format details stay in the design guide. It makes no claim of Store approval.

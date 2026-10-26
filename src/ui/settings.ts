@@ -87,13 +87,14 @@ export function createSettings(ctx: AppContext) {
         el(
           "strong",
           {},
-          `Development preview · ${isExtension ? chrome.runtime.getManifest().version : "development"}`,
+          `Lykvakt · ${isExtension ? chrome.runtime.getManifest().version : "development"}`,
         ),
         el(
           "p",
           {},
-          "No independent audit. TOTP can be phished, and malware on this computer can read unlocked codes. Your device clock must be correct.",
+          "Your device clock must be correct. Keep an independent backup; there is no password reset.",
         ),
+        helpBlock("security"),
       ),
     );
   }

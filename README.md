@@ -1,6 +1,6 @@
 # Lykvakt
 
-I built Lykvakt because I wanted a small authenticator for Chrome that I could use every day without giving it access to the websites I visit. It stores TOTP, HOTP and Steam sign-in accounts in an encrypted vault on your device. I use it myself and plan to keep using and maintaining it for the long term.
+I built Lykvakt because I wanted a small authenticator for Chrome that I could use every day without giving it access to the websites I visit. It keeps your authenticator accounts in an encrypted vault on your device, with TOTP, HOTP and Steam support. I use it myself and plan to keep using and maintaining it for the long term.
 
 The name is coined and Nordic-inspired, with the idea of watching over your keys.
 

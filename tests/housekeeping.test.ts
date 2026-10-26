@@ -21,7 +21,7 @@ it("settings reads the runtime manifest version", async () => {
   const ctx = context(session);
   ctx.isExtension = true;
   expect(JSON.stringify(createSettings(ctx).settingsView())).toContain(
-    "Development preview · 7.8.9",
+    "Lykvakt · 7.8.9",
   );
 }, 60_000);
 it("backup downloads use the Lykvakt date prefix without changing the envelope format", async () => {

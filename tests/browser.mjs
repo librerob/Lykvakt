@@ -134,6 +134,19 @@ try {
     await screenshot("setup");
   });
   await check(
+    "setup uses the Lykvakt name without preview branding",
+    async () => {
+      const manifest = await page.evaluate(() => chrome.runtime.getManifest());
+      expect(manifest.name).toBe("Lykvakt");
+      expect(manifest.version).toBe("0.5.1");
+      expect(manifest.version_name).toBeUndefined();
+      await expect(page).toHaveTitle("Lykvakt");
+      await expect(page.locator("body")).not.toContainText(
+        /development preview|test accounts only|unaudited/i,
+      );
+    },
+  );
+  await check(
     "the suggested popup command is assigned without a Chrome shortcut collision",
     async () => {
       const commands = await page.evaluate(() => chrome.commands.getAll());
@@ -1908,7 +1921,7 @@ try {
       "shortcut",
       "olderCopy",
       "timeout",
-      "preview",
+      "security",
       "oldFormat",
       "tipsPassword",
       "tipsBackup",

@@ -142,3 +142,21 @@ it("Recovery shows a plain-language version note beside Save an encrypted backup
     /\b(?:Argon2id|PBKDF2|KDF|AES|GCM|AAD|envelope|nonce|iterations|WASM)\b/i,
   );
 });
+
+it("setup and settings omit preview branding while retaining security help", () => {
+  const session = {
+    accounts: () => emptyVault(),
+    current: () => ({ password: DEFAULT_KDF }),
+    timeout: 300_000,
+  } as unknown as Session;
+  const ctx = context(session);
+  ctx.state.exists = false;
+  const setup = createWelcome(ctx, () => {}).locked() as unknown as TestElement;
+  const settings = createSettings(ctx).settingsView() as unknown as TestElement;
+  for (const view of [setup, settings])
+    expect(view.textContent).not.toMatch(
+      /development preview|unaudited|test accounts only/i,
+    );
+  expect(settings.querySelector('[data-help="security"]')).not.toBeNull();
+  expect(settings.textContent).toContain("there is no password reset");
+});

@@ -43,3 +43,30 @@ it.each(["README.md", "docs/design.md"])(
     }
   },
 );
+
+it("uses the Lykvakt name and a release version without preview branding", () => {
+  const m = JSON.parse(read("public/manifest.json"));
+  const pkg = JSON.parse(read("package.json"));
+  expect(m.name).toBe("Lykvakt");
+  expect(m.version).toMatch(/^\d+\.\d+\.\d+$/);
+  expect(pkg.version).toBe(m.version);
+  expect(m.version_name).toBeUndefined();
+  expect(m.description).toContain("Steam support");
+  expect(m.description.length).toBeLessThanOrEqual(132);
+  expect(read("index.html")).toContain("<title>Lykvakt</title>");
+  for (const file of ["public/manifest.json", "index.html", "src/main.ts"])
+    expect(read(file)).not.toMatch(
+      /development preview|unaudited|test accounts only/i,
+    );
+});
+it("keeps the Store description focused without an importer brand list", () => {
+  const listing = read("docs/store/listing-draft.md");
+  expect(listing).toContain("Steam support");
+  expect(listing).toContain("compatible export files");
+  expect(listing).not.toMatch(
+    /\b(?:Aegis|2FAS|andOTP|Bitwarden|Raivo|Ente|FreeOTP|Proton|Stratum)\b/i,
+  );
+  expect(listing).not.toMatch(
+    /development preview|unaudited|use test accounts|Steam sign-in/i,
+  );
+});

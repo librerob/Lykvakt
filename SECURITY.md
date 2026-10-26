@@ -1,6 +1,6 @@
 # Security policy
 
-Lykvakt is a personal project and an unaudited development preview. Please use test accounts while it needs independent review, and keep your existing authenticator, service recovery codes and independently verified backups. Tests, pinned dependencies and vulnerability feeds help catch problems, but they are not an independent audit.
+Lykvakt is a personal project and has not received an independent security audit. Keep your service recovery codes and independently verified backups. Tests, pinned dependencies and vulnerability feeds help catch problems, but they are not an independent audit.
 
 TOTP codes can be phished. Malware or hostile code on your device can read secrets while the vault is unlocked. Nonextractable keys and buffer clearing don't make a compromised device safe, and JavaScript cannot guarantee that all copies have been erased from memory. There is no password reset or server recovery.
 

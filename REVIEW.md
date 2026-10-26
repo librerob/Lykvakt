@@ -1,6 +1,6 @@
 # Reviewer brief
 
-Lykvakt is a personal offline Chrome vault for TOTP, HOTP and Steam sign-in codes. It's an unaudited preview, and I'd welcome a critical look at the encryption, recovery and import paths. Please point out wrong assumptions, unsafe edge cases and instructions that don't make sense.
+Lykvakt is a personal offline Chrome authenticator with TOTP, HOTP and Steam support. It has not received an independent security audit, and I'd welcome a critical look at the encryption, recovery and import paths. Please point out wrong assumptions, unsafe edge cases and instructions that don't make sense.
 
 Much of Lykvakt was developed with AI coding tools. Automated tests and AI-assisted reviews do not replace an independent security audit. Use synthetic accounts when reviewing it, and keep your working authenticator.
 

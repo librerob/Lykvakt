@@ -212,12 +212,7 @@ function render(): void {
     "div",
     { class: "wordmark" },
     el("img", { src: "icons/32.png", width: "32", height: "32", alt: "" }),
-    el(
-      "div",
-      {},
-      el("strong", {}, "Lykvakt"),
-      el("span", { class: "preview" }, "DEVELOPMENT PREVIEW"),
-    ),
+    el("div", {}, el("strong", {}, "Lykvakt")),
   );
   const tools = el("div", { class: "header-actions" });
   if (!fullWindow && isExtension)

@@ -127,12 +127,6 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
       state.exists
         ? null
         : button("Restore an encrypted backup", recoverySetup, "button text"),
-      el(
-        "aside",
-        { class: "notice inline-notice" },
-        el("strong", {}, "Test accounts only."),
-        helpBlock("preview"),
-      ),
     );
   }
   return { locked };
