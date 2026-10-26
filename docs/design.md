@@ -49,7 +49,7 @@ Payload schema 3 contains accounts, verifiedAt and verifiedSnapshot. Accounts ha
 
 A bundled one-job module Web Worker derives the password key, imports it immediately and returns only a nonextractable CryptoKey. Node tests and benchmarks explicitly inject the real yielding engine. The extension ships that engine only in its worker; missing or failed workers produce an error without main-thread derivation.
 
-Locking aborts pending work, terminates the worker and changes the Session epoch. Late results cannot reopen the session, save or expose a secret. Raw key, password and decoded payload buffers are cleared in finally blocks where practical.
+Locking aborts pending work, terminates the worker and changes the Session epoch. Late results cannot reopen the session, save or expose a secret. Closing a dialog, pressing Escape or replacing it also cancels its pending operation. This cancellation reaches password workers and abortable storage transactions. A write that already committed cannot be undone by closing the dialog. Raw key, password and decoded payload buffers are cleared in finally blocks where practical.
 
 JavaScript strings, library internals, browser-managed copies, garbage collection and OS paging prevent guaranteed zeroization. Nonextractable keys do not protect an unlocked page from hostile code.
 

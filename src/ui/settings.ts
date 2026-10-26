@@ -3,7 +3,7 @@ import { button, el, input, select, form, submit, helpBlock } from "../dom";
 import { preferenceEnabled, savePreference } from "../preferences";
 import { busyCopy } from "../help";
 import { rotatePassword } from "../crypto";
-import type { AppContext } from "./context";
+import { dialogOperation, type AppContext } from "./context";
 export function createSettings(ctx: AppContext) {
   const { session, isExtension, run, announce, modal, closeDialog, render } =
     ctx;
@@ -108,7 +108,8 @@ export function createSettings(ctx: AppContext) {
       form(
         async (_fields, f) =>
           run(async () => {
-            const epoch = session.epoch();
+            const epoch = session.epoch(),
+              signal = dialogOperation(ctx);
             try {
               if (next.control.value !== confirm.control.value)
                 throw new Error("Passwords do not match.");
@@ -117,16 +118,19 @@ export function createSettings(ctx: AppContext) {
                 session.current(),
                 current.control.value,
                 next.control.value,
-                session.cancellationSignal(),
+                signal,
               );
               session.check();
+              signal.throwIfAborted();
               if (epoch !== session.epoch()) return;
               await session.save(
                 session.accounts(),
                 (h) => ({ ...h, password: rotation.password }),
                 rotation.key,
+                signal,
               );
               session.check();
+              signal.throwIfAborted();
               if (epoch !== session.epoch()) return;
             } finally {
               f.reset();

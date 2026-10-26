@@ -65,14 +65,26 @@ export class Session {
     this.check();
     return structuredClone(this.envelope!);
   }
-  async setup(password: string, data = emptyVault()): Promise<void> {
+  async setup(
+    password: string,
+    data = emptyVault(),
+    operation?: AbortSignal,
+  ): Promise<void> {
     const epoch = this.generation,
-      signal = this.cancellation.signal;
+      signal = operation
+        ? AbortSignal.any([this.cancellation.signal, operation])
+        : this.cancellation.signal;
+    signal.throwIfAborted();
     const result = await createEnvelope(password, data, "vault", signal);
+    signal.throwIfAborted();
     if (epoch !== this.generation)
       throw new Error("Setup cancelled by locking.");
     await storage.commit(result.envelope, undefined, signal);
     if (epoch !== this.generation) return;
+    if (operation?.aborted) {
+      this.lock();
+      return;
+    }
     this.key = result.key;
     this.data = data;
     this.envelope = result.envelope;
@@ -128,12 +140,16 @@ export class Session {
     data: VaultData,
     changeHeader?: (h: Header) => Header,
     nextKey?: CryptoKey,
+    operation?: AbortSignal,
   ): Promise<void> {
     this.check();
+    operation?.throwIfAborted();
     if (this.writing) throw new Error("A save is already in progress.");
     this.writing = true;
     const epoch = this.generation,
-      signal = this.cancellation.signal,
+      signal = operation
+        ? AbortSignal.any([this.cancellation.signal, operation])
+        : this.cancellation.signal,
       previous = this.envelope!;
     try {
       const active = this.recovery?.active as Partial<Envelope> | undefined;
@@ -154,6 +170,7 @@ export class Session {
         validated,
       );
       this.check();
+      signal.throwIfAborted();
       if (epoch !== this.generation)
         throw new Error("Save cancelled by locking.");
       await storage.commit(
@@ -169,8 +186,9 @@ export class Session {
       this.envelope = next;
       this.data = validated;
     } catch (error) {
-      if (epoch !== this.generation || signal.aborted)
+      if (epoch !== this.generation || this.cancellation.signal.aborted)
         throw new Error("Save cancelled by locking.", { cause: error });
+      operation?.throwIfAborted();
       throw error;
     } finally {
       this.writing = false;

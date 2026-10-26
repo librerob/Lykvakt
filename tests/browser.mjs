@@ -639,7 +639,7 @@ try {
       page.on("download", count);
       try {
         await click("Save encrypted file");
-        await expect(page.getByRole("status")).toContainText(
+        await expect(page.locator(".dialog-status")).toContainText(
           "password didn't work",
         );
         await expect(
@@ -1602,6 +1602,148 @@ try {
           expect(style).toEqual({ animation: "none", transition: "0s" });
         }
         await helpAxe("compact-rows");
+      } finally {
+        await isolated.close();
+        page = prior;
+        await page.bringToFront();
+      }
+    },
+  );
+  await check(
+    "Close and Escape cancel pending exports and password changes without downloads or writes",
+    async () => {
+      const prior = page,
+        isolated = await launch(
+          await mkdtemp(join(tmpdir(), "lykvakt-dialog-cancel-")),
+        );
+      isolated.on("request", (request) => {
+        if (/^https?:/.test(request.url())) network.push(request.url());
+      });
+      page = await isolated.newPage();
+      page.on("pageerror", (error) => errors.push(error.message));
+      let downloads = 0;
+      page.on("download", () => downloads++);
+      try {
+        await page.goto(base);
+        await page
+          .getByLabel("Create a master password", { exact: true })
+          .fill(password);
+        await page
+          .getByLabel("Confirm master password", { exact: true })
+          .fill(password);
+        await click("Create encrypted vault");
+        await expect(
+          page.getByLabel("Search accounts", { exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+        await click("Got it");
+        await importURI(uri);
+        const stored = () =>
+          page.evaluate(
+            () =>
+              new Promise((resolve, reject) => {
+                const r = indexedDB.open("otp-vault", 1);
+                r.onerror = () => reject(r.error);
+                r.onsuccess = () => {
+                  const db = r.result,
+                    tx = db.transaction("vault", "readonly"),
+                    store = tx.objectStore("vault"),
+                    a = store.get("active"),
+                    p = store.get("previous");
+                  tx.oncomplete = () => {
+                    resolve({ active: a.result, previous: p.result });
+                    db.close();
+                  };
+                  tx.onabort = () => reject(tx.error);
+                };
+              }),
+          );
+        const before = await stored();
+        for (const kind of ["plaintext", "backup", "password", "qr"]) {
+          if (kind === "password") {
+            await click("Settings");
+            await click("Change master password");
+            await page
+              .getByLabel("Current master password", { exact: true })
+              .fill(password);
+            await page
+              .getByLabel("New master password", { exact: true })
+              .fill("synthetic cancelled new master password");
+            await page
+              .getByLabel("Confirm new master password", { exact: true })
+              .fill("synthetic cancelled new master password");
+          } else if (kind === "qr") {
+            await click("Authenticator");
+            await openMore(page.locator(".account").first());
+            await page
+              .getByRole("button", { name: "Edit", exact: true })
+              .click();
+            await click("Show transfer QR…");
+            await page
+              .getByLabel("Master password", { exact: true })
+              .fill(password);
+          } else {
+            await click("Recovery");
+            await click(
+              kind === "backup"
+                ? "Create encrypted backup"
+                : "Export plaintext OTP links…",
+            );
+            await page
+              .getByLabel("Master password", { exact: true })
+              .fill(password);
+            if (kind === "backup") {
+              await page
+                .getByLabel("Backup passphrase", { exact: true })
+                .fill("synthetic cancelled backup password");
+              await page
+                .getByLabel("Confirm backup passphrase", { exact: true })
+                .fill("synthetic cancelled backup password");
+            }
+          }
+          await page.evaluate(() => {
+            const post = Worker.prototype.postMessage;
+            window.__reviewKdfTerminated = false;
+            Worker.prototype.postMessage = function (...args) {
+              Worker.prototype.postMessage = post;
+              const worker = this,
+                terminate = worker.terminate.bind(worker);
+              worker.terminate = () => {
+                window.__reviewKdfTerminated = true;
+                terminate();
+              };
+              window.__releaseReviewKdf = () => {
+                try {
+                  post.apply(worker, args);
+                } catch {}
+                delete window.__releaseReviewKdf;
+              };
+            };
+          });
+          await click(
+            kind === "password"
+              ? "Change password"
+              : kind === "qr"
+                ? "Reveal QR"
+                : kind === "backup"
+                  ? "Save encrypted file"
+                  : "Export all OTP links",
+          );
+          await expect
+            .poll(() => page.evaluate(() => typeof window.__releaseReviewKdf))
+            .toBe("function");
+          if (kind === "qr") await page.keyboard.press("Escape");
+          else await click("Close");
+          await expect(page.getByRole("dialog")).toHaveCount(0);
+          await expect
+            .poll(() => page.evaluate(() => window.__reviewKdfTerminated))
+            .toBe(true);
+          await page.evaluate(() => window.__releaseReviewKdf());
+          expect(downloads).toBe(0);
+          expect(await stored()).toEqual(before);
+          await expect(page.locator(".transfer-qr")).toHaveCount(0);
+        }
+        await click("Lock");
+        await unlock();
       } finally {
         await isolated.close();
         page = prior;

@@ -15,11 +15,19 @@ export interface AppContext {
   announce: (message: string, error?: boolean) => void;
   modal: (title: string, content: Node) => void;
   closeDialog: () => void;
+  dialogSignal: () => AbortSignal;
   render: () => void;
   confirmAction: (
     title: string,
     message: string,
     label: string,
-    action: () => Promise<void>,
+    action: (signal: AbortSignal) => Promise<void>,
   ) => void;
+}
+
+export function dialogOperation(ctx: AppContext): AbortSignal {
+  return AbortSignal.any([
+    ctx.session.cancellationSignal(),
+    ctx.dialogSignal(),
+  ]);
 }

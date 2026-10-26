@@ -18,7 +18,7 @@ import {
   toURI,
   type SkippedEntry,
 } from "../import";
-import type { AppContext } from "./context";
+import { dialogOperation, type AppContext } from "./context";
 export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
   const { session, run, announce, modal, closeDialog, render, confirmAction } =
     ctx;
@@ -80,7 +80,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
               favorite: false,
               group: data.get("group"),
             });
-            await preview([account]);
+            await preview([account], [], undefined, dialogOperation(ctx));
           }),
         el(
           "p",
@@ -117,8 +117,10 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     accounts: Account[],
     skipped: SkippedEntry[] = [],
     source?: string,
+    signal?: AbortSignal,
   ): Promise<void> {
     session.check();
+    signal?.throwIfAborted();
     const previewEpoch = session.epoch();
     const result = previewImport(accounts, session.accounts().accounts);
     if (result.conflicts)
@@ -130,6 +132,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
       session.check();
       if (previewEpoch !== session.epoch()) return;
       const code = await codeFor(a);
+      signal?.throwIfAborted();
       rows.append(
         el(
           "article",
@@ -149,6 +152,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     }
     session.check();
     if (previewEpoch !== session.epoch()) return;
+    signal?.throwIfAborted();
     modal(
       "Review import",
       el(
@@ -182,12 +186,14 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
               "Import " + result.accounts.length + " account(s)",
               () =>
                 run(async () => {
+                  const signal = dialogOperation(ctx);
                   const data = session.accounts();
                   const checked = previewImport(result.accounts, data.accounts);
                   if (checked.conflicts || checked.duplicates)
                     throw new Error("Vault changed. Preview the import again.");
                   data.accounts.push(...checked.accounts);
-                  await session.save(data);
+                  await session.save(data, undefined, undefined, signal);
+                  signal.throwIfAborted();
                   closeDialog();
                   render();
                   announce(
@@ -226,7 +232,8 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     qr.control.multiple = true;
     qr.control.addEventListener("change", () =>
       run(async () => {
-        const epoch = session.epoch();
+        const epoch = session.epoch(),
+          signal = dialogOperation(ctx);
         const files = [...(qr.control.files ?? [])];
         if (
           files.length > 100 ||
@@ -238,11 +245,15 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         if (files.length) {
           const { readQRs } = await import("../qr");
           const values: string[] = [];
-          for (const f of files) values.push(...(await readQRs(f)));
+          for (const f of files) {
+            signal.throwIfAborted();
+            values.push(...(await readQRs(f, signal)));
+          }
           session.check();
           if (epoch !== session.epoch()) return;
           const imported = parseImport(values.join("\n"), "uri");
-          await preview(imported.accounts, imported.skipped);
+          signal.throwIfAborted();
+          await preview(imported.accounts, imported.skipped, undefined, signal);
         }
       }),
     );
@@ -253,15 +264,17 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           run(async () => {
             try {
               const epoch = session.epoch(),
-                signal = session.cancellationSignal();
+                signal = dialogOperation(ctx);
               const f = file.control.files?.[0];
               const payload = f
                 ? await readText(f)
                 : String(data.get("payload"));
               session.check();
               if (epoch !== session.epoch()) return;
+              signal.throwIfAborted();
               const { detectImport, readDetectedImport } =
                 await import("../import-formats");
+              signal.throwIfAborted();
               const detected = detectImport(payload);
               sourcePassword.wrapper.hidden = !detected.encrypted;
               if (detected.encrypted && !sourcePassword.control.value) {
@@ -280,7 +293,13 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
               if (epoch !== session.epoch()) return;
               area.value = "";
               file.control.value = "";
-              await preview(imported.accounts, imported.skipped, imported.name);
+              signal.throwIfAborted();
+              await preview(
+                imported.accounts,
+                imported.skipped,
+                imported.name,
+                signal,
+              );
             } finally {
               sourcePassword.control.value = "";
             }
@@ -317,12 +336,14 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
       form(
         async (fields) =>
           run(async () => {
+            const signal = dialogOperation(ctx);
             const data = session.accounts(),
               entry = data.accounts.find((x) => x.id === id)!;
             entry.issuer = String(fields.get("issuer"));
             entry.label = String(fields.get("label"));
             entry.group = String(fields.get("group"));
-            await session.save(data);
+            await session.save(data, undefined, undefined, signal);
+            signal.throwIfAborted();
             closeDialog();
             drawAccounts();
           }),
@@ -345,7 +366,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
               "Reveal account QR?",
               "This QR contains the setup secret. Anyone who scans it can generate codes. Scan it in the destination app, compare codes, then close this dialog.",
               "Reveal QR",
-              async () => {
+              async (signal) => {
                 const epoch = session.epoch();
                 const entry = session
                   .accounts()
@@ -363,6 +384,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
                 });
                 session.check();
                 if (epoch !== session.epoch()) return;
+                signal.throwIfAborted();
                 modal(
                   "Account transfer QR",
                   el(
@@ -395,8 +417,9 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
               "Export secret in plaintext?",
               "Anyone with this file can generate codes for this account. Keep it private and remove the file when migration is complete.",
               "Export this account",
-              async () => {
+              async (signal) => {
                 session.check();
+                signal.throwIfAborted();
                 const entry = session
                   .accounts()
                   .accounts.find((x) => x.id === id)!;
@@ -412,10 +435,11 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
               "Delete this account?",
               "Make sure another authenticator or service recovery code works first. This removes the encrypted record without a trash copy. Browser storage cannot guarantee forensic erasure.",
               "Delete account",
-              async () => {
+              async (signal) => {
                 const data = session.accounts();
                 data.accounts = data.accounts.filter((x) => x.id !== id);
-                await session.save(data);
+                await session.save(data, undefined, undefined, signal);
+                signal.throwIfAborted();
                 drawAccounts();
               },
             ),

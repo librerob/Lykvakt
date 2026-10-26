@@ -16,13 +16,17 @@ import { load } from "../storage";
 import { createEnvelope, snapshot } from "../crypto";
 import { toURI, verifyBackup } from "../import";
 import type { Account, VaultData } from "../model";
-import type { AppContext } from "./context";
+import { dialogOperation, type AppContext } from "./context";
 export async function needsBackup(data: VaultData): Promise<boolean> {
   return !data.verifiedAt || data.verifiedSnapshot !== (await snapshot(data));
 }
 export function createRecovery(
   ctx: AppContext,
-  preview: (accounts: Account[]) => Promise<void>,
+  preview: (
+    accounts: Account[],
+    skipped?: import("../import").SkippedEntry[],
+    signal?: AbortSignal,
+  ) => Promise<void>,
 ) {
   const { session, state, run, announce, modal, closeDialog, render } = ctx;
 
@@ -103,8 +107,9 @@ export function createRecovery(
               "Export every setup secret?",
               "This unencrypted file lets anyone generate your codes. It excludes favorites and groups. Keep it private, verify the destination app, then remove the file.",
               "Export all OTP links",
-              async () => {
+              async (signal) => {
                 session.check();
+                signal.throwIfAborted();
                 download(
                   session.accounts().accounts.map(toURI).join("\n") + "\n",
                   "lykvakt-otp-links.txt",
@@ -179,27 +184,23 @@ export function createRecovery(
           run(async () => {
             const password = String(fields.get("password"));
             const data = session.accounts(),
-              epoch = session.epoch();
+              epoch = session.epoch(),
+              signal = dialogOperation(ctx);
             let contents: string;
             announce(busyCopy.backup);
             try {
               if (password !== fields.get("confirmation"))
                 throw new Error("Passphrases do not match.");
-              await verifyMasterPassword(ctx, master.control.value);
+              await verifyMasterPassword(ctx, master.control.value, signal);
               contents = JSON.stringify(
-                (
-                  await createEnvelope(
-                    password,
-                    data,
-                    "backup",
-                    session.cancellationSignal(),
-                  )
-                ).envelope,
+                (await createEnvelope(password, data, "backup", signal))
+                  .envelope,
               );
             } finally {
               f.reset();
             }
             session.check();
+            signal.throwIfAborted();
             if (epoch !== session.epoch()) return;
             download(
               contents,
@@ -241,27 +242,32 @@ export function createRecovery(
             const selected = file.control.files?.[0];
             if (!selected) throw new Error("Choose the backup file you saved.");
             const current = session.accounts(),
-              epoch = session.epoch();
+              epoch = session.epoch(),
+              signal = dialogOperation(ctx);
             const passwordValue = password.control.value;
             let result: Awaited<ReturnType<typeof verifyBackup>>;
             announce(busyCopy.verify);
             try {
+              const text = await readText(selected);
+              signal.throwIfAborted();
               result = await verifyBackup(
-                JSON.parse(await readText(selected)),
+                JSON.parse(text),
                 passwordValue,
                 current,
-                session.cancellationSignal(),
+                signal,
               );
             } finally {
               f.reset();
             }
             session.check();
+            signal.throwIfAborted();
             if (epoch !== session.epoch()) return;
             if (result.matches) {
               const updated = session.accounts();
               updated.verifiedAt = new Date().toISOString();
               updated.verifiedSnapshot = result.fingerprint;
-              await session.save(updated);
+              await session.save(updated, undefined, undefined, signal);
+              signal.throwIfAborted();
             }
             modal(
               "Restoration tested",
@@ -289,7 +295,15 @@ export function createRecovery(
                   ? null
                   : button(
                       "Preview safe merge",
-                      () => run(() => preview(result.data.accounts)),
+                      () =>
+                        run(() => {
+                          dialogOperation(ctx).throwIfAborted();
+                          return preview(
+                            result.data.accounts,
+                            [],
+                            dialogOperation(ctx),
+                          );
+                        }),
                       "button tonal",
                     ),
                 button(
@@ -324,40 +338,53 @@ export function createRecovery(
       form(
         async (_fields, f) =>
           run(async () => {
-            if (await load())
-              throw new Error(
-                "A vault already exists. Unlock it and use the safe merge workflow.",
+            const epoch = session.epoch(),
+              signal = dialogOperation(ctx);
+            try {
+              if (await load())
+                throw new Error(
+                  "A vault already exists. Unlock it and use the safe merge workflow.",
+                );
+              signal.throwIfAborted();
+              const selected = file.control.files?.[0];
+              if (!selected) throw new Error("Choose an encrypted backup.");
+              if (password.control.value !== confirm.control.value)
+                throw new Error("Passwords do not match.");
+              const masterPassword = password.control.value;
+              announce(busyCopy.verify);
+              const text = await readText(selected);
+              signal.throwIfAborted();
+              const result = await verifyBackup(
+                JSON.parse(text),
+                backup.control.value,
+                undefined,
+                signal,
               );
-            const selected = file.control.files?.[0];
-            if (!selected) throw new Error("Choose an encrypted backup.");
-            if (password.control.value !== confirm.control.value)
-              throw new Error("Passwords do not match.");
-            const epoch = session.epoch();
-            announce(busyCopy.verify);
-            const result = await verifyBackup(
-              JSON.parse(await readText(selected)),
-              backup.control.value,
-              undefined,
-              session.cancellationSignal(),
-            );
-            if (epoch !== session.epoch())
-              throw new Error("Recovery cancelled by locking.");
-            const masterPassword = password.control.value;
-            f.reset();
-            announce(busyCopy.setup);
-            await session.setup(masterPassword, {
-              ...result.data,
-              verifiedAt: null,
-              verifiedSnapshot: null,
-            });
-            state.exists = true;
-            state.firstRunTip = true;
-            savePreference("firstRunTips", "true");
-            closeDialog();
-            render();
-            announce(
-              `Recovered ${result.count} account(s). Verify their codes before retiring your previous authenticator.`,
-            );
+              signal.throwIfAborted();
+              if (epoch !== session.epoch())
+                throw new Error("Recovery cancelled by locking.");
+              f.reset();
+              announce(busyCopy.setup);
+              await session.setup(
+                masterPassword,
+                { ...result.data, verifiedAt: null, verifiedSnapshot: null },
+                signal,
+              );
+              state.exists = true;
+              if (!session.unlocked) {
+                render();
+                return;
+              }
+              state.firstRunTip = true;
+              savePreference("firstRunTips", "true");
+              closeDialog();
+              render();
+              announce(
+                `Recovered ${result.count} account(s). Verify their codes before retiring your previous authenticator.`,
+              );
+            } finally {
+              f.reset();
+            }
           }),
         file.wrapper,
         backup.wrapper,
