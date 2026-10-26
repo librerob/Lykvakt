@@ -39,4 +39,17 @@ Steam support covers sign-in codes only, with masking, copy, countdown and optio
 
 Argon2id and Web Crypto AES-GCM/AES-KW protect the local vault. Permission: exactly `["clipboardWrite"]`. No server, telemetry, remote code, host permissions or WebAssembly in the extension. TOTP is phishable; a compromised device can read unlocked secrets.
 
+## Small by design
+
+Lykvakt is meant to stay as small, minimal and tightly restricted as possible. It keeps setup secrets encrypted locally and generates sign-in codes. Import readers, QR tools, passphrase words and password-derivation code load only when needed.
+
+- **One permission: `clipboardWrite`.** Copying a code is the only privileged browser operation it requests.
+- **No access to web pages.** No content scripts or host permissions; it never reads or changes page content.
+- **No background script or service worker.** The vault runs in its extension page and locks when that page is hidden or closed.
+- **No external messaging endpoint.** There is no `externally_connectable` setting or external-message handler.
+- **A strict Content Security Policy.** Only bundled scripts can run. External connections, remote scripts, inline scripts, evaluated code, frames and embedded objects are blocked.
+- **No developer server, telemetry, advertising or shipped WebAssembly.** Accounts and imports are processed on your device.
+
+This keeps browser access narrow instead of granting broad access to your sites or an always-running process. Permission, CSP and bundled-runtime checks run with every build.
+
 Read the [design and recovery guide](docs/design.md), [privacy policy](PRIVACY.md), and [security policy](SECURITY.md). Original code is GPL-3.0-or-later; bundled components retain their license notices.
