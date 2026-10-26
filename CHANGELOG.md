@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0-rc.1 — 26 October 2026
+
+Unaudited development preview; use test accounts and keep your existing authenticator.
+
+- Detect supported import formats from content; show the format, preview and every skipped entry before confirmation. Keep 8 MB and 2,000-entry limits, bound JSON depth and report unknown files with help.
+- Add small plaintext readers for andOTP, Bitwarden OTP fields, Raivo, Proton Authenticator and Stratum; reuse setup-link parsing for Ente and FreeOTP/FreeOTP+.
+- Open password-protected Aegis (bounded, yielding scrypt/AES-GCM) and 2FAS schema 4 (Web Crypto PBKDF2/AES-GCM) locally, with cancellation and no saved source password.
+- Add Steam sign-in codes, .maFile and Aegis imports, transfer links, masking, reveal, copy, countdown and next preview. No trade/market confirmations. Keep current payload schema 3 with an additional strictly validated account type; earlier schemas still get the existing migration screen. Older builds cannot read accounts of this new type.
+- Keep permissions exactly ["clipboardWrite"], no network or WebAssembly, and the same exact-pinned dependencies. New parsers, decryption, scrypt and Steam generation load only when used.
+- Upstream sources and synthetic fixtures are documented in the design guide. Real exports and phone interoperability have not been verified.
+
 ## 0.4.0-rc.1 — 25 October 2026
 
 **Before you update: export your accounts from the old version through Recovery → Export plaintext OTP links. Earlier previews cannot be opened by this version. Keep the export private and verify the import before removing it.** If you no longer have the old version, reinstall it in the same folder (same extension), export through Recovery → Export plaintext OTP links, then update.

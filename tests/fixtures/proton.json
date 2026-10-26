@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "synthetic-id",
+      "content": {
+        "uri": "otpauth://totp/Synthetic:alice?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=Synthetic",
+        "entry_type": "Totp",
+        "name": "alice"
+      },
+      "note": null
+    }
+  ]
+}

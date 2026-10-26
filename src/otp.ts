@@ -99,5 +99,16 @@ export async function codeFor(
     a.type === "hotp"
       ? BigInt(a.counter)
       : BigInt(Math.floor(milliseconds / 1000 / a.period));
-  return hotp(a.secret, counter, a.algorithm, a.digits);
+  if (a.type === "steam") {
+    if (
+      a.algorithm !== "SHA-1" ||
+      a.digits !== 5 ||
+      a.period !== 30 ||
+      a.counter !== "0"
+    )
+      throw new Error("Unsupported Steam settings.");
+    const { steamCode } = await import("./steam");
+    return steamCode(a.secret, counter);
+  }
+  return hotp(a.secret, counter, a.algorithm, a.digits as 6 | 8);
 }

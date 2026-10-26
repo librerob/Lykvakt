@@ -33,7 +33,13 @@ it("keeps the exact permission set and reserved shortcut without background or p
 it.each(["README.md", "docs/design.md"])(
   "%s states the intentional old-preview format break",
   (path) => {
-    expect(read(path)).toContain("Earlier previews cannot be opened");
-    expect(read(path)).toContain("Export plaintext OTP links");
+    if (path === "README.md") {
+      expect(read(path)).toContain(
+        "[design and recovery guide](docs/design.md)",
+      );
+    } else {
+      expect(read(path)).toContain("Earlier previews cannot be opened");
+      expect(read(path)).toContain("Export plaintext OTP links");
+    }
   },
 );

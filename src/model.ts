@@ -7,9 +7,9 @@ export interface Account {
   issuer: string;
   label: string;
   secret: string;
-  type: "totp" | "hotp";
+  type: "totp" | "hotp" | "steam";
   algorithm: Algorithm;
-  digits: 6 | 8;
+  digits: 5 | 6 | 8;
   period: number;
   counter: string;
   favorite: boolean;
@@ -64,7 +64,7 @@ export function validateAccount(value: unknown): Account {
     "algorithm,counter,digits,favorite,group,id,issuer,label,period,secret,type"
   )
     throw new Error("Unsupported account fields.");
-  if (a.type !== "totp" && a.type !== "hotp")
+  if (a.type !== "totp" && a.type !== "hotp" && a.type !== "steam")
     throw new Error("Unsupported OTP type.");
   if (
     a.algorithm !== "SHA-1" &&
@@ -72,8 +72,18 @@ export function validateAccount(value: unknown): Account {
     a.algorithm !== "SHA-512"
   )
     throw new Error("Unsupported hash algorithm.");
-  if (a.digits !== 6 && a.digits !== 8)
+  if (
+    a.type === "steam" &&
+    (a.algorithm !== "SHA-1" ||
+      a.digits !== 5 ||
+      a.period !== 30 ||
+      a.counter !== "0")
+  )
+    throw new Error("Unsupported OTP type or Steam settings.");
+  if (a.type !== "steam" && a.digits !== 6 && a.digits !== 8)
     throw new Error("Only six or eight digit codes are supported.");
+  if (a.digits !== 5 && a.digits !== 6 && a.digits !== 8)
+    throw new Error("Unsupported code length.");
   if (typeof a.favorite !== "boolean") throw new Error("Invalid favorite.");
   return {
     id: text(a.id, 100, false),

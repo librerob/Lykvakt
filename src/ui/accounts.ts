@@ -4,8 +4,13 @@ import { emptySearchMessage } from "../help";
 import { preferenceEnabled, savePreference } from "../preferences";
 import { codeFor } from "../otp";
 import { needsBackup } from "./recovery";
-import { createEnrollment } from "./enrollment";
+import type { Account } from "../model";
+import type { SkippedEntry } from "../import-result";
 import type { AppContext } from "./context";
+const groupCode = (code: string) =>
+  code.length === 5
+    ? code.slice(0, 2) + " " + code.slice(2)
+    : code.slice(0, code.length / 2) + " " + code.slice(code.length / 2);
 export function createAccounts(ctx: AppContext) {
   const { session, run, announce, confirmAction } = ctx;
   let search = "",
@@ -17,6 +22,7 @@ export function createAccounts(ctx: AppContext) {
   let backupEpoch = 0;
   let backupNotice: HTMLElement | undefined;
   const revealed = new Map<string, ReturnType<typeof setTimeout>>();
+  const masks = new Map<HTMLElement, string>();
   const alwaysShow = () => preferenceEnabled("alwaysShowCodes");
   function maskAll() {
     for (const timer of revealed.values()) clearTimeout(timer);
@@ -26,17 +32,28 @@ export function createAccounts(ctx: AppContext) {
     string,
     { step: string; code: string; next?: string }
   >();
-  const { addAccount, preview, importAccounts, editAccount } = createEnrollment(
-    ctx,
-    drawAccounts,
-  );
+  async function enrollment() {
+    const epoch = session.epoch();
+    const { createEnrollment } = await import("./enrollment");
+    session.check();
+    if (epoch !== session.epoch())
+      throw new Error("Account action cancelled by locking.");
+    return createEnrollment(ctx, drawAccounts);
+  }
+  const addAccount = () => run(async () => (await enrollment()).addAccount());
+  const importAccounts = () =>
+    run(async () => (await enrollment()).importAccounts());
+  const editAccount = (id: string) =>
+    run(async () => (await enrollment()).editAccount(id));
+  const preview = async (accounts: Account[], skipped: SkippedEntry[] = []) =>
+    (await enrollment()).preview(accounts, skipped);
   function clear() {
     displayEpoch++;
     backupEpoch++;
     backupNotice = undefined;
     maskAll();
     for (const code of list?.querySelectorAll<HTMLElement>(".otp") ?? []) {
-      code.textContent = "••• •••";
+      code.textContent = masks.get(code) ?? "••• •••";
       code.setAttribute("aria-label", "Code hidden");
       code.setAttribute("aria-pressed", "false");
     }
@@ -45,6 +62,7 @@ export function createAccounts(ctx: AppContext) {
       next.hidden = true;
       next.querySelector(".next-code-value")!.textContent = "";
     }
+    masks.clear();
     codeCache.clear();
     matchingIds = [];
     searchControl = undefined;
@@ -192,6 +210,7 @@ export function createAccounts(ctx: AppContext) {
           a.label.localeCompare(b.label),
       );
     matchingIds = accounts.map((account) => account.id);
+    masks.clear();
     const rows = accounts.map((a) => {
       const next = el(
         "div",
@@ -204,8 +223,9 @@ export function createAccounts(ctx: AppContext) {
       );
       next.hidden = true;
       const label = `${a.issuer} ${a.label}`;
+      const mask = a.type === "steam" ? "•• •••" : "••• •••";
       const code = button(
-        "••• •••",
+        mask,
         () =>
           run(async () => {
             session.check();
@@ -219,7 +239,7 @@ export function createAccounts(ctx: AppContext) {
                 a.id,
                 setTimeout(() => {
                   revealed.delete(a.id);
-                  code.textContent = "••• •••";
+                  code.textContent = mask;
                   next.hidden = true;
                   next.querySelector(".next-code-value")!.textContent = "";
                   code.setAttribute(
@@ -236,9 +256,10 @@ export function createAccounts(ctx: AppContext) {
       );
       code.setAttribute("aria-label", `Reveal code for ${label} (hidden)`);
       code.setAttribute("aria-pressed", "false");
+      masks.set(code, mask);
       code.setAttribute("title", "Reveal or hide this code");
       const remaining = el("span", { class: "remaining", role: "img" });
-      if (a.type === "totp")
+      if (a.type !== "hotp")
         remaining.append(
           svg(
             "svg",
@@ -322,7 +343,7 @@ export function createAccounts(ctx: AppContext) {
           "div",
           { class: "code-cell" },
           code,
-          a.type === "totp" ? next : null,
+          a.type !== "hotp" ? next : null,
         ),
         remaining,
         el(
@@ -386,7 +407,7 @@ export function createAccounts(ctx: AppContext) {
           codeCache.set(a.id, cached);
         }
         if (epoch !== displayEpoch || !session.unlocked) return;
-        const preview = preferenceEnabled("showNextCode") && a.type === "totp";
+        const preview = preferenceEnabled("showNextCode") && a.type !== "hotp";
         if (preview && (alwaysShow() || revealed.has(a.id)) && !cached.next) {
           cached.next = await codeFor(a, now + a.period * 1000);
           if (epoch !== displayEpoch || !session.unlocked) return;
@@ -397,18 +418,14 @@ export function createAccounts(ctx: AppContext) {
           next.hidden = !preview || !visible;
           const value = next.querySelector(".next-code-value")!;
           value.textContent =
-            preview && visible && cached.next
-              ? cached.next.slice(0, cached.next.length / 2) +
-                " " +
-                cached.next.slice(cached.next.length / 2)
-              : "";
+            preview && visible && cached.next ? groupCode(cached.next) : "";
         }
         const code = row.querySelector(".otp")!;
         code.textContent = visible
-          ? cached.code.slice(0, cached.code.length / 2) +
-            " " +
-            cached.code.slice(cached.code.length / 2)
-          : "••• •••";
+          ? groupCode(cached.code)
+          : a.type === "steam"
+            ? "•• •••"
+            : "••• •••";
         code.setAttribute("aria-pressed", String(visible));
         code.setAttribute(
           "aria-label",
@@ -435,7 +452,7 @@ export function createAccounts(ctx: AppContext) {
             `${remaining} seconds remaining${remaining <= 5 ? ", expiring soon" : ""}`,
           );
         }
-        row.classList.toggle("expiring", a.type === "totp" && remaining <= 5);
+        row.classList.toggle("expiring", a.type !== "hotp" && remaining <= 5);
       }),
     );
   }

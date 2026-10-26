@@ -1,0 +1,1 @@
+otpauth://hotp/Synthetic:alice?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&digits=6&period=30&counter=42

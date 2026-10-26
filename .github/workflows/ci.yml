@@ -35,12 +35,12 @@ jobs:
       - run: node scripts/metrics.mjs artifacts/metrics-after.json
       - run: node tests/performance.mjs artifacts/popup-after.json
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        if: github.event_name == 'pull_request' && github.head_ref == 'minimal-1'
+        if: github.event_name == 'pull_request' && github.head_ref == 'imports-1'
         with:
-          ref: 91a24aad9891dc893caf2c4f963b197a6b951b88
+          ref: ea5d79f22ade26579533ffe961150a03566b7845
           path: .baseline
-      - name: Measure the PR before these follow-ups on this same runner
-        if: github.event_name == 'pull_request' && github.head_ref == 'minimal-1'
+      - name: Measure pre-import main on this same runner
+        if: github.event_name == 'pull_request' && github.head_ref == 'imports-1'
         run: |
           cd .baseline
           npm ci --ignore-scripts

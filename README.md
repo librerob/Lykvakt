@@ -1,10 +1,6 @@
 # Lykvakt
 
-A small offline TOTP/HOTP authenticator for Chrome. Lykvakt is a coined Nordic-inspired name meant to evoke watching over your keys. It is a personal, open-source project built for long-term independent use.
-
-**Unaudited preview. Use test accounts and keep your existing authenticator.**
-
-**Before updating: export your accounts from the old version. Earlier previews cannot be opened by this version.** In the old app, choose Recovery → Export plaintext OTP links, then import the file into a fresh vault here. Keep the export private and remove temporary copies after checking the new app. If you no longer have the old version, reinstall it in the same folder (same extension), export through Recovery → Export plaintext OTP links, then update.
+A small offline TOTP/HOTP and Steam sign-in authenticator for Chrome. Lykvakt is a coined Nordic-inspired name meant to evoke watching over your keys. It is a personal, open-source project built for long-term independent use.
 
 ![Authenticator with synthetic accounts](docs/screenshots/accounts-amoled.png)
 
@@ -37,7 +33,9 @@ Click a row to copy its current code. Reveal is separate and lasts 30 seconds. T
 
 Ctrl+Shift+Y opens the popup (Command+Shift+Y on Mac). Rebind at chrome://extensions/shortcuts. Type an account name before Enter-to-copy; the message names the copied account.
 
-Save an encrypted backup outside the browser, then use Recovery to test the actual saved file. There is no password reset. Standard OTP links, QR images, Google transfers and supported plaintext Aegis/2FAS exports make accounts portable.
+Save an encrypted backup outside the browser, then use Recovery to test the actual saved file. There is no password reset. Imports recognise the format automatically: OTP link lists (including Ente and FreeOTP/FreeOTP+), QR images, complete Google transfers, Aegis and 2FAS (plaintext or password-protected), andOTP plaintext JSON, Bitwarden JSON OTP fields, Raivo JSON, Proton Authenticator plaintext JSON, Stratum plaintext JSON and Steam `.maFile` files. Every import is previewed; skipped entries are reported before you save.
+
+Steam support covers sign-in codes only, with masking, copy, countdown and optional next-code preview. It cannot approve trades or market confirmations. Steam setup links need a destination supporting `otpauth://steam`; keep another working authenticator. Parsers are based on the linked upstream formats and synthetic fixtures, not real-export interoperability testing.
 
 Argon2id and Web Crypto AES-GCM/AES-KW protect the local vault. Permission: exactly `["clipboardWrite"]`. No server, telemetry, remote code, host permissions or WebAssembly in the extension. TOTP is phishable; a compromised device can read unlocked secrets.
 

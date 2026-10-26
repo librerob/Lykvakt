@@ -38,6 +38,12 @@ async function scan(dir) {
       if (/\b(?:argon2InitialHash|argon2idAsync|deriveKeyHere)\b/.test(code))
         engines.push(path);
       assert(
+        !/\b(?:fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon)\s*\(/.test(
+          code,
+        ),
+        "Forbidden network API: " + path,
+      );
+      assert(
         !/\bWebAssembly\b/.test(code),
         "Forbidden compiled runtime: " + path,
       );

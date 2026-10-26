@@ -1,0 +1,9 @@
+{
+  "shared_secret": "MTIzNDU2Nzg5MDEyMzQ1Njc4OTA=",
+  "account_name": "synthetic-steam",
+  "identity_secret": "DO_NOT_IMPORT_TRADE_SECRET",
+  "revocation_code": "DO_NOT_IMPORT_REVOCATION",
+  "Session": {
+    "OAuthToken": "DO_NOT_IMPORT_SESSION"
+  }
+}

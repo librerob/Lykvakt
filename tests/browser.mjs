@@ -1233,6 +1233,166 @@ try {
       }
     },
   );
+  await check(
+    "auto-detected formats preview locally, unknown files explain the next step, and encrypted files require the source password",
+    async () => {
+      const prior = page;
+      const isolated = await launch(
+        await mkdtemp(join(tmpdir(), "lykvakt-imports-")),
+      );
+      isolated.on("request", (request) => {
+        if (/^https?:/.test(request.url())) network.push(request.url());
+      });
+      page = await isolated.newPage();
+      page.on("pageerror", (error) => errors.push(error.message));
+      try {
+        await page.goto(base);
+        await page
+          .getByLabel("Create a master password", { exact: true })
+          .fill(password);
+        await page
+          .getByLabel("Confirm master password", { exact: true })
+          .fill(password);
+        await click("Create encrypted vault");
+        await expect(
+          page.getByLabel("Search accounts", { exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+        const previewFile = async (name) => {
+          await click("Import accounts");
+          await expect(
+            page.getByLabel("Import format", { exact: true }),
+          ).toHaveCount(0);
+          await page
+            .getByLabel("Or select an export file", { exact: true })
+            .setInputFiles(resolve("tests/fixtures/" + name));
+          await click("Preview import");
+        };
+        for (const [name, title, count] of [
+          ["andotp.json", "andOTP plaintext JSON", 1],
+          ["bitwarden.json", "Bitwarden JSON (OTP fields only)", 2],
+          ["raivo.json", "Raivo OTP JSON", 1],
+          ["proton.json", "Proton Authenticator plaintext JSON", 1],
+          ["stratum.json", "Stratum plaintext JSON", 1],
+          ["aegis.json", "Aegis", 2],
+          ["2fas.json", "2FAS", 1],
+          ["ente.txt", "OTP links", 1],
+          ["freeotp.txt", "OTP links", 1],
+          ["freeotpplus.txt", "OTP links", 1],
+        ]) {
+          await previewFile(name);
+          await expect(page.getByRole("dialog")).toContainText(
+            "Detected format: " + title,
+          );
+          await expect(page.getByRole("dialog")).toContainText(
+            count + " new account(s)",
+          );
+          if (name === "bitwarden.json")
+            await expect(page.getByRole("dialog")).toContainText(
+              "1 skipped entry(s)",
+            );
+          await expect(page.locator(".account")).toHaveCount(0);
+          await click("Close");
+        }
+        await click("Import accounts");
+        await page
+          .getByLabel("OTP URIs or export text")
+          .fill('{"unrelated":"synthetic"}');
+        await click("Preview import");
+        await expect(page.getByRole("status")).toContainText(
+          "couldn't recognise",
+        );
+        await keyboardHelp(page.getByRole("dialog"), true);
+        await helpAxe("import-help");
+        await screenshot("import-help");
+        await click("Close");
+        for (const name of ["aegis", "2fas"]) {
+          await previewFile(name + "-encrypted.json");
+          const source = page.getByLabel("Export file password", {
+            exact: true,
+          });
+          await expect(source).toBeVisible();
+          await source.fill("wrong source password");
+          await click("Preview import");
+          await expect(page.getByRole("status")).toContainText(
+            "password didn't work",
+          );
+          await expect(source).toHaveValue("");
+          await expect(page.locator(".account")).toHaveCount(0);
+          await source.fill("synthetic source password å");
+          await click("Preview import");
+          await expect(page.getByRole("dialog")).toContainText("Review import");
+          await expect(page.getByRole("dialog")).toContainText(
+            "Detected format: " + (name === "aegis" ? "Aegis" : "2FAS"),
+          );
+          await expect(page.locator(".account")).toHaveCount(0);
+          await click("Close");
+        }
+        await previewFile("steam.maFile");
+        await expect(page.getByRole("dialog")).toContainText(
+          "Steam · 5 characters · 30 seconds",
+        );
+        await click("Import 1 account(s)");
+        const row = page.locator(".account");
+        await expect(row).toHaveCount(1);
+        await expect(row.locator(".otp")).toHaveText("•• •••");
+        await row.locator(".row-copy").click({ position: { x: 12, y: 12 } });
+        await expect(page.getByRole("status")).toContainText(
+          "Copied code for Steam synthetic-steam",
+        );
+        await expect(row.locator(".otp")).toHaveText("•• •••");
+        await click("Settings");
+        await page.getByLabel("Show next code", { exact: true }).check();
+        await click("Authenticator");
+        await row.locator(".otp").click();
+        await expect(row.locator(".otp")).toHaveText(
+          /^[23456789BCDFGHJKMNPQRTVWXY]{2} [23456789BCDFGHJKMNPQRTVWXY]{3}$/,
+        );
+        await expect(row.locator(".next-code")).toBeVisible();
+        await expect(row.locator(".next-code-value")).toHaveText(
+          /^[23456789BCDFGHJKMNPQRTVWXY]{2} [23456789BCDFGHJKMNPQRTVWXY]{3}$/,
+        );
+        await expect(row.locator(".remaining")).toHaveAccessibleName(
+          /seconds remaining/,
+        );
+        await helpAxe("steam-codes");
+        await screenshot("steam-codes");
+        await openMore(row);
+        await row.getByRole("button", { name: "Edit", exact: true }).click();
+        await click("Show transfer QR…");
+        await page
+          .getByLabel("Master password", { exact: true })
+          .fill(password);
+        await click("Reveal QR");
+        await expect(page.getByRole("dialog")).toContainText(
+          "Only apps supporting otpauth://steam",
+        );
+        const image = await page.locator(".transfer-qr").getAttribute("src");
+        await click("Close");
+        await click("Import accounts");
+        await page
+          .getByLabel("Read a QR image locally", { exact: true })
+          .setInputFiles({
+            name: "synthetic-steam.png",
+            mimeType: "image/png",
+            buffer: Buffer.from(image.split(",")[1], "base64"),
+          });
+        await expect(page.getByRole("dialog")).toContainText(
+          "1 exact duplicate(s)",
+        );
+        await expect(page.getByRole("dialog")).toContainText(
+          "0 new account(s)",
+        );
+        await click("Close");
+        await click("Lock");
+        await unlock();
+        await expect(page.locator(".account .otp")).toHaveText("•• •••");
+      } finally {
+        await isolated.close();
+        page = prior;
+        await page.bringToFront();
+      }
+    },
+  );
   await check("every help topic was opened with the keyboard", async () => {
     for (const topic of [
       "account",
