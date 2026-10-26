@@ -4,6 +4,7 @@
 
 Unaudited development preview; use test accounts and keep your existing authenticator.
 
+- Polish the 56 px account rows: a 22 px clockwise countdown with seconds inside during the last ten seconds, pink in the last five, fixed lanes and full-name/counter tooltips.
 - Detect supported import formats from content; show the format, preview and every skipped entry before confirmation. Keep 8 MB and 2,000-entry limits, bound JSON depth and report unknown files with help.
 - Add small plaintext readers for andOTP, Bitwarden OTP fields, Raivo, Proton Authenticator and Stratum; reuse setup-link parsing for Ente and FreeOTP/FreeOTP+.
 - Open password-protected Aegis (bounded, yielding scrypt/AES-GCM) and 2FAS schema 4 (Web Crypto PBKDF2/AES-GCM) locally, with cancellation and no saved source password.

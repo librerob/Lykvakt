@@ -73,7 +73,7 @@ Password change verifies the current password, generates a fresh vault key and s
 
 Each account has one compact row. Clicking or pressing its copy target copies the current code without revealing it. The small code control explicitly reveals/hides it and has an accessible name. Reveal re-masks after 30 seconds, navigation or lock. Always show codes remains optional and starts off.
 
-A small stepped ring shows the TOTP period. The last five seconds use pink plus a visible text label; information never relies on color alone. HOTP rows show their counter. More is a native details disclosure containing Edit, favorite and confirmed counter advancement.
+A 22 px stepped ring shows the TOTP period with a full-circle track and a thin arc that depletes clockwise from 12 o’clock. The last ten seconds show a whole-second number inside it; the last five also use pink. There is no spinning animation or transition, including with reduced motion. HOTP rows show their counter. Fixed row lanes keep names, codes, the ring/counter and More separate at 360, 400 and 480 px; long names and counters are clipped with full tooltips and accessible names. Rows stay 56 px tall, including the next-code preview. More has a 36×36 px minimum target and is a native details disclosure containing Edit, favorite and confirmed counter advancement.
 
 Next-code preview is optional and starts off. It stays hidden with the current code and supports custom periods, six/eight digits and SHA-1/256/512. It never appears for HOTP, and Copy always uses the current code.
 

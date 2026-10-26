@@ -277,15 +277,19 @@ export function createAccounts(ctx: AppContext) {
       code.setAttribute("aria-pressed", "false");
       masks.set(code, mask);
       code.setAttribute("title", "Reveal or hide this code");
-      const remaining = el("span", { class: "remaining", role: "img" });
+      const remaining = el("span", {
+        class: a.type === "hotp" ? "remaining counter" : "remaining",
+        role: "img",
+        ...(a.type === "hotp" ? { title: `Counter ${a.counter}` } : {}),
+      });
       if (a.type !== "hotp")
         remaining.append(
           svg(
             "svg",
             {
               viewBox: "0 0 24 24",
-              width: "20",
-              height: "20",
+              width: "22",
+              height: "22",
               "aria-hidden": "true",
             },
             svg("circle", { cx: "12", cy: "12", r: "9", class: "ring-track" }),
@@ -298,7 +302,7 @@ export function createAccounts(ctx: AppContext) {
               "stroke-dasharray": "100",
             }),
           ),
-          el("span", { class: "expiring-label", "aria-hidden": "true" }),
+          el("span", { class: "ring-number", "aria-hidden": "true" }),
         );
       const copy = button(
         "Copy",
@@ -306,6 +310,10 @@ export function createAccounts(ctx: AppContext) {
         "button row-copy",
       );
       copy.setAttribute("aria-label", `Copy code for ${label}`);
+      copy.setAttribute(
+        "title",
+        label + (a.type === "hotp" ? ` · Counter ${a.counter}` : ""),
+      );
       const favorite = button(
         a.favorite ? "★" : "☆",
         () =>
@@ -354,9 +362,9 @@ export function createAccounts(ctx: AppContext) {
         copy,
         el(
           "div",
-          { class: "account-name" },
-          el("h2", {}, a.issuer || a.label),
-          el("p", {}, a.label),
+          { class: "account-name", role: "group", "aria-label": label },
+          el("h2", { title: a.issuer || a.label }, a.issuer || a.label),
+          el("p", { title: a.label }, a.label),
         ),
         el(
           "div",
@@ -462,10 +470,10 @@ export function createAccounts(ctx: AppContext) {
             .querySelector(".ring-progress")!
             .setAttribute(
               "stroke-dashoffset",
-              String(100 * (1 - remaining / a.period)),
+              String(-100 * (1 - remaining / a.period)),
             );
-          indicator.querySelector(".expiring-label")!.textContent =
-            remaining <= 5 ? `${remaining}s left` : "";
+          indicator.querySelector(".ring-number")!.textContent =
+            remaining <= 10 ? String(remaining) : "";
           indicator.setAttribute(
             "aria-label",
             `${remaining} seconds remaining${remaining <= 5 ? ", expiring soon" : ""}`,
