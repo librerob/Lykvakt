@@ -91,6 +91,8 @@ Fresh-profile recovery creates an independent local vault only when none exists.
 
 OTP links preserve OTP settings; Steam uses the documented Ente otpauth://steam host, with explicit digits=5 and period=30. Only compatible destination apps can read those links. Per-account transfer QR and bulk plaintext export require fresh master-password verification. These exports contain secrets. They do not preserve every app's groups/favorites. Names containing colons, surrounding spaces, an unprefixed dot segment or ill-formed Unicode require explicit approval of transfer names; saved account names are unchanged. Long OTP links can omit the repeated issuer prefix while retaining the issuer parameter, keeping output within the existing 5,000-character reader limit.
 
+Google transfer decoding counts every field, including unknown ones: at most 2,032 per message and 32 per account. Known byte fields have independent limits (4,096-byte account messages, 640-byte secrets, 2,048-byte names and 800-byte issuers). Unknown fields within the budget are skipped without keeping or copying their bodies; known bytes share the bounded input buffer, which is cleared after parsing. Large encrypted binary fields use a linear Base64 scan with decoded-size checks before allocation.
+
 Supported formats and their source contracts are listed below. Preview reports every skipped entry and requires confirmation. Battle.net and unsupported variants are rejected or reported explicitly. No passwords, trade secrets or unrelated fields are copied into accounts.
 
 Compare destination codes/settings before retiring an authenticator. Import compatibility is not exhaustive phone interoperability certification.

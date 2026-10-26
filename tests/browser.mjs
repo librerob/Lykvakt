@@ -456,6 +456,39 @@ try {
       await click("Close");
     },
   );
+  await check(
+    "oversized Google transfer field lists are rejected without saving accounts",
+    async () => {
+      const before = await page.locator(".account").count();
+      const raw = [];
+      for (let field = 10; field < 3010; field++) {
+        let tag = field * 8;
+        do {
+          raw.push((tag & 127) | (tag > 127 ? 128 : 0));
+          tag = Math.floor(tag / 128);
+        } while (tag);
+        raw.push(1);
+      }
+      const transfer =
+        "otpauth-migration://offline?data=" +
+        encodeURIComponent(Buffer.from(raw).toString("base64"));
+      await click("Import accounts");
+      await page
+        .getByLabel("Or select an export file", { exact: true })
+        .setInputFiles({
+          name: "synthetic-bounded-transfer.txt",
+          mimeType: "text/plain",
+          buffer: Buffer.from(transfer),
+        });
+      await click("Preview import");
+      await expect(page.locator(".dialog-status")).toContainText(
+        "Too many transfer fields",
+      );
+      await expect(page.getByRole("dialog")).not.toContainText("Review import");
+      await expect(page.locator(".account")).toHaveCount(before);
+      await click("Close");
+    },
+  );
   await check("account QR export round trip", async () => {
     const row = page
       .locator(".account")
@@ -690,6 +723,28 @@ try {
     await screenshot("backup-verified");
     await click("Done");
   });
+  await check(
+    "a near-limit encrypted file restores all 2000 accounts without replacing the active vault",
+    async () => {
+      await click("Verify or restore a backup");
+      await page
+        .getByLabel("Encrypted backup file", { exact: true })
+        .setInputFiles(resolve("artifacts/review-large-backup.json"));
+      await page
+        .getByLabel("Backup passphrase", { exact: true })
+        .fill("synthetic large backup password");
+      await click("Decrypt & test restoration");
+      await expect(page.getByRole("dialog")).toContainText(
+        "2000 account(s) decrypted",
+        { timeout: 60000 },
+      );
+      await expect(page.getByRole("dialog")).toContainText(
+        "This file differs from the current vault",
+      );
+      await expect(page.locator(".account")).toHaveCount(0);
+      await click("Done");
+    },
+  );
   await check(
     "a verified snapshot clears the reminder until an account changes",
     async () => {

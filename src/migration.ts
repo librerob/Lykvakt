@@ -27,22 +27,37 @@ class Reader {
     }
     throw new Error("Invalid transfer integer.");
   }
-  fields(): Map<number, (bigint | Uint8Array)[]> {
+  fields(
+    schema: Readonly<Record<number, number>>,
+    maxFields: number,
+  ): Map<number, (bigint | Uint8Array)[]> {
     const fields = new Map<number, (bigint | Uint8Array)[]>();
+    let count = 0;
     while (this.offset < this.data.length) {
+      if (++count > maxFields) throw new Error("Too many transfer fields.");
       const tag = this.varint();
       const field = Number(tag >> 3n),
         wire = Number(tag & 7n);
       if (field < 1 || field > 0x1fffffff)
         throw new Error("Invalid transfer field.");
+      const limit = schema[field];
       let value: bigint | Uint8Array;
-      if (wire === 0) value = this.varint();
-      else if (wire === 2) {
+      if (wire === 0) {
+        value = this.varint();
+        if (limit === undefined) continue;
+        if (limit !== 0) throw new Error("Invalid transfer field type.");
+      } else if (wire === 2) {
         const length = this.varint();
         if (length > BigInt(this.data.length - this.offset))
           throw new Error("Truncated transfer field.");
-        value = this.data.slice(this.offset, this.offset + Number(length));
+        const start = this.offset;
         this.offset += Number(length);
+        if (limit === undefined) continue;
+        if (limit === 0) throw new Error("Invalid transfer field type.");
+        if (length > BigInt(limit))
+          throw new Error("Transfer field exceeds its size limit.");
+        // Known fields share the bounded input; unknown fields are never retained.
+        value = this.data.subarray(start, this.offset);
       } else throw new Error("Unsupported transfer encoding.");
       const values = fields.get(field) ?? [];
       if (values.length >= MAX_ACCOUNTS)
@@ -105,31 +120,39 @@ export function parseMigration(input: string, partial = false): Transfer {
     throw new Error("Invalid transfer base64.");
   let raw: Uint8Array;
   try {
-    raw = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
+    const decoded = atob(encoded);
+    raw = new Uint8Array(decoded.length);
+    for (let i = 0; i < decoded.length; i++) raw[i] = decoded.charCodeAt(i);
   } catch {
     throw new Error("Invalid transfer base64.");
   }
-  const fields = new Reader(raw).fields();
-  if (num(fields, 2) !== 1n)
-    throw new Error("Unsupported Google transfer version.");
-  const size = num(fields, 3),
-    index = num(fields, 4, 0n),
-    batchId = num(fields, 5, 0n).toString();
-  if (
-    size < 1n ||
-    size > 100n ||
-    index >= size ||
-    (size > 1n && !fields.has(5))
-  )
-    throw new Error("Invalid Google transfer batch.");
-  const entries = fields.get(1);
-  if (!entries?.length || entries.length > MAX_ACCOUNTS)
-    throw new Error("Empty or oversized Google transfer.");
   try {
+    const fields = new Reader(raw).fields(
+      { 1: 4096, 2: 0, 3: 0, 4: 0, 5: 0 },
+      MAX_ACCOUNTS + 32,
+    );
+    if (num(fields, 2) !== 1n)
+      throw new Error("Unsupported Google transfer version.");
+    const size = num(fields, 3),
+      index = num(fields, 4, 0n),
+      batchId = num(fields, 5, 0n).toString();
+    if (
+      size < 1n ||
+      size > 100n ||
+      index >= size ||
+      (size > 1n && !fields.has(5))
+    )
+      throw new Error("Invalid Google transfer batch.");
+    const entries = fields.get(1);
+    if (!entries?.length || entries.length > MAX_ACCOUNTS)
+      throw new Error("Empty or oversized Google transfer.");
     const result = collectImport(entries, (entry) => {
       if (!(entry instanceof Uint8Array))
         throw new Error("Invalid transfer account.");
-      const f = new Reader(entry).fields();
+      const f = new Reader(entry).fields(
+        { 1: 640, 2: 2048, 3: 800, 4: 0, 5: 0, 6: 0, 7: 0 },
+        32,
+      );
       const algorithm = (
         { 0: "SHA-1", 1: "SHA-1", 2: "SHA-256", 3: "SHA-512" } as Record<
           string,

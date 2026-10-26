@@ -1,4 +1,5 @@
 import { expect, it, vi, afterEach } from "vitest";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { base64, unbase64, createEnvelope } from "../src/crypto";
 import { MAX_FILE_BYTES, emptyVault, validateAccount } from "../src/model";
 import { verifyBackup } from "../src/import";
@@ -53,6 +54,12 @@ it("creates and restores a near-limit saved backup containing 2000 valid account
   const saved = await createEnvelope(password, data, "backup"),
     file = new File([JSON.stringify(saved.envelope)], "large-backup.json");
   expect(file.size).toBeLessThanOrEqual(MAX_FILE_BYTES);
+  // The browser suite opens this real synthetic encrypted file after unit tests.
+  mkdirSync("artifacts", { recursive: true });
+  writeFileSync(
+    "artifacts/review-large-backup.json",
+    JSON.stringify(saved.envelope),
+  );
   const restored = await verifyBackup(
     JSON.parse(await readText(file)),
     password,
