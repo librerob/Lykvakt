@@ -4,8 +4,6 @@ I built Lykvakt because I wanted a small authenticator for Chrome that I could u
 
 The name is coined and Nordic-inspired, with the idea of watching over your keys.
 
-Lykvakt is an unaudited preview. Use test accounts and keep your existing authenticator and independently verified backups.
-
 ![Authenticator with synthetic accounts](docs/screenshots/accounts-amoled.png)
 
 ## Build and test
@@ -49,7 +47,3 @@ TOTP codes can be phished, and a compromised device can read unlocked secrets. T
 I want bugs to have as little browser access as possible. Lykvakt has exactly one permission, `clipboardWrite`. It has no content scripts, host permissions, background script, service worker or external-message entry point. It never reads or changes web pages.
 
 All runtime code ships with the extension. A strict CSP blocks remote scripts and external connections, and the build checks those restrictions. There is no WebAssembly, server, telemetry, advertising or subscription. Accounts and imports stay on your device, and optional tools load only when needed. The design guide and [privacy policy](PRIVACY.md) explain what is stored and where.
-
-Much of Lykvakt was developed with AI coding tools. Automated tests and AI-assisted reviews do not replace an independent security audit.
-
-Original code is GPL-3.0-or-later. Bundled components keep their own license notices.
