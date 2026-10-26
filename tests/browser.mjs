@@ -261,7 +261,7 @@ try {
       await page.clock.setSystemTime(start + 25000);
       await page.clock.runFor(1001);
       await expect(row).toHaveClass(/expiring/);
-      await expect(row.locator(".expiring-label")).toContainText("4s left");
+      await expect(row.locator(".ring-number")).toHaveText("4");
       await expect(row.locator(".remaining")).toHaveAccessibleName(
         /4 seconds remaining, expiring soon/,
       );
@@ -1386,6 +1386,189 @@ try {
         await click("Lock");
         await unlock();
         await expect(page.locator(".account .otp")).toHaveText("•• •••");
+      } finally {
+        await isolated.close();
+        page = prior;
+        await page.bringToFront();
+      }
+    },
+  );
+  await check(
+    "compact row lanes stay separate for long names, all code lengths, large counters and Next at 360, 400 and 480 px",
+    async () => {
+      const prior = page,
+        isolated = await launch(
+          await mkdtemp(join(tmpdir(), "lykvakt-row-polish-")),
+        );
+      isolated.on("request", (request) => {
+        if (/^https?:/.test(request.url())) network.push(request.url());
+      });
+      page = await isolated.newPage();
+      page.on("pageerror", (error) => errors.push(error.message));
+      try {
+        const start = Date.UTC(2026, 0, 1);
+        await page.clock.setFixedTime(start + 1000);
+
+        await page.goto(base);
+        await page
+          .getByLabel("Create a master password", { exact: true })
+          .fill(password);
+        await page
+          .getByLabel("Confirm master password", { exact: true })
+          .fill(password);
+        await click("Create encrypted vault");
+        await expect(
+          page.getByLabel("Search accounts", { exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+        await click("Got it");
+        const issuer =
+            "Long service name for a synthetic layout test " + "X".repeat(150),
+          label = "synthetic-account-" + "y".repeat(175);
+        const specs = [
+          ["Clock", "synthetic-six", "totp", 6, "period=30"],
+          ["Eight", "synthetic-eight", "totp", 8, "period=45"],
+          ["Steam", "synthetic-five", "steam", 5, "period=30"],
+          [
+            "Counter",
+            "synthetic-hotp",
+            "hotp",
+            6,
+            "counter=18446744073709551614",
+          ],
+          [issuer, label, "totp", 6, "period=30"],
+        ];
+        const links = specs.map(
+          ([issuer, label, type, digits, settings], index) =>
+            `otpauth://${type}/${encodeURIComponent(issuer + ":" + label)}?secret=${"A".repeat(31) + "ABCDE"[index]}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=${digits}&${settings}`,
+        );
+        await click("Import accounts");
+        await page.getByLabel("OTP URIs or export text").fill(links.join("\n"));
+        await click("Preview import");
+        await click("Import 5 account(s)");
+        await click("Settings");
+        await page.getByLabel("Show next code", { exact: true }).check();
+        await click("Authenticator");
+        const rows = page.locator(".account");
+        await expect(rows).toHaveCount(5);
+        const assertLanes = async () => {
+          for (const row of await rows.all()) {
+            const geometry = await row.evaluate((row) => {
+              const box = (node) => {
+                const b = node.getBoundingClientRect();
+                return { x: b.x, y: b.y, width: b.width, height: b.height };
+              };
+              const parts = [
+                ".account-name",
+                ".code-cell",
+                ".remaining",
+                ".account-more > summary",
+              ].map((selector) => box(row.querySelector(selector)));
+              const code = row.querySelector(".otp"),
+                range = document.createRange();
+              range.selectNodeContents(code);
+              const next = row.querySelector(".next-code");
+              return {
+                parts,
+                row: box(row),
+                code: box(code),
+                text: box(range),
+                next: next && !next.hidden ? box(next) : null,
+              };
+            });
+            expect(geometry.row.height).toBeLessThanOrEqual(56);
+            expect(geometry.parts[3].width).toBeGreaterThanOrEqual(36);
+            expect(geometry.parts[3].height).toBeGreaterThanOrEqual(36);
+            for (let i = 0; i < geometry.parts.length - 1; i++)
+              expect(
+                geometry.parts[i].x + geometry.parts[i].width,
+              ).toBeLessThanOrEqual(geometry.parts[i + 1].x);
+            expect(geometry.text.x).toBeGreaterThanOrEqual(geometry.parts[1].x);
+            expect(geometry.text.x + geometry.text.width).toBeLessThanOrEqual(
+              geometry.parts[1].x + geometry.parts[1].width + 0.5,
+            );
+            if (geometry.next)
+              expect(geometry.next.width).toBeLessThanOrEqual(
+                geometry.parts[1].width,
+              );
+            expect(geometry.code.y).toBeGreaterThanOrEqual(geometry.row.y);
+            expect(geometry.code.y + geometry.code.height).toBeLessThanOrEqual(
+              geometry.row.y + geometry.row.height,
+            );
+          }
+          expect(
+            await page.evaluate(
+              () => document.documentElement.scrollWidth <= innerWidth,
+            ),
+          ).toBe(true);
+        };
+        for (const width of [360, 400, 480]) {
+          await page.setViewportSize({ width, height: 760 });
+          for (const visible of [false, true]) {
+            for (const row of await rows.all()) {
+              const code = row.locator(".otp");
+              if ((await code.getAttribute("aria-pressed")) !== String(visible))
+                await code.click();
+              await expect(code).toHaveAttribute(
+                "aria-pressed",
+                String(visible),
+              );
+            }
+            await assertLanes();
+            if (width === 400 && !visible) await screenshot("accounts-amoled");
+            if (width === 400 && visible) {
+              const long = rows.filter({
+                has: page.getByRole("heading", { name: issuer, exact: true }),
+              });
+              await expect(long.locator("h2")).toHaveAttribute("title", issuer);
+              await expect(long.locator(".account-name p")).toHaveAttribute(
+                "title",
+                label,
+              );
+              await expect(long.locator(".account-name")).toHaveAccessibleName(
+                issuer + " " + label,
+              );
+              expect(
+                await long
+                  .locator("h2")
+                  .evaluate((node) => getComputedStyle(node).textOverflow),
+              ).toBe("ellipsis");
+              await long.screenshot({
+                path: "artifacts/screenshots/long-name.png",
+              });
+              await rows
+                .filter({
+                  has: page.getByRole("heading", {
+                    name: "Steam",
+                    exact: true,
+                  }),
+                })
+                .screenshot({ path: "artifacts/screenshots/steam-row.png" });
+            }
+          }
+        }
+        await page.setViewportSize({ width: 400, height: 760 });
+        await page.clock.setFixedTime(start + 26000);
+        const clock = rows.filter({
+          has: page.getByRole("heading", { name: "Clock", exact: true }),
+        });
+        await expect(clock.locator(".ring-number")).toHaveText("4");
+        await expect(clock.locator(".remaining")).toHaveAccessibleName(
+          "4 seconds remaining, expiring soon",
+        );
+        await expect(clock.locator(".expiring-label")).toHaveCount(0);
+        await assertLanes();
+        await screenshot("accounts-expiring");
+        for (const motion of ["no-preference", "reduce"]) {
+          await page.emulateMedia({ reducedMotion: motion });
+          const style = await clock
+            .locator(".ring-progress")
+            .evaluate((node) => ({
+              animation: getComputedStyle(node).animationName,
+              transition: getComputedStyle(node).transitionDuration,
+            }));
+          expect(style).toEqual({ animation: "none", transition: "0s" });
+        }
+        await helpAxe("compact-rows");
       } finally {
         await isolated.close();
         page = prior;

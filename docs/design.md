@@ -4,7 +4,7 @@ Lykvakt is an unaudited development preview. Use test accounts, keep your existi
 
 ## Before updating
 
-**Export your accounts from the old version before updating. Earlier previews cannot be opened by this version.** This is an intentional format break.
+Export your accounts from the old version before updating. Earlier previews cannot be opened by this version. The format changed intentionally.
 
 1. Open the working old version and unlock it. If you no longer have it, reinstall the old version in the same folder (same extension), export your accounts, then update.
 2. Choose Recovery → Export plaintext OTP links and enter its master password.
@@ -15,23 +15,23 @@ Lykvakt is an unaudited development preview. Use test accounts, keep your existi
 
 PBKDF2 is not supported. There is no legacy reader, password-encoding fallback or automatic data migration. The extension recognizes earlier envelopes before password work, shows the migration instructions and offers no older-revision recovery for them. Selecting an old backup produces the same explanation.
 
-Erase the old vault and start fresh requires a second explicit confirmation. It deletes the two local encrypted records atomically only if they still match the offer. A concurrent change cancels erasure. It never deletes a file outside this browser.
+The Erase the old vault and start fresh button requires a second confirmation. It deletes the two local encrypted records atomically only if they still match the offer. A concurrent change cancels erasure. It never deletes a file outside this browser.
 
 ## Small, offline architecture
 
 One TypeScript/Vite extension page owns its Session, DOM and keys. It locks when hidden or closed, on tab activation elsewhere, after idle expiry, and before opening another window. No unlock key survives closing the popup. There is no guaranteed OS-lock signal.
 
-The manifest permissions are exactly ["clipboardWrite"]. There are no host/optional permissions, background/service worker, content scripts, developer backend, advertising or telemetry. Clipboard writes follow an explicit click or a non-empty search plus Enter; the confirmation names the account. Clipboard history and other apps may retain the copied value.
+The manifest permissions are exactly ["clipboardWrite"]. There are no host/optional permissions, background/service worker, content scripts, developer backend, advertising, subscriptions or telemetry. There is no externally_connectable setting or external-message handler. The extension never reads or changes web page content. Clipboard writes follow an explicit click or a non-empty search plus Enter; the confirmation names the account. Clipboard history and other apps may retain the copied value.
 
 Ctrl+Shift+Y is the suggested action shortcut, with Command+Shift+Y on Mac. Change it at chrome://extensions/shortcuts. Keyboard-layout, OS or other-extension shortcuts can still conflict. Escape clears a search first, then closes a popup. Native dialog Escape remains native.
 
-Account enrollment/import forms are prepared when the unlocked account view opens, keeping them out of the locked popup’s initial code. Format readers, encrypted-import support, scrypt, Steam generation, QR scanning/export, generated-passphrase words and the Argon2 implementation load only when used. Chrome 120+ supports module preloading natively, so the build omits Vite’s unused fetch-based preload fallback. The package guard rejects network APIs in bundled code. Runtime code is bundled locally; no WebAssembly or remote code is shipped. The strict CSP permits local scripts and styles, local/data/blob images, no frames, no objects and no form destinations.
+Account enrollment/import forms are prepared when the unlocked account view opens, keeping them out of the locked popup’s initial code. Format readers, encrypted-import support, scrypt, Steam generation, QR scanning/export, generated-passphrase words and the Argon2 implementation load only when used. Chrome 120+ supports module preloading natively, so the build omits Vite’s unused fetch-based preload fallback. The package guard rejects network APIs in bundled code. Runtime code is bundled locally; no WebAssembly or remote code is shipped. The strict CSP permits local scripts and styles and local/data/blob images. It blocks remote and inline scripts, evaluated code, external fetch/socket connections, frames, objects and form destinations. Build checks pin the permissions, CSP and bundled code.
 
-The runtime dependencies remain exact-pinned @noble/hashes (Argon2 and lazily loaded scrypt modules), jsQR and QRCode. Their license notices and the EFF wordlist attribution are packaged in licenses/. Build tools are separate from the extension runtime.
+Runtime dependencies are exact-pinned @noble/hashes (Argon2 and lazily loaded scrypt modules), jsQR and QRCode. Their license notices and the EFF wordlist attribution are packaged in licenses/. Build tools are separate from the extension runtime.
 
 ## Format and keys
 
-The envelope uses format "otp-vault", version 2. Every remaining header field is authenticated: format, version, kind, vault ID, revision and the entire password slot. The slot contains kdf, m, t, p, salt, iv and wrapped. The encrypted payload contains key, iv and ciphertext. Extra or missing keys are rejected.
+The envelope uses format "otp-vault", version 2. Every header field is authenticated: format, version, kind, vault ID, revision and the entire password slot. The slot contains kdf, m, t, p, salt, iv and wrapped. The encrypted payload contains key, iv and ciphertext. Extra or missing keys are rejected.
 
 New slots always use Argon2id v0x13, 65,536 KiB (64 MiB), three passes, one lane and 32-byte output. Stored costs must be integers within 19,456–262,144 KiB, two–ten passes and exactly one lane; validation rejects hostile costs before allocation. There are no strength choices, calibration or unlock-time upgrades.
 
@@ -43,7 +43,7 @@ Every save generates a fresh AES-256-GCM content key and 12-byte IV, authenticat
 
 Canonical JSON sorts object keys by plain code-unit comparison and preserves array order. Account snapshots use the same deterministic comparison.
 
-Payload schema 3 contains accounts, verifiedAt and verifiedSnapshot. Accounts have exactly id, issuer, label, secret, type, algorithm, digits, period, counter, favorite and group. Type is totp, hotp or steam. Steam adds an account kind within schema 3: canonical Base32 secret, SHA-1, five characters, 30 seconds and counter "0" are mandatory. Existing current-format vaults still open, while older builds reject Steam records; earlier schemas keep the same old-format screen. IDs are unique; counters are precise unsigned 64-bit strings; files/counts/text fields are bounded. Website associations and earlier payload schemas are rejected.
+Payload schema 3 contains accounts, verifiedAt and verifiedSnapshot. Accounts have exactly id, issuer, label, secret, type, algorithm, digits, period, counter, favorite and group. Type is totp, hotp or steam. Steam records require a canonical Base32 secret, SHA-1, five characters, 30 seconds and counter "0". Existing current-format vaults still open, while older builds reject Steam records; earlier schemas keep the same old-format screen. IDs are unique; counters are precise unsigned 64-bit strings; files/counts/text fields are bounded. Website associations and earlier payload schemas are rejected.
 
 ## Derivation and locking
 
@@ -71,13 +71,13 @@ Password change verifies the current password, generates a fresh vault key and s
 
 ## Codes and compact controls
 
-Each account has one compact row. Clicking or pressing its copy target copies the current code without revealing it. The small code control explicitly reveals/hides it and has an accessible name. Reveal re-masks after 30 seconds, navigation or lock. Always show codes remains optional and starts off.
+Each account has one compact row. Clicking or pressing its copy target copies the current code without revealing it. The code button reveals or hides it and has an accessible name. Reveal re-masks after 30 seconds, navigation or lock. Always show codes remains optional and starts off.
 
-A small stepped ring shows the TOTP period. The last five seconds use pink plus a visible text label; information never relies on color alone. HOTP rows show their counter. More is a native details disclosure containing Edit, favorite and confirmed counter advancement.
+A 22 px stepped ring shows the TOTP period with a full-circle track and a thin arc that depletes clockwise from 12 o’clock. The last ten seconds show a whole-second number inside it; the last five also use pink. There is no spinning animation or transition, including with reduced motion. HOTP rows show their counter. Fixed row lanes keep names, codes, the ring/counter and More separate at 360, 400 and 480 px; long names and counters are clipped with full tooltips and accessible names. Rows stay 56 px tall, including the next-code preview. More has a 36×36 px minimum target and is a native details disclosure containing Edit, favorite and confirmed counter advancement.
 
 Next-code preview is optional and starts off. It stays hidden with the current code and supports custom periods, six/eight digits and SHA-1/256/512. It never appears for HOTP, and Copy always uses the current code.
 
-System fonts, tabular numerals, a black/pink palette and visible focus indicators keep the interface calm. Text, controls and borders have contrast tests; reduced-motion mode has no animations. Native help and disclosures work by keyboard. Passing axe does not certify all accessibility.
+System fonts, tabular numerals, a black/pink palette and visible focus indicators keep the interface legible. Text, controls and borders have contrast tests; reduced-motion mode has no animations. Native help and disclosures work by keyboard. Passing axe does not certify all accessibility.
 
 ## Backups and moving accounts
 
@@ -89,7 +89,7 @@ The reminder appears when no backup was verified or accounts changed. HOTP advan
 
 Fresh-profile recovery creates an independent local vault only when none exists. A different backup can be reviewed for a safe merge; conflicts are not silently overwritten.
 
-OTP links preserve OTP settings; Steam uses the documented Ente otpauth://steam host, with explicit digits=5 and period=30. Only compatible destination apps can read those links. per-account transfer QR and bulk plaintext export require fresh master-password verification. These exports contain secrets. They do not preserve every app's groups/favorites.
+OTP links preserve OTP settings; Steam uses the documented Ente otpauth://steam host, with explicit digits=5 and period=30. Only compatible destination apps can read those links. Per-account transfer QR and bulk plaintext export require fresh master-password verification. These exports contain secrets. They do not preserve every app's groups/favorites.
 
 Supported formats and their source contracts are listed below. Preview reports every skipped entry and requires confirmation. Battle.net and unsupported variants are rejected or reported explicitly. No passwords, trade secrets or unrelated fields are copied into accounts.
 
@@ -99,13 +99,13 @@ Compare destination codes/settings before retiring an authenticator. Import comp
 
 Run npm ci --ignore-scripts, build, lint, format:check and test. The suite retains known-answer Argon2id/OTP vectors, tamper/bounds tests, key rotation, backup verification, storage conflicts/rollback, explicit recovery, masking and cancellation coverage.
 
-Parser fuzzing is deterministic and bounded: each call must return a valid result or throw an Error within the existing per-call budget. It is not exhaustive adversarial review.
+Tests cover known-answer cryptography and code vectors, tampering, lock cancellation and storage conflicts. Parser fuzzing runs 80,000 deterministic, bounded mutations: each call must return a valid result or throw an Error within the existing per-call budget. It is not exhaustive adversarial review.
 
-Browser CI uses the actual unpacked extension and synthetic accounts. It checks keyboard flows, menu/row behavior, compact height, masking, old-format refusal/confirmed erasure, axe and a real headed tab-switch lock.
+Browser CI loads the unpacked extension with synthetic accounts. It checks keyboard flows, menu/row behavior, compact height, masking, old-format refusal/confirmed erasure, axe and a real headed tab-switch lock.
 
 CI also builds the pre-change main revision and measures both popup documents on the same runner. First interactive paint is the first paint opportunity after a password field and enabled primary button exist. Repeated fresh popup-document pages use the same warmed browser profile. Results include first-contentful-paint entries and end-to-end unlock samples; they are not physical toolbar/window-compositor or broad-device guarantees.
 
-Manual screen-reader use, physical shortcut activation/collisions, broad device performance, exhaustive app interoperability, long-duration storage tests and an independent security audit remain unverified. Real screenshots use synthetic accounts and are in screenshots/.
+Manual screen-reader use, physical shortcut activation/collisions, broad device performance, exhaustive app interoperability, long-duration storage tests and an independent security audit remain unverified. Extension screenshots use synthetic accounts and are in screenshots/.
 
 ## Import contracts and sources
 
@@ -128,7 +128,7 @@ All fixtures in tests/fixtures/ are synthetic. None was obtained from a real use
 
 Bitwarden parsing reads the login type, display name and TOTP field only. JSON parsing necessarily materializes the source file in memory; no copy of its password, username, URLs, notes or other secrets is read or retained by the account converter. The raw source text is cleared from the form after preview; JavaScript garbage collection cannot guarantee erasure. Non-OTP items are reported as skipped. FreeOTP image/color/lock/alternative-issuer presentation parameters are discarded; no image URL is fetched. FreeOTP+ writes period=30 on HOTP links; that irrelevant field is removed only in the import adapter. Duplicate parameters still fail. Its issuer=Steam/five-character convention is recognised; explicit otpauth://steam links require digits=5 and period=30. No encoder parameter is guessed. Raivo JSON must be extracted from its archive first; archives are not opened here.
 
-Aegis uses scrypt then AES-256-GCM to unwrap a 32-byte master key, then decrypts the database with a separate nonce/tag. Costs are checked before derivation: power-of-two N from 2 to 65,536, r from 1 to 8, p from 1 to 4, N × r × p at most 524,288, at most four password slots/eight total, and at most 65 MiB temporary scrypt memory. These are import compatibility limits, not recommended new password settings. Noble's async path yields about every 8 ms and checks the lock signal in progress callbacks; cancelled library work wipes its scratch buffers. Derived and master key bytes are cleared in finally blocks.
+Aegis uses scrypt then AES-256-GCM to unwrap a 32-byte master key, then decrypts the database with a separate nonce/tag. Costs are checked before derivation: power-of-two N from 2 to 65,536, r from 1 to 8, p from 1 to 4, N × r × p at most 524,288, at most four password slots/eight total, and at most 65 MiB temporary scrypt memory. These limits allow imports; they are not recommended for new passwords. Noble's async path yields about every 8 ms and checks the lock signal in progress callbacks; cancelled library work wipes its scratch buffers. Derived and master key bytes are cleared in finally blocks.
 
 2FAS schema 4 uses PBKDF2-HMAC-SHA256 at the source's fixed 10,000 iterations, a 32-byte AES-GCM key, 12-byte IV and 128-bit tag. Its encrypted fields are Base64 ciphertext+tag, salt and IV separated by colons. Salts are bounded to 16–256 bytes; the Android writer uses 256. The reference is authenticated before the services. Passwords use the source's raw UTF-8 encoding without Lykvakt normalization. Web Crypto work cannot be interrupted internally; signal checks discard late results. The UI clears the source password on success or failure, and lock cancellation prevents preview/save. No source file is overwritten.
 
@@ -144,4 +144,4 @@ Neither app offers an official export of its sign-in setup secrets. [Authy's sup
 
 ## Possible later work
 
-Encrypted andOTP/Bitwarden/Ente/Proton/Stratum exports, native FreeOTP backups, ZIP/HTML archives and Proton Steam entries remain unsupported. Their distinct encryption/serialization paths are outside these small readers; unsupported account kinds are reported, never silently converted. Bitwarden steam:// fields are rejected; use Aegis or .maFile for Steam instead. No Authy or Microsoft secret parser is provided.
+Encrypted andOTP/Bitwarden/Ente/Proton/Stratum exports, native FreeOTP backups, ZIP/HTML archives and Proton Steam entries remain unsupported. These readers do not implement their encryption or serialization; unsupported account kinds are reported, never silently converted. Bitwarden steam:// fields are rejected; use Aegis or .maFile for Steam instead. No Authy or Microsoft secret parser is provided.

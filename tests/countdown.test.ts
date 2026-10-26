@@ -43,15 +43,15 @@ it("TOTP has a period-scaled ring, updated in steps with an accessible countdown
   expect(remaining.getAttribute("aria-label")).toBe("45 seconds remaining");
   vi.spyOn(Date, "now").mockReturnValue(15_000);
   await accounts.tick();
-  expect(Number(ring.getAttribute("stroke-dashoffset"))).toBeCloseTo(100 / 3);
-  expect(root.querySelector(".expiring-label")!.textContent).toBe("");
+  expect(Number(ring.getAttribute("stroke-dashoffset"))).toBeCloseTo(-100 / 3);
+  expect(root.querySelector(".ring-number")!.textContent).toBe("");
 });
-it("the last five seconds have a visible label as well as the expiry class", async () => {
+it("the last five seconds have an in-ring number as well as the expiry class", async () => {
   const { accounts, root } = view();
   vi.spyOn(Date, "now").mockReturnValue(40_000);
   await accounts.tick();
   expect(root.querySelector(".account")!.className).toContain("expiring");
-  expect(root.querySelector(".expiring-label")!.textContent).toBe("5s left");
+  expect(root.querySelector(".ring-number")!.textContent).toBe("5");
   expect(
     root.querySelector(".remaining")!.getAttribute("aria-label"),
   ).toContain("expiring soon");
@@ -72,6 +72,49 @@ it("HOTP has a precise counter badge and no time ring", async () => {
     "9007199254740993",
   );
   expect(root.querySelector(".remaining")!.getAttribute("aria-label")).toBe(
+    "Counter 9007199254740993",
+  );
+});
+
+it.each([
+  [34_000, "", false],
+  [35_000, "10", false],
+  [39_000, "6", false],
+  [40_000, "5", true],
+  [44_000, "1", true],
+  [45_000, "", false],
+])(
+  "the in-ring number at %s ms follows the last ten seconds and keeps its accessible name",
+  async (now, number, expiring) => {
+    const { accounts, root } = view();
+    vi.mocked(Date.now).mockReturnValue(Number(now));
+    await accounts.tick();
+    const left = 45 - (Math.floor(Number(now) / 1000) % 45);
+    expect(root.querySelector(".ring-number")!.textContent).toBe(number);
+    expect(
+      root.querySelector(".ring-number")!.getAttribute("aria-hidden"),
+    ).toBe("true");
+    expect(root.querySelector(".remaining")!.getAttribute("aria-label")).toBe(
+      `${left} seconds remaining${expiring ? ", expiring soon" : ""}`,
+    );
+    expect(root.querySelector(".account")!.className.includes("expiring")).toBe(
+      expiring,
+    );
+    expect(
+      Number(
+        root.querySelector(".ring-progress")!.getAttribute("stroke-dashoffset"),
+      ),
+    ).toBeCloseTo(-100 * (1 - left / 45));
+  },
+);
+it("long names and HOTP counters keep their full tooltip and accessible text", async () => {
+  const { accounts, root } = view("hotp");
+  await accounts.tick();
+  expect(root.querySelector("h2")!.getAttribute("title")).toBe("Test");
+  expect(root.querySelector(".account-name")!.getAttribute("aria-label")).toBe(
+    "Test user",
+  );
+  expect(root.querySelector(".remaining")!.getAttribute("title")).toBe(
     "Counter 9007199254740993",
   );
 });
