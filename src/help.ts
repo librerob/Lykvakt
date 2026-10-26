@@ -9,20 +9,20 @@ export const backupCompatibilityMessage =
 export const helpCopy = {
   account: {
     text: [
-      "Use the setup key or QR code shown by the service when you turn on two-step sign-in. This is different from the short code you use to sign in.",
-      "Keep advanced settings exactly as given by the service; do not guess. You can review the account before saving it.",
+      "Use the setup key or QR code the service gives you when you turn on two-step sign-in. It is different from the short sign-in code.",
+      "Copy advanced settings exactly from the service; do not guess. Review the account before saving.",
     ],
   },
   import: {
     text: [
-      "Choose an export from your old authenticator, or paste a setup link. The file format is recognised automatically.",
-      "Lykvakt shows what will be added or skipped before you save. Keep your old authenticator until you have checked the new one.",
+      "Choose an export from your old authenticator or paste a setup link. Lykvakt recognises the format.",
+      "Review what will be added or skipped before saving. Keep your old authenticator until you have checked the new one.",
     ],
   },
   moving: {
     text: [
       "Authy and Microsoft Authenticator have no official export of sign-in setup secrets.",
-      "For Authy, third-party tools can produce OTP setup-link lists that Lykvakt can import. Use them at your own risk, with test accounts first. We do not provide or verify those tools.",
+      "Third-party Authy tools can make setup-link lists for import. Use them at your own risk, with test accounts first. Lykvakt does not provide or verify them.",
       "For Microsoft Authenticator, set up each service again from its security settings. Keep your existing authenticator until you have tested every account.",
     ],
   },
@@ -35,12 +35,12 @@ export const helpCopy = {
   password: {
     text: [
       "This password opens your vault on this device. Use a long phrase that you do not use anywhere else.",
-      "Keep a safe written copy. There is no reset button, and we cannot recover a forgotten password.",
+      "Keep a safe written copy. There is no reset button or way to recover a forgotten password.",
     ],
   },
   backup: {
     text: [
-      "A backup is a locked copy of your accounts in a file. It has its own password, which can be different from your vault password.",
+      "A backup is a locked account file. It has its own password, which can differ from your vault password.",
       "Save the file somewhere outside this browser, such as a USB drive. Keep its password somewhere separate.",
     ],
     technical: [
@@ -49,37 +49,37 @@ export const helpCopy = {
   },
   verify: {
     text: [
-      "Choose the backup file you actually saved, then enter that file's password. We open it in memory and compare it with your accounts.",
-      "This test does not replace your accounts. For example, it can tell you that an older file is missing a recently added account.",
+      "Choose the backup file you saved and enter its password. Lykvakt opens it in memory and compares it with your accounts.",
+      "This test does not replace accounts. It can show that an older file is missing a new account.",
     ],
   },
   export: {
     text: [
-      "These links and QR codes contain the secret needed to make your sign-in codes. Anyone with a copy can make the same codes.",
+      "These links and QR codes hold your sign-in secret. Anyone with a copy can make the same codes.",
       "Use them only to move to another authenticator. Check the new app, then remove temporary files and close the QR view.",
     ],
   },
   nextCode: {
     text: [
-      "This shows the code that will come after the one you can use now. Wait until the current code expires before using the next one.",
-      "Both codes stay hidden until you reveal them. Copy always copies the current code, and counter-based accounts have no next-code preview.",
+      "This shows the next code. Wait until the current code expires before using it.",
+      "Both codes stay hidden until revealed. Copy uses the current code. Counter-based accounts have no next-code preview.",
     ],
   },
   shortcut: {
     text: [
       "Use Ctrl+Shift+Y to open Lykvakt, or Command+Shift+Y on a Mac. If another app uses that key, Chrome may leave it unassigned.",
-      "Open chrome://extensions/shortcuts to choose your own key. Once unlocked, type part of an account name before pressing Enter. This copies the first match's current code and tells you which account it came from; an empty search copies nothing.",
+      "Choose your key at chrome://extensions/shortcuts. After unlocking, search for an account, then press Enter to copy the first match's current code. The message names the account. An empty search copies nothing.",
     ],
   },
   olderCopy: {
     text: [
-      "This browser keeps a recent locked copy when you save changes. If the current copy cannot be read, you can choose the older copy and enter its password.",
+      "Saving keeps a recent locked copy in this browser. If the current copy cannot be read, you can choose the older one and enter its password.",
       "It may not include your latest changes. Counter-based codes may be behind: do not reuse a code you already submitted.",
     ],
   },
   timeout: {
     text: [
-      "Lykvakt locks after this much time without a click or key press. For example, five minutes is a sensible starting point.",
+      "Lykvakt locks after this long without a click or key press. Five minutes is a sensible starting point.",
       "Hiding or closing this page locks it right away. Unlock again with your password when you need a code.",
     ],
   },

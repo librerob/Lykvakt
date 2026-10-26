@@ -1,17 +1,15 @@
 # Privacy
 
-Lykvakt processes accounts and selected files locally. There is no developer server, registration, advertising, telemetry or account-data upload.
+Accounts and selected files are processed locally: no developer server, registration, ads, telemetry or account-data upload. No Chrome Web Store submission or approval is claimed.
 
-The manifest permission set is exactly ["clipboardWrite"]. There are no host/optional permissions, background worker or content scripts. Clipboard writes follow a click or Enter after a non-empty account search; the confirmation names the account. The extension never reads the clipboard. Clipboard history and other apps may keep copied values.
+Permission: exactly ["clipboardWrite"]. No host/optional permissions, background worker or content scripts. Copy requires a click or non-empty search plus Enter; confirmation names the account. Lykvakt never reads the clipboard. Clipboard history and other apps may retain codes.
 
-The encrypted vault and its previous revision use IndexedDB. Timeout, code-visibility, next-code and first-run-tip preferences use localStorage. Keys exist only while the page is unlocked. Closing or hiding it locks the Session.
+IndexedDB holds the encrypted vault and previous revision. localStorage holds timeout, code-visibility, Next and first-run-tip preferences. Keys exist only while unlocked; closing or hiding the page locks it.
 
-Ordinary saves keep the previous encrypted revision atomically. Password change rotates the key and removes that local copy in the same transaction. Structural recovery requires explicit selection and a password. Earlier-preview vaults are not opened or recovered; erasing them requires a separate confirmation and never deletes external files.
+Saves preserve the previous encrypted revision atomically. Password change rotates the key and deletes that copy atomically. Structural recovery needs explicit selection and a password. Earlier previews cannot be opened or recovered. Confirmed erasure affects local records, never external files.
 
-Argon2id runs in bundled JavaScript, normally in a local worker. There is no WebAssembly or remote runtime code. Public format/password parameters are authenticated but not encrypted. JavaScript cannot guarantee memory erasure.
+Argon2id uses bundled JavaScript in a worker, without WebAssembly or remote code. Public format/password parameters are authenticated, not encrypted. JavaScript cannot guarantee erasure.
 
-Backups are files you choose to save. Verification tests a selected saved file without replacing accounts. Plaintext export and transfer QR require fresh password verification; those outputs contain secrets. Password changes cannot revoke independently retained files.
+Backups are user-saved files; verification tests one without replacing accounts. Plaintext export and transfer QR require password verification and contain secrets. Password change cannot revoke retained files.
 
-Browser sync/profile backups, installed extensions, the OS and malware are outside the app's control. There is no password reset or developer recovery service.
-
-See [design and recovery](docs/design.md). No Chrome Web Store submission or approval is claimed.
+Browser sync/profile backups, other extensions, the OS and malware are outside the app's control. There is no password reset or developer recovery service. See [design and recovery](docs/design.md).
