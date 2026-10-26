@@ -258,7 +258,8 @@ try {
       await expect(more).not.toHaveAttribute("open", "");
       const now = await page.evaluate(() => Date.now()),
         start = Math.floor(now / 30000) * 30000;
-      await page.clock.setFixedTime(start + 26000);
+      await page.clock.setSystemTime(start + 25000);
+      await page.clock.runFor(1001);
       await expect(row).toHaveClass(/expiring/);
       await expect(row.locator(".ring-number")).toHaveText("4");
       await expect(row.locator(".remaining")).toHaveAccessibleName(
@@ -1406,8 +1407,8 @@ try {
       page.on("pageerror", (error) => errors.push(error.message));
       try {
         const start = Date.UTC(2026, 0, 1);
-        await page.clock.install({ time: start });
-        await page.clock.pauseAt(start + 1000);
+        await page.clock.setFixedTime(start + 1000);
+
         await page.goto(base);
         await page
           .getByLabel("Create a master password", { exact: true })
@@ -1546,8 +1547,7 @@ try {
           }
         }
         await page.setViewportSize({ width: 400, height: 760 });
-        await page.clock.setSystemTime(start + 25000);
-        await page.clock.runFor(1001);
+        await page.clock.setFixedTime(start + 26000);
         const clock = rows.filter({
           has: page.getByRole("heading", { name: "Clock", exact: true }),
         });
