@@ -5,7 +5,7 @@ type KdfRunner = (
   policy: Argon2Policy,
   signal?: AbortSignal,
 ) => Promise<CryptoKey>;
-// Only Node test/benchmark harnesses install a runner; the app never does.
+// Tests and benchmarks inject a runner; the extension uses the worker.
 let nodeRunner: KdfRunner | undefined;
 export function setKdfRunner(runner?: KdfRunner): void {
   nodeRunner = runner;

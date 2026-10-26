@@ -286,7 +286,7 @@ function render(): void {
   if (!dialog) focusVault(root, session.unlocked, state.view);
 }
 void run(async () => {
-  // Until loading succeeds, never offer setup over a damaged existing database.
+  // A load error must not expose setup over an existing vault.
   state.exists = true;
   const loaded = await load();
   state.exists = !!loaded;

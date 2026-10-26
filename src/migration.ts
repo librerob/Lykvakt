@@ -4,7 +4,7 @@ import {
   type ImportResult,
   type SkippedEntry,
 } from "./import-result";
-// Google Authenticator transfer wire schema, independently bounded and validated.
+// Decode Google's transfer format using the schema maintained by Aegis.
 // Reference: beemdevelopment/Aegis app/src/main/proto/google_auth.proto.
 import { encodeBase32 } from "./otp";
 import {
@@ -56,7 +56,7 @@ class Reader {
         if (limit === 0) throw new Error("Invalid transfer field type.");
         if (length > BigInt(limit))
           throw new Error("Transfer field exceeds its size limit.");
-        // Known fields share the bounded input; unknown fields are never retained.
+        // Keep views into the input for known fields, and skip unknown fields.
         value = this.data.subarray(start, this.offset);
       } else throw new Error("Unsupported transfer encoding.");
       const values = fields.get(field) ?? [];

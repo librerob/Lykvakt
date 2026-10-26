@@ -1,11 +1,15 @@
 # Security policy
 
-I maintain Lykvakt as an unaudited development preview. Use test accounts; keep your existing authenticator, service recovery codes and independently verified backups. Tests, pinned dependencies and vulnerability feeds are not an independent audit.
+Lykvakt is a personal project and an unaudited development preview. Please use test accounts while it needs independent review, and keep your existing authenticator, service recovery codes and independently verified backups. Tests, pinned dependencies and vulnerability feeds help catch problems, but they are not an independent audit.
 
-TOTP is phishable. Malware or hostile code can read unlocked secrets. Nonextractable keys and buffer clearing cannot guarantee safety on a compromised device or forensic erasure. There is no password reset or server recovery.
+TOTP codes can be phished. Malware or hostile code on your device can read secrets while the vault is unlocked. Nonextractable keys and buffer clearing don't make a compromised device safe, and JavaScript cannot guarantee that all copies have been erased from memory. There is no password reset or server recovery.
 
-The [design guide](docs/design.md) covers fixed, bounded Argon2id, Web Crypto AES-GCM/AES-KW, strict schemas, authenticated headers, transactional revision checks and page-scoped keys. Earlier previews need export through the old app before updating; keep OTP links private and verify the import.
+The [design guide](docs/design.md) explains the fixed Argon2id settings and their bounds, Web Crypto AES-GCM/AES-KW, strict schemas, authenticated headers, transactional revision checks and keys held only by the open extension page. If you're moving from an earlier preview, export through the old app before updating. Keep those OTP links private and check the import before removing them.
 
-Please [report vulnerabilities privately](https://github.com/librerob/Lykvakt/security/advisories/new). If unavailable, open an issue asking for a private route without exploit details. Include version, browser/OS, synthetic steps and expected/observed behavior. Never attach real passwords, OTP secrets, QR codes, plaintext exports or profiles.
+## Reporting a vulnerability
 
-Start at [REVIEW.md](REVIEW.md) for review questions and reading order.
+Please [report vulnerabilities privately](https://github.com/librerob/Lykvakt/security/advisories/new). If that route is unavailable, open an issue asking how to contact me privately, without posting exploit details.
+
+Include the version, your browser and operating system, steps using synthetic accounts, and what you expected to happen compared with what happened. Never attach real passwords, OTP secrets, QR codes, plaintext exports or browser profiles.
+
+If you'd like to review the project more broadly, [REVIEW.md](REVIEW.md) suggests a reading order and specific questions to investigate.

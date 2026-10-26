@@ -1,4 +1,4 @@
-// One lifetime per modal; closing/replacing it invalidates every captured task.
+// Closing or replacing a dialog cancels the work started in it.
 export class DialogLifetime {
   private controller = new AbortController();
   constructor() {

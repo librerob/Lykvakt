@@ -2,16 +2,16 @@
 
 ## 0.5.0-rc.1 — 26 October 2026
 
-Unaudited development previews: use test accounts and keep your existing authenticator and verified backups.
+This is an unaudited development preview. Use test accounts and keep your existing authenticator and verified backups.
 
-- Require the master password for encrypted backup creation; cancel dialog-owned secret operations and pending writes on Close, Escape or replacement. Fix large-backup Base64 handling, bound Google transfer fields, and require explicit review of transfer-only name adjustments without changing saved names.
-- Polish the 56 px account rows: a 22 px clockwise countdown with seconds inside during the last ten seconds, pink in the last five, fixed lanes and full-name/counter tooltips.
-- Detect supported import formats from content; show the format, preview and every skipped entry before confirmation. Keep 8 MB and 2,000-entry limits, bound JSON depth and report unknown files with help.
-- Add small plaintext readers for andOTP, Bitwarden OTP fields, Raivo, Proton Authenticator and Stratum; reuse setup-link parsing for Ente and FreeOTP/FreeOTP+.
-- Open password-protected Aegis (bounded, yielding scrypt/AES-GCM) and 2FAS schema 4 (Web Crypto PBKDF2/AES-GCM) locally, with cancellation and no saved source password.
-- Add Steam sign-in codes, .maFile and Aegis imports, transfer links, masking, reveal, copy, countdown and next preview. No trade/market confirmations. Keep payload schema 3 and add a strictly validated account type; earlier schemas still get the existing migration screen. Older builds cannot read accounts of this new type.
-- Keep permissions exactly ["clipboardWrite"], no network or WebAssembly, and the same exact-pinned dependencies. New parsers, decryption, scrypt and Steam generation load only when used.
-- Upstream sources and synthetic fixtures are documented in the design guide. Real exports and phone interoperability have not been verified.
+- Creating an encrypted backup now requires the master password. Closing a dialog, pressing Escape or replacing it cancels pending secret operations and writes. Large backups no longer overflow Base64 validation, Google transfer fields have resource limits, and transfer-only name adjustments need approval without changing saved names.
+- Account rows stay 56 px tall, with fixed lanes and tooltips for full names and counters. A 22 px clockwise countdown shows seconds inside the ring during the last ten seconds and turns pink during the last five.
+- Imports detect supported formats from the file contents and show a preview with every skipped entry before saving. The 8 MB and 2,000-entry limits remain, JSON depth is bounded, and unrecognised files get an explanation and help.
+- Plaintext imports now include andOTP, Bitwarden OTP fields, Raivo, Proton Authenticator and Stratum. Ente and FreeOTP/FreeOTP+ reuse setup-link parsing.
+- Password-protected Aegis and 2FAS schema 4 exports can be opened locally. Aegis uses bounded scrypt/AES-GCM work that yields to the page; 2FAS uses Web Crypto PBKDF2/AES-GCM. Imports can be cancelled, and the source password isn't saved.
+- Steam sign-in accounts support .maFile and Aegis imports, transfer links, masking, reveal, copy, countdown and next-code preview. Trade and market confirmations aren't supported. Payload schema 3 stays in place with a strictly validated account type; earlier schemas still show the migration screen. Older builds cannot read accounts of this new type.
+- Permissions remain exactly ["clipboardWrite"], with no network access or WebAssembly and the same dependencies pinned to exact versions. New parsers, decryption, scrypt and Steam code generation load only when needed.
+- The design guide lists upstream sources and synthetic fixtures. Real exports and phone interoperability have not been verified.
 
 ## 0.4.0-rc.1 — 25 October 2026
 

@@ -222,7 +222,7 @@ export function parseBitwarden(value: unknown): ImportResult {
         throw new Error("Not a login with a supported OTP setup key.");
       const login = record(e.login),
         otp = login.totp;
-      // Never read/copy login.password, notes, custom fields, URLs or other secrets.
+      // Import only the login type, display name and TOTP field.
       if (typeof otp !== "string" || !otp.trim() || otp.length > 5000)
         throw new Error("No supported OTP setup key.");
       return otp.startsWith("otpauth:")
@@ -327,7 +327,7 @@ export async function readImport(
   signal?.throwIfAborted();
   return readDetectedImport(detectImport(input), password, signal);
 }
-// The UI passes the bounded detection result so secret-bearing JSON is parsed only once.
+// Reuse detection's parsed JSON instead of parsing the secrets twice.
 export async function readDetectedImport(
   detected: DetectedImport,
   password?: string,

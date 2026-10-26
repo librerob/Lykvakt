@@ -159,7 +159,7 @@ export async function commit(
         }
         try {
           // Preserve the stored ciphertext byte-for-byte, in the same transaction.
-          // A recovery promotion retains the authenticated older copy, not corrupt active data.
+          // During recovery, keep the readable older copy instead of the damaged active record.
           if (discardPrevious) {
             // A rotation must not retain the superseded vault key.
             store.delete("previous");
