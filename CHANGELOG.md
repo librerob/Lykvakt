@@ -4,6 +4,7 @@
 
 Unaudited development previews: use test accounts and keep your existing authenticator and verified backups.
 
+- Require the master password for encrypted backup creation; cancel dialog-owned secret operations and pending writes on Close, Escape or replacement. Fix large-backup Base64 handling, bound Google transfer fields, and require explicit review of transfer-only name adjustments without changing saved names.
 - Polish the 56 px account rows: a 22 px clockwise countdown with seconds inside during the last ten seconds, pink in the last five, fixed lanes and full-name/counter tooltips.
 - Detect supported import formats from content; show the format, preview and every skipped entry before confirmation. Keep 8 MB and 2,000-entry limits, bound JSON depth and report unknown files with help.
 - Add small plaintext readers for andOTP, Bitwarden OTP fields, Raivo, Proton Authenticator and Stratum; reuse setup-link parsing for Ente and FreeOTP/FreeOTP+.

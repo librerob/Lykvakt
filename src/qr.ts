@@ -1,5 +1,9 @@
 import jsQR from "jsqr";
-export async function readQRs(file: Blob): Promise<string[]> {
+export async function readQRs(
+  file: Blob,
+  signal?: AbortSignal,
+): Promise<string[]> {
+  signal?.throwIfAborted();
   if (
     file.size > 18_000_000 ||
     !["image/png", "image/jpeg", "image/webp"].includes(file.type)
@@ -8,6 +12,7 @@ export async function readQRs(file: Blob): Promise<string[]> {
   const bitmap = await createImageBitmap(file);
   const canvas = document.createElement("canvas");
   try {
+    signal?.throwIfAborted();
     if (
       bitmap.width * bitmap.height > 12_000_000 ||
       bitmap.width > 6000 ||
@@ -25,6 +30,7 @@ export async function readQRs(file: Blob): Promise<string[]> {
     const found: string[] = [];
     try {
       for (let n = 0; n <= 20; n++) {
+        signal?.throwIfAborted();
         const qr = jsQR(image.data, image.width, image.height, {
           inversionAttempts: "attemptBoth",
         });

@@ -49,7 +49,7 @@ Payload schema 3 contains accounts, verifiedAt and verifiedSnapshot. Accounts ha
 
 A bundled one-job module Web Worker derives the password key, imports it immediately and returns only a nonextractable CryptoKey. Node tests and benchmarks explicitly inject the real yielding engine. The extension ships that engine only in its worker; missing or failed workers produce an error without main-thread derivation.
 
-Locking aborts pending work, terminates the worker and changes the Session epoch. Late results cannot reopen the session, save or expose a secret. Raw key, password and decoded payload buffers are cleared in finally blocks where practical.
+Locking aborts pending work, terminates the worker and changes the Session epoch. Late results cannot reopen the session, save or expose a secret. Closing a dialog, pressing Escape or replacing it also cancels its pending operation. This cancellation reaches password workers and abortable storage transactions. A write that already committed cannot be undone by closing the dialog. Raw key, password and decoded payload buffers are cleared in finally blocks where practical.
 
 JavaScript strings, library internals, browser-managed copies, garbage collection and OS paging prevent guaranteed zeroization. Nonextractable keys do not protect an unlocked page from hostile code.
 
@@ -81,7 +81,7 @@ System fonts, tabular numerals, a black/pink palette and visible focus indicator
 
 ## Backups and moving accounts
 
-An encrypted backup uses independent key material and its own password. Save it outside this browser, with its password separately. This version requires current-format files; older preview files need the export/import path above.
+Creating an encrypted backup requires fresh master-password verification. The backup uses independent key material and its own password. Save it outside this browser, with its password separately. This version requires current-format files; older preview files need the export/import path above.
 
 Verify or restore a backup opens the actual selected file in memory, validates every account and generates test codes. It compares the account snapshot without replacing accounts. Only an exact match marks the current snapshot verified.
 
@@ -89,7 +89,9 @@ The reminder appears when no backup was verified or accounts changed. HOTP advan
 
 Fresh-profile recovery creates an independent local vault only when none exists. A different backup can be reviewed for a safe merge; conflicts are not silently overwritten.
 
-OTP links preserve OTP settings; Steam uses the documented Ente otpauth://steam host, with explicit digits=5 and period=30. Only compatible destination apps can read those links. Per-account transfer QR and bulk plaintext export require fresh master-password verification. These exports contain secrets. They do not preserve every app's groups/favorites.
+OTP links preserve OTP settings; Steam uses the documented Ente otpauth://steam host, with explicit digits=5 and period=30. Only compatible destination apps can read those links. Per-account transfer QR and bulk plaintext export require fresh master-password verification. These exports contain secrets. They do not preserve every app's groups/favorites. Names containing colons, surrounding spaces, an unprefixed dot segment or ill-formed Unicode require explicit approval of transfer names; saved account names are unchanged. Long OTP links can omit the repeated issuer prefix while retaining the issuer parameter, keeping output within the existing 5,000-character reader limit.
+
+Google transfer decoding counts every field, including unknown ones: at most 2,032 per message and 32 per account. Known byte fields have independent limits (4,096-byte account messages, 640-byte secrets, 2,048-byte names and 800-byte issuers). Unknown fields within the budget are skipped without keeping or copying their bodies; known bytes share the bounded input buffer, which is cleared after parsing. Large encrypted binary fields use a linear Base64 scan with decoded-size checks before allocation.
 
 Supported formats and their source contracts are listed below. Preview reports every skipped entry and requires confirmation. Battle.net and unsupported variants are rejected or reported explicitly. No passwords, trade secrets or unrelated fields are copied into accounts.
 

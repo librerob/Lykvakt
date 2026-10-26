@@ -1,3 +1,4 @@
+import { DialogLifetime } from "../../src/dialog";
 import { helpCopy, type HelpTopic } from "../../src/help";
 import type { AppContext } from "../../src/ui/context";
 import type { Session } from "../../src/session";
@@ -65,6 +66,7 @@ export function resetUI() {
   ui.messages.length = ui.downloads.length = 0;
 }
 export function context(session: Session): AppContext {
+  const lifetime = new DialogLifetime();
   return {
     session,
     state: { exists: true, view: "settings" },
@@ -77,12 +79,18 @@ export function context(session: Session): AppContext {
       ui.messages.push(message);
     },
     modal(_title, content) {
+      lifetime.open();
       ui.dialog = content;
     },
-    closeDialog() {},
+    closeDialog() {
+      lifetime.close();
+      ui.dialog = undefined;
+    },
+    dialogSignal: () => lifetime.signal(),
     render() {},
     confirmAction(_title, _message, label, action) {
-      button(label, action);
+      lifetime.open();
+      button(label, () => action(lifetime.signal()));
     },
   };
 }

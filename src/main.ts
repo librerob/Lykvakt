@@ -1,3 +1,5 @@
+import { DialogLifetime } from "./dialog";
+import { dialogOperation } from "./ui/context";
 import { OldFormatError } from "./format";
 import "./style.css";
 import { button, el, helpBlock, technicalDetails } from "./dom";
@@ -19,6 +21,7 @@ const state: AppState = {
   firstRunTip: preferenceEnabled("firstRunTips"),
 };
 let dialog: HTMLDialogElement | undefined;
+const dialogLifetime = new DialogLifetime();
 let status: HTMLElement;
 const isExtension = !!globalThis.chrome?.runtime?.id;
 const fullWindow = new URL(location.href).searchParams.has("window");
@@ -27,9 +30,15 @@ session.timeout = [60_000, 300_000, 900_000, 1_800_000].includes(storedTimeout)
   ? storedTimeout
   : 300_000;
 async function run(action: () => void | Promise<void>): Promise<void> {
+  const originDialog = dialog;
   try {
     await action();
   } catch (error) {
+    if (
+      (error instanceof DOMException && error.name === "AbortError") ||
+      (originDialog && !originDialog.isConnected)
+    )
+      return;
     if (error instanceof OldFormatError && state.oldVault) return;
     const message = friendlyError(error);
     announce(message.message, true, message.technical);
@@ -52,15 +61,19 @@ function announce(message: string, error = false, technical?: string): void {
 }
 
 function closeDialog(): void {
-  dialog?.close();
-  dialog?.remove();
+  const previous = dialog;
   dialog = undefined;
+  dialogLifetime.close();
+  previous?.querySelectorAll("form").forEach((form) => form.reset());
+  previous?.close();
+  previous?.remove();
   status?.setAttribute("role", "status");
   status?.setAttribute("aria-live", "polite");
 }
 
 function modal(title: string, content: Node): void {
   closeDialog();
+  dialogLifetime.open();
   const titleNode = el("h2", { id: "dialog-title" }, title);
   dialog = el(
     "dialog",
@@ -81,6 +94,11 @@ function modal(title: string, content: Node): void {
   status.removeAttribute("role");
   status.removeAttribute("aria-live");
   const currentDialog = dialog;
+  currentDialog.addEventListener("cancel", (event) => {
+    // Escape must abort synchronously, before the native queued close event.
+    event.preventDefault();
+    if (dialog === currentDialog) closeDialog();
+  });
   currentDialog.addEventListener(
     "close",
     () => {
@@ -96,7 +114,7 @@ function confirmAction(
   title: string,
   message: string,
   label: string,
-  action: () => Promise<void>,
+  action: (signal: AbortSignal) => Promise<void>,
 ): void {
   modal(
     title,
@@ -108,8 +126,9 @@ function confirmAction(
         label,
         () =>
           run(async () => {
-            await action();
-            closeDialog();
+            const signal = dialogOperation(ctx);
+            await action(signal);
+            if (!signal.aborted) closeDialog();
           }),
         "button primary",
       ),
@@ -125,6 +144,7 @@ const ctx: AppContext = {
   announce,
   modal,
   closeDialog,
+  dialogSignal: () => dialogLifetime.signal(),
   render,
   confirmAction,
 };

@@ -456,6 +456,39 @@ try {
       await click("Close");
     },
   );
+  await check(
+    "oversized Google transfer field lists are rejected without saving accounts",
+    async () => {
+      const before = await page.locator(".account").count();
+      const raw = [];
+      for (let field = 10; field < 3010; field++) {
+        let tag = field * 8;
+        do {
+          raw.push((tag & 127) | (tag > 127 ? 128 : 0));
+          tag = Math.floor(tag / 128);
+        } while (tag);
+        raw.push(1);
+      }
+      const transfer =
+        "otpauth-migration://offline?data=" +
+        encodeURIComponent(Buffer.from(raw).toString("base64"));
+      await click("Import accounts");
+      await page
+        .getByLabel("Or select an export file", { exact: true })
+        .setInputFiles({
+          name: "synthetic-bounded-transfer.txt",
+          mimeType: "text/plain",
+          buffer: Buffer.from(transfer),
+        });
+      await click("Preview import");
+      await expect(page.locator(".dialog-status")).toContainText(
+        "Too many transfer fields",
+      );
+      await expect(page.getByRole("dialog")).not.toContainText("Review import");
+      await expect(page.locator(".account")).toHaveCount(before);
+      await click("Close");
+    },
+  );
   await check("account QR export round trip", async () => {
     const row = page
       .locator(".account")
@@ -620,10 +653,43 @@ try {
       await expect(page.getByRole("dialog")).toHaveCount(0);
     },
   );
+  await check(
+    "encrypted backup creation requires the current master password",
+    async () => {
+      await click("Recovery");
+      await click("Create encrypted backup");
+      await page
+        .getByLabel("Master password", { exact: true })
+        .fill("wrong synthetic password");
+      await page
+        .getByLabel("Backup passphrase", { exact: true })
+        .fill("synthetic backup passphrase only");
+      await page
+        .getByLabel("Confirm backup passphrase", { exact: true })
+        .fill("synthetic backup passphrase only");
+      let downloads = 0;
+      const count = () => downloads++;
+      page.on("download", count);
+      try {
+        await click("Save encrypted file");
+        await expect(page.locator(".dialog-status")).toContainText(
+          "password didn't work",
+        );
+        await expect(
+          page.getByLabel("Master password", { exact: true }),
+        ).toHaveValue("");
+        expect(downloads).toBe(0);
+      } finally {
+        page.off("download", count);
+        await click("Close");
+      }
+    },
+  );
   let backupPath;
   await check("encrypted backup download", async () => {
     await page.getByRole("button", { name: "Recovery", exact: true }).click();
     await click("Create encrypted backup");
+    await page.getByLabel("Master password", { exact: true }).fill(password);
     await page
       .getByLabel("Backup passphrase", { exact: true })
       .fill("synthetic backup passphrase only");
@@ -657,6 +723,28 @@ try {
     await screenshot("backup-verified");
     await click("Done");
   });
+  await check(
+    "a near-limit encrypted file restores all 2000 accounts without replacing the active vault",
+    async () => {
+      await click("Verify or restore a backup");
+      await page
+        .getByLabel("Encrypted backup file", { exact: true })
+        .setInputFiles(resolve("artifacts/review-large-backup.json"));
+      await page
+        .getByLabel("Backup passphrase", { exact: true })
+        .fill("synthetic large backup password");
+      await click("Decrypt & test restoration");
+      await expect(page.getByRole("dialog")).toContainText(
+        "2000 account(s) decrypted",
+        { timeout: 60000 },
+      );
+      await expect(page.getByRole("dialog")).toContainText(
+        "This file differs from the current vault",
+      );
+      await expect(page.locator(".account")).toHaveCount(0);
+      await click("Done");
+    },
+  );
   await check(
     "a verified snapshot clears the reminder until an account changes",
     async () => {
@@ -1569,6 +1657,238 @@ try {
           expect(style).toEqual({ animation: "none", transition: "0s" });
         }
         await helpAxe("compact-rows");
+      } finally {
+        await isolated.close();
+        page = prior;
+        await page.bringToFront();
+      }
+    },
+  );
+  await check(
+    "Close and Escape cancel pending exports and password changes without downloads or writes",
+    async () => {
+      const prior = page,
+        isolated = await launch(
+          await mkdtemp(join(tmpdir(), "lykvakt-dialog-cancel-")),
+        );
+      isolated.on("request", (request) => {
+        if (/^https?:/.test(request.url())) network.push(request.url());
+      });
+      page = await isolated.newPage();
+      page.on("pageerror", (error) => errors.push(error.message));
+      let downloads = 0;
+      page.on("download", () => downloads++);
+      try {
+        await page.goto(base);
+        await page
+          .getByLabel("Create a master password", { exact: true })
+          .fill(password);
+        await page
+          .getByLabel("Confirm master password", { exact: true })
+          .fill(password);
+        await click("Create encrypted vault");
+        await expect(
+          page.getByLabel("Search accounts", { exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+        await click("Got it");
+        await importURI(uri);
+        const stored = () =>
+          page.evaluate(
+            () =>
+              new Promise((resolve, reject) => {
+                const r = indexedDB.open("otp-vault", 1);
+                r.onerror = () => reject(r.error);
+                r.onsuccess = () => {
+                  const db = r.result,
+                    tx = db.transaction("vault", "readonly"),
+                    store = tx.objectStore("vault"),
+                    a = store.get("active"),
+                    p = store.get("previous");
+                  tx.oncomplete = () => {
+                    resolve({ active: a.result, previous: p.result });
+                    db.close();
+                  };
+                  tx.onabort = () => reject(tx.error);
+                };
+              }),
+          );
+        const before = await stored();
+        for (const kind of ["plaintext", "backup", "password", "qr"]) {
+          if (kind === "password") {
+            await click("Settings");
+            await click("Change master password");
+            await page
+              .getByLabel("Current master password", { exact: true })
+              .fill(password);
+            await page
+              .getByLabel("New master password", { exact: true })
+              .fill("synthetic cancelled new master password");
+            await page
+              .getByLabel("Confirm new master password", { exact: true })
+              .fill("synthetic cancelled new master password");
+          } else if (kind === "qr") {
+            await click("Authenticator");
+            await openMore(page.locator(".account").first());
+            await page
+              .getByRole("button", { name: "Edit", exact: true })
+              .click();
+            await click("Show transfer QR…");
+            await page
+              .getByLabel("Master password", { exact: true })
+              .fill(password);
+          } else {
+            await click("Recovery");
+            await click(
+              kind === "backup"
+                ? "Create encrypted backup"
+                : "Export plaintext OTP links…",
+            );
+            await page
+              .getByLabel("Master password", { exact: true })
+              .fill(password);
+            if (kind === "backup") {
+              await page
+                .getByLabel("Backup passphrase", { exact: true })
+                .fill("synthetic cancelled backup password");
+              await page
+                .getByLabel("Confirm backup passphrase", { exact: true })
+                .fill("synthetic cancelled backup password");
+            }
+          }
+          await page.evaluate(() => {
+            const post = Worker.prototype.postMessage;
+            window.__reviewKdfTerminated = false;
+            Worker.prototype.postMessage = function (...args) {
+              Worker.prototype.postMessage = post;
+              const worker = this,
+                terminate = worker.terminate.bind(worker);
+              worker.terminate = () => {
+                window.__reviewKdfTerminated = true;
+                terminate();
+              };
+              window.__releaseReviewKdf = () => {
+                try {
+                  post.apply(worker, args);
+                } catch {}
+                delete window.__releaseReviewKdf;
+              };
+            };
+          });
+          await click(
+            kind === "password"
+              ? "Change password"
+              : kind === "qr"
+                ? "Reveal QR"
+                : kind === "backup"
+                  ? "Save encrypted file"
+                  : "Export all OTP links",
+          );
+          await expect
+            .poll(() => page.evaluate(() => typeof window.__releaseReviewKdf))
+            .toBe("function");
+          if (kind === "qr") {
+            await page.evaluate(() => {
+              document
+                .querySelector("dialog")
+                .addEventListener("cancel", () => {
+                  window.__reviewCancelledSynchronously =
+                    window.__reviewKdfTerminated;
+                });
+            });
+            await page.keyboard.press("Escape");
+            expect(
+              await page.evaluate(() => window.__reviewCancelledSynchronously),
+            ).toBe(true);
+          } else await click("Close");
+          await expect(page.getByRole("dialog")).toHaveCount(0);
+          await expect
+            .poll(() => page.evaluate(() => window.__reviewKdfTerminated))
+            .toBe(true);
+          await page.evaluate(() => window.__releaseReviewKdf());
+          expect(downloads).toBe(0);
+          expect(await stored()).toEqual(before);
+          await expect(page.locator(".transfer-qr")).toHaveCount(0);
+        }
+        await click("Lock");
+        await unlock();
+      } finally {
+        await isolated.close();
+        page = prior;
+        await page.bringToFront();
+      }
+    },
+  );
+  await check(
+    "incompatible transfer names require consent and do not rename saved accounts",
+    async () => {
+      const prior = page,
+        isolated = await launch(
+          await mkdtemp(join(tmpdir(), "lykvakt-transfer-names-")),
+        );
+      isolated.on("request", (request) => {
+        if (/^https?:/.test(request.url())) network.push(request.url());
+      });
+      page = await isolated.newPage();
+      page.on("pageerror", (error) => errors.push(error.message));
+      let downloads = 0;
+      page.on("download", () => downloads++);
+      try {
+        await page.goto(base);
+        await page
+          .getByLabel("Create a master password", { exact: true })
+          .fill(password);
+        await page
+          .getByLabel("Confirm master password", { exact: true })
+          .fill(password);
+        await click("Create encrypted vault");
+        await expect(
+          page.getByLabel("Search accounts", { exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+        await click("Got it");
+        await click("+ Add account");
+        await page
+          .getByLabel("Service name", { exact: true })
+          .fill("Example: Personal ");
+        await page
+          .getByLabel("Account identifier", { exact: true })
+          .fill("alice:work");
+        await page.getByLabel("Setup key", { exact: true }).fill(secret);
+        await click("Preview account");
+        await click("Import 1 account(s)");
+        await click("Recovery");
+        await click("Export plaintext OTP links…");
+        await expect(page.getByRole("dialog")).toContainText(
+          "Your saved names will stay unchanged",
+        );
+        await page
+          .getByLabel("Master password", { exact: true })
+          .fill(password);
+        await click("Export all OTP links");
+        expect(downloads).toBe(0);
+        await expect(page.getByRole("dialog")).toBeVisible();
+        await page
+          .getByLabel("Use these transfer names", { exact: true })
+          .check();
+        const waiting = page.waitForEvent("download");
+        await click("Export all OTP links");
+        const saved = await waiting;
+        const path = resolve("artifacts/synthetic-transfer-names.txt");
+        await saved.saveAs(path);
+        const link = new URL((await readFile(path, "utf8")).trim());
+        expect(link.searchParams.get("issuer")).toBe("Example  Personal");
+        expect(decodeURIComponent(link.pathname)).toBe(
+          "/Example  Personal:alice work",
+        );
+        expect(link.searchParams.get("secret")).toBe(secret);
+        await click("Authenticator");
+        await expect(page.locator(".account h2")).toHaveAttribute(
+          "title",
+          "Example: Personal ",
+        );
+        await expect(page.locator(".account-name p")).toHaveAttribute(
+          "title",
+          "alice:work",
+        );
       } finally {
         await isolated.close();
         page = prior;

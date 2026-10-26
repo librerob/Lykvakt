@@ -29,6 +29,7 @@ it("backup downloads use the Lykvakt date prefix without changing the envelope f
   await session.setup("synthetic settings password");
   createRecovery(context(session), async () => {}).backupsView();
   await click("Create encrypted backup");
+  set("masterPassword", "synthetic settings password");
   set("password", "synthetic independent backup passphrase");
   set("confirmation", "synthetic independent backup passphrase");
   await send();

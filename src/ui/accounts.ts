@@ -53,8 +53,12 @@ export function createAccounts(ctx: AppContext) {
     run(() => enrollment((tools) => tools.importAccounts()));
   const editAccount = (id: string) =>
     run(() => enrollment((tools) => tools.editAccount(id)));
-  const preview = async (accounts: Account[], skipped: SkippedEntry[] = []) =>
-    enrollment((tools) => tools.preview(accounts, skipped));
+  const preview = async (
+    accounts: Account[],
+    skipped: SkippedEntry[] = [],
+    signal?: AbortSignal,
+  ) =>
+    enrollment((tools) => tools.preview(accounts, skipped, undefined, signal));
   function clear() {
     displayEpoch++;
     backupEpoch++;
@@ -345,11 +349,12 @@ export function createAccounts(ctx: AppContext) {
                 "Advance HOTP counter?",
                 `Current counter: ${a.counter}. Advance only after the service has consumed this code. Opening the vault never advances it.`,
                 "Advance once",
-                async () => {
+                async (signal) => {
                   const data = session.accounts(),
                     current = data.accounts.find((x) => x.id === a.id)!;
                   current.counter = (BigInt(current.counter) + 1n).toString();
-                  await session.save(data);
+                  await session.save(data, undefined, undefined, signal);
+                  signal.throwIfAborted();
                   drawAccounts();
                 },
               ),

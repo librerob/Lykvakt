@@ -192,16 +192,34 @@ export async function commit(
   }
 }
 
-export async function eraseOldVault(expected: OldVaultOffer): Promise<void> {
+export async function eraseOldVault(
+  expected: OldVaultOffer,
+  signal?: AbortSignal,
+): Promise<void> {
+  signal?.throwIfAborted();
   const db = await database();
   try {
     await new Promise<void>((resolve, reject) => {
+      signal?.throwIfAborted();
       const tx = db.transaction("vault", "readwrite", { durability: "strict" });
       const store = tx.objectStore("vault"),
         active = store.get("active"),
         previous = store.get("previous");
       let conflict = false;
+      const abort = () => {
+        try {
+          tx.abort();
+        } catch {
+          /* Already committed. */
+        }
+      };
+      signal?.addEventListener("abort", abort, { once: true });
+      const cleanup = () => signal?.removeEventListener("abort", abort);
       previous.onsuccess = () => {
+        if (signal?.aborted) {
+          abort();
+          return;
+        }
         let unchanged = false;
         try {
           unchanged =
@@ -226,13 +244,22 @@ export async function eraseOldVault(expected: OldVaultOffer): Promise<void> {
           tx.abort();
         }
       };
-      tx.oncomplete = () => resolve();
-      tx.onerror = tx.onabort = () =>
+      tx.oncomplete = () => {
+        cleanup();
+        resolve();
+      };
+      tx.onerror = tx.onabort = () => {
+        cleanup();
         reject(
-          conflict
-            ? new StorageConflictError()
-            : new Error("The old vault could not be erased. It is unchanged."),
+          signal?.aborted
+            ? signal.reason
+            : conflict
+              ? new StorageConflictError()
+              : new Error(
+                  "The old vault could not be erased. It is unchanged.",
+                ),
         );
+      };
     });
   } finally {
     db.close();

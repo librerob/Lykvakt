@@ -98,7 +98,47 @@ export function parseURI(input: string): Account {
     group: "",
   });
 }
+function transferNames(a: Account): { issuer: string; label: string } {
+  // Replace ill-formed UTF-16 only in the explicitly reviewed transfer copy.
+  const name = (value: string) =>
+    new TextDecoder()
+      .decode(new TextEncoder().encode(value))
+      .replace(/:/g, " ")
+      .trim();
+  const issuer = name(a.issuer),
+    label = name(a.label);
+  // URL parsers normalize an unprefixed dot segment instead of keeping its label.
+  return {
+    issuer,
+    label:
+      !label || (!issuer && (label === "." || label === ".."))
+        ? "Account"
+        : label,
+  };
+}
+export function prepareTransfer(input: Account[]): {
+  accounts: Account[];
+  renamed: { from: string; to: string }[];
+} {
+  const renamed: { from: string; to: string }[] = [];
+  const accounts = input.map((value) => {
+    const a = validateAccount(value),
+      names = transferNames(a);
+    if (names.issuer !== a.issuer || names.label !== a.label)
+      renamed.push({
+        from: `${a.issuer} · ${a.label}`,
+        to: `${names.issuer} · ${names.label}`,
+      });
+    const copy = { ...a, ...names };
+    toURI(copy); // Preflight before asking for a password or starting a download.
+    return copy;
+  });
+  return { accounts, renamed };
+}
 export function toURI(a: Account): string {
+  const names = transferNames(a);
+  if (names.issuer !== a.issuer || names.label !== a.label)
+    throw new Error("Review the transfer names before exporting this account.");
   const query = new URLSearchParams({
     secret: a.secret,
     issuer: a.issuer,
@@ -109,7 +149,19 @@ export function toURI(a: Account): string {
     a.type !== "hotp" ? "period" : "counter",
     a.type !== "hotp" ? String(a.period) : a.counter,
   );
-  return `otpauth://${a.type}/${encodeURIComponent(a.issuer ? a.issuer + ":" + a.label : a.label)}?${query}`;
+  const prefix = `otpauth://${a.type}/`,
+    suffix = `?${query}`;
+  let uri =
+    prefix +
+    encodeURIComponent(a.issuer ? a.issuer + ":" + a.label : a.label) +
+    suffix;
+  // The issuer parameter is sufficient when repeating it in the label would exceed the reader's bound.
+  if (uri.length > 5000) uri = prefix + encodeURIComponent(a.label) + suffix;
+  if (uri.length > 5000)
+    throw new Error(
+      "This account is too large for an OTP link. Use an encrypted backup.",
+    );
+  return uri;
 }
 export interface ImportPreview {
   accounts: Account[];

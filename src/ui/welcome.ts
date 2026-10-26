@@ -23,8 +23,8 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
             "Erase the old vault?",
             "This permanently removes the old local vault and its local recovery copy. Export your accounts using the old app first. No file outside this browser is erased.",
             "Erase old vault",
-            async () => {
-              await eraseOldVault(expected);
+            async (signal) => {
+              await eraseOldVault(expected, signal);
               session.lock();
               state.oldVault = undefined;
               state.recovery = undefined;
