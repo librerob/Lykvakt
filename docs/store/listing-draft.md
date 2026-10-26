@@ -1,15 +1,23 @@
-# Store draft — not submitted
+# Store listing draft — not submitted
 
-Lykvakt is a small offline TOTP/HOTP and Steam sign-in authenticator. Codes start hidden. Click a compact row to copy; reveal separately. Encrypted local storage, testable backups, keyboard controls, native help and one black/pink appearance keep it small.
+Lykvakt is a small offline authenticator for TOTP, HOTP and Steam sign-in codes. It keeps your accounts in an encrypted vault on your device and asks for just one browser permission: copying to the clipboard.
 
-Unaudited preview: use test accounts and keep your existing authenticator. TOTP is phishable; there is no password reset.
+Codes start hidden. Click an account row to copy its code, or reveal it separately when you need to read it. The app has encrypted backups you can test, keyboard controls, built-in help and a single black-and-pink appearance.
 
-Earlier previews cannot be opened by this version. Before updating, use the old app's Recovery → Export plaintext OTP links, then import into a fresh vault. If needed, reinstall the old version in the same folder (same extension), export through Recovery → Export plaintext OTP links, then update.
+This is an unaudited preview. Use test accounts and keep your existing authenticator. TOTP codes can be phished, and there is no password reset.
 
-Permission: exactly ["clipboardWrite"]. No host/optional permissions, background worker, remote code, WebAssembly, telemetry, ads, subscriptions or developer server. Argon2id and Web Crypto AES-GCM/AES-KW protect the vault.
+## Moving your accounts
 
-Files are recognised and processed locally: OTP links, QR images, complete Google transfers, plaintext or password-protected Aegis/2FAS, andOTP, Bitwarden OTP fields only, Raivo JSON, Proton Authenticator plaintext JSON, Stratum plaintext JSON and Steam .maFile. Review skipped entries before saving. Coverage uses synthetic fixtures; real exports remain unverified.
+Imports are recognised and processed locally. Supported inputs include OTP links, QR images, complete Google transfers, plaintext or password-protected Aegis and 2FAS files, andOTP, Bitwarden OTP fields only, Raivo JSON, Proton Authenticator plaintext JSON, Stratum plaintext JSON and Steam .maFile files. You'll see skipped entries before deciding what to save. Compatibility tests use synthetic fixtures; real exports remain unverified.
 
-Steam makes sign-in codes only, not trade/market confirmations. Its app does not show the secret; it usually comes from another authenticator or .maFile. Plaintext export and transfer QR require the master password again.
+Earlier previews cannot be opened by this version. Before updating, open the old app and choose **Recovery → Export plaintext OTP links**, then import that file into a fresh vault. If you no longer have the old version, reinstall it in the same folder (the same extension), export through **Recovery → Export plaintext OTP links**, then update.
 
-Read [privacy](../../PRIVACY.md), [design](../design.md) and the synthetic extension [screenshots](../screenshots/). Store payment, upload, publisher verification, asset sizing and submission remain manual and unverified.
+Steam support covers sign-in codes, not trade or market confirmations. Steam's own app doesn't show its setup secret; that usually comes from another authenticator or a .maFile. Creating an encrypted backup, exporting plaintext OTP links and revealing a transfer QR ask for your master password again.
+
+## Privacy and security
+
+The permission set is exactly ["clipboardWrite"]. Lykvakt has no host or optional permissions, background worker, remote code, WebAssembly, telemetry, advertising, subscriptions or developer server. Argon2id and Web Crypto AES-GCM/AES-KW protect the vault.
+
+For details, see the [privacy policy](../../PRIVACY.md), [design guide](../design.md) and [extension screenshots](../screenshots/). The screenshots use synthetic accounts.
+
+This is draft listing copy, not a claim of Store approval. Store payment, upload, publisher verification, asset sizing and submission still need to be completed and checked manually.

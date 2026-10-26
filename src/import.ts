@@ -130,7 +130,7 @@ export function prepareTransfer(input: Account[]): {
         to: `${names.issuer} · ${names.label}`,
       });
     const copy = { ...a, ...names };
-    toURI(copy); // Preflight before asking for a password or starting a download.
+    toURI(copy); // Check the link before asking for a password.
     return copy;
   });
   return { accounts, renamed };
@@ -155,7 +155,7 @@ export function toURI(a: Account): string {
     prefix +
     encodeURIComponent(a.issuer ? a.issuer + ":" + a.label : a.label) +
     suffix;
-  // The issuer parameter is sufficient when repeating it in the label would exceed the reader's bound.
+  // Keep the issuer parameter, but skip the repeated prefix if the link is too long.
   if (uri.length > 5000) uri = prefix + encodeURIComponent(a.label) + suffix;
   if (uri.length > 5000)
     throw new Error(

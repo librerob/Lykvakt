@@ -1,14 +1,16 @@
 # Lykvakt
 
-I built Lykvakt for my own daily use: a small offline TOTP/HOTP and Steam sign-in authenticator for Chrome. The coined, Nordic-inspired name evokes watching over your keys. I plan to keep using and maintaining this open-source project for the long term.
+I built Lykvakt because I wanted a small authenticator for Chrome that I could use every day without giving it access to the websites I visit. It stores TOTP, HOTP and Steam sign-in accounts in an encrypted vault on your device. I use it myself and plan to keep using and maintaining it for the long term.
 
-This is an unaudited preview. Use test accounts and keep your existing authenticator and independently verified backups.
+The name is coined and Nordic-inspired, with the idea of watching over your keys.
+
+Lykvakt is an unaudited preview. Use test accounts and keep your existing authenticator and independently verified backups.
 
 ![Authenticator with synthetic accounts](docs/screenshots/accounts-amoled.png)
 
 ## Build and test
 
-Requires Node 24 and Chrome 120+. There is no Chrome Web Store release.
+You'll need Node 24 and Chrome 120 or newer. Lykvakt hasn't been released on the Chrome Web Store.
 
 ```sh
 npm ci --ignore-scripts
@@ -20,28 +22,34 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-Load `dist/` at chrome://extensions → Developer mode → Load unpacked. `npm run package` builds an install ZIP. CI also checks axe, headed tab locking and repeated popup measurements; see the actual runs for results.
+To load the extension, open chrome://extensions, enable **Developer mode**, choose **Load unpacked** and select `dist/`. Run `npm run package` if you want an install ZIP.
 
-## Use
+CI also runs axe accessibility checks, tests locking when you switch tabs in a browser with a visible window, and takes repeated popup measurements. The workflow runs show which checks passed.
 
-Click a row to copy its current code. Reveal lasts 30 seconds; optional Next follows the same masking rules. HOTP advances only after confirmation in More.
+## Using Lykvakt
 
-Ctrl+Shift+Y opens the popup (Command+Shift+Y on Mac); rebind at chrome://extensions/shortcuts. Search before Enter-to-copy. The confirmation names the account.
+Click an account row to copy its current code. Codes stay hidden until you reveal them, and hide again after 30 seconds. The optional **Next** preview follows the same rules. For HOTP accounts, the counter advances only when you confirm it in **More**.
 
-Save an encrypted backup outside the browser, then test the saved file through Recovery. Imports detect supported formats and report skipped entries before confirmation. The [design and recovery guide](docs/design.md) lists every format, migration step and interoperability limit. Steam support makes sign-in codes, not trade or market confirmations.
+Ctrl+Shift+Y opens the popup, or Command+Shift+Y on Mac. You can change this at chrome://extensions/shortcuts. To copy with Enter, type part of an account name into search first. The confirmation tells you which account was copied.
+
+Save an encrypted backup somewhere outside the browser, then choose **Verify or restore a backup** in **Recovery** to test the file you saved. Creating a backup, exporting plaintext OTP links and revealing a transfer QR all ask for your master password again.
+
+Imports recognise supported formats and show any skipped entries before you save. The [design and recovery guide](docs/design.md) explains the formats, migration steps and compatibility limits. Steam support covers sign-in codes; it doesn't handle trade or market confirmations.
 
 ## Under the hood
 
-Argon2id runs in a worker with 64 MiB, three passes and one lane; stored costs are checked before allocation. Web Crypto AES-256-GCM encrypts records and authenticates the header. Each save uses a fresh content key wrapped with AES-256-KW under a separate vault key.
+Argon2id runs in a worker with 64 MiB of memory, three passes and one lane. Stored costs are checked before memory is allocated. Web Crypto AES-256-GCM encrypts the account data and authenticates the header. Each save gets a fresh content key, wrapped with AES-256-KW under a separate vault key.
 
-IndexedDB atomically saves the vault and previous encrypted revision. Revision checks reject stale writes. Password change rotates the vault key and deletes the superseded local copy in that transaction. Recovery requires an explicit choice; backup verification compares the actual file. Secret exports require the password again. Locking cancels pending work and clears the unlocked session.
+IndexedDB saves the new vault and its previous encrypted revision in one transaction. Revision checks reject stale writes. Changing the master password rotates the vault key and removes the old local copy in the same transaction. Recovery requires your explicit choice, and backup verification checks the actual file you select. Locking cancels pending work and clears the unlocked session.
 
-TOTP is phishable. A compromised device can read unlocked secrets. There is no password reset. See the [security policy](SECURITY.md) and [reviewer brief](REVIEW.md) for limits, tests and review questions.
+TOTP codes can be phished, and a compromised device can read unlocked secrets. There is no password reset. The [security policy](SECURITY.md) and [reviewer brief](REVIEW.md) explain these limits and the areas that need review.
 
 ## Why I keep it small
 
 I want bugs to have as little browser access as possible. Lykvakt has exactly one permission, `clipboardWrite`. It has no content scripts, host permissions, background script, service worker or external-message entry point. It never reads or changes web pages.
 
-Code ships locally. The strict CSP blocks remote scripts and external connections; the build guards those limits. There is no WebAssembly, server, telemetry, advertising or subscription. Accounts and imports stay on your device; optional tools load when needed. More detail is in the design guide and [privacy policy](PRIVACY.md).
+All runtime code ships with the extension. A strict CSP blocks remote scripts and external connections, and the build checks those restrictions. There is no WebAssembly, server, telemetry, advertising or subscription. Accounts and imports stay on your device, and optional tools load only when needed. The design guide and [privacy policy](PRIVACY.md) explain what is stored and where.
 
-Original code is GPL-3.0-or-later; bundled components retain their license notices.
+Much of Lykvakt was developed with AI coding tools. Automated tests and AI-assisted reviews do not replace an independent security audit.
+
+Original code is GPL-3.0-or-later. Bundled components keep their own license notices.

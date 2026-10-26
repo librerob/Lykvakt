@@ -60,7 +60,7 @@ async function aegis(
   const slots = header.slots.map(record).filter((s) => s.type === 1);
   if (!slots.length || slots.length > 4)
     throw new Error("Choose an Aegis export protected by a password.");
-  // Validate ALL password slots before any expensive derivation or allocation.
+  // Check every password slot before starting expensive work.
   const checked = slots.map((s) => {
     let N: number, r: number, p: number;
     try {
