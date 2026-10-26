@@ -64,7 +64,7 @@ it("Steam keeps masking, copy without reveal, next preview, countdown, remasking
   expect(
     view.querySelector(".remaining")!.getAttribute("aria-label"),
   ).toContain("4 seconds");
-  expect(view.querySelector(".expiring-label")!.textContent).toBe("4s left");
+  expect(view.querySelector(".ring-number")!.textContent).toBe("4");
   await vi.advanceTimersByTimeAsync(30000);
   expect(code.textContent).toBe("•• •••");
   code.click();
