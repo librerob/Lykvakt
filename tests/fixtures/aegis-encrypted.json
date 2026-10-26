@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "header": {
+    "slots": [
+      {
+        "type": 1,
+        "uuid": "33333333-3333-4333-8333-333333333333",
+        "n": 32768,
+        "r": 8,
+        "p": 1,
+        "salt": "0101010101010101010101010101010101010101010101010101010101010101",
+        "key": "f0638eb64a76a406d40be2f6287777d10e4c6c4911187f09e6b6158bcfd697a3",
+        "key_params": {
+          "nonce": "040404040404040404040404",
+          "tag": "ea7ef727c87b07672e265fa7b19a1f59"
+        }
+      }
+    ],
+    "params": {
+      "nonce": "030303030303030303030303",
+      "tag": "25c2458e837c029795db1980fd7bb031"
+    }
+  },
+  "db": "vt+NTGWMEB6zh34DrqUs23S5ej1N03Vkg3Zr4xCKxFfoJzsJzb89RBtB4OPRPonebfuWhfSjj4oltpQohN9Cq/BCRy8ukH+BdNbsVE2opU9WiktxPsgQvT0k53UsH9LkGfTwZpkMMgkHtHu9DE2sZST53GVKuKSn3RMqb7H5DLFp/3QEVoQphxkYhnkUrhymlcXBuN6088rqHGT0sgAV7jfoKyiSzHhH3iQl5BDKZ7AY33erwqZgNx5DaE2D00dq1RtgYPcUj5rr3slm08U7eQ9HYLS5z4fEBqzh2WGOex8a5kgkdQi81FeXeO7TlmCegHi2AVrnBjyVPhkoTiJkF1hVYGmInLxCpOg2d2bciNS5Z63vy8yeZw8LI1fJ4yTuqg4Vev9MXoyHvU3yfQLax5kYv1O88Lv2RChLqgBWuLzJvwRLRv49rptyL4Ew+MzKE5mdjziIG2DmxEOaVIMZeDNraX1axE0y2scUkjk5n8yw19jHDVHZMqFWzvnzdQvBFzsTH25DfKy8uOtdv27sP/BwvM1REnoZkYSXpyJ2b044hJegJXrnDyNbQAk8lCCh9bXeWRgallzk3xe0GdkDDO3dWg+e6X/q/IDwID7PJ3q6lrrl"
+}

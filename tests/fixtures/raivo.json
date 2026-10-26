@@ -1,0 +1,15 @@
+[
+  {
+    "issuer": "Synthetic",
+    "account": "alice",
+    "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "algorithm": "SHA1",
+    "digits": "6",
+    "kind": "TOTP",
+    "timer": "30",
+    "pinned": "false",
+    "counter": "0",
+    "iconType": "",
+    "iconValue": ""
+  }
+]

@@ -15,8 +15,21 @@ export const helpCopy = {
   },
   import: {
     text: [
-      "Choose an export from your old authenticator, or paste a setup link. Pick the same format as that app.",
+      "Choose an export from your old authenticator, or paste a setup link. The file format is recognised automatically.",
       "Lykvakt shows what will be added or skipped before you save. Keep your old authenticator until you have checked the new one.",
+    ],
+  },
+  moving: {
+    text: [
+      "Authy and Microsoft Authenticator have no official export of sign-in setup secrets.",
+      "For Authy, third-party tools can produce OTP setup-link lists that Lykvakt can import. Use them at your own risk, with test accounts first. We do not provide or verify those tools.",
+      "For Microsoft Authenticator, set up each service again from its security settings. Keep your existing authenticator until you have tested every account.",
+    ],
+  },
+  steam: {
+    text: [
+      "Steam support makes sign-in codes only. It cannot approve trades or market confirmations.",
+      "Steam's own app does not show its setup secret. It usually has to come from another authenticator or a .maFile export. Keep the file private: it can contain other sensitive Steam data. Only the sign-in secret and account name are imported.",
     ],
   },
   password: {
@@ -110,6 +123,14 @@ export function friendlyError(error: unknown): {
   message: string;
   technical: string;
 } {
+  if (error instanceof Error && error.name === "ImportLimitError")
+    return {
+      message: error.message,
+      technical:
+        "Aegis scrypt import limit: N is a power of two from 2 to 65536; r 1–8; p 1–4; N × r × p ≤ 524288; 65 MiB scratch memory.",
+    };
+  if (error instanceof Error && error.name === "UnrecognizedImportError")
+    return { message: error.message, technical: "Unrecognised import format." };
   const original =
     error instanceof Error ? error.name + ": " + error.message : String(error);
   if (error instanceof OldFormatError)

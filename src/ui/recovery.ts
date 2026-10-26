@@ -93,7 +93,7 @@ export function createRecovery(
         el(
           "p",
           {},
-          "Export every account as standard OTP links. For a scannable QR, open an account’s Edit menu. Destination apps may support different OTP settings.",
+          "Export accounts as OTP links. Steam links need an app supporting otpauth://steam. For a scannable QR, open an account’s Edit menu. Destination apps may support different OTP settings.",
         ),
         button(
           "Export plaintext OTP links…",

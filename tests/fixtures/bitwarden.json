@@ -1,0 +1,32 @@
+{
+  "encrypted": false,
+  "folders": [],
+  "items": [
+    {
+      "id": "synthetic-login",
+      "type": 1,
+      "name": "Synthetic",
+      "login": {
+        "totp": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+        "password": "DO_NOT_IMPORT_SYNTHETIC_PASSWORD",
+        "username": "DO_NOT_IMPORT_USERNAME"
+      },
+      "notes": "DO_NOT_IMPORT_NOTES"
+    },
+    {
+      "type": 1,
+      "name": "Synthetic link",
+      "login": {
+        "totp": "otpauth://totp/Synthetic:alice?secret=JBSWY3DPEHPK3PXP&issuer=Synthetic"
+      }
+    },
+    {
+      "type": 2,
+      "name": "Synthetic note",
+      "secureNote": {
+        "type": 0
+      },
+      "notes": "DO_NOT_IMPORT_OTHER_SECRET"
+    }
+  ]
+}

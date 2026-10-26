@@ -23,7 +23,7 @@ export function parseURI(input: string): Account {
   const url = new URL(input);
   if (
     url.protocol !== "otpauth:" ||
-    !["totp", "hotp"].includes(url.hostname) ||
+    !["totp", "hotp", "steam"].includes(url.hostname) ||
     url.username ||
     url.password ||
     url.port ||
@@ -43,15 +43,29 @@ export function parseURI(input: string): Account {
       throw new Error("Unknown or duplicate OTP parameter.");
   if (
     (url.hostname === "hotp" && url.searchParams.has("period")) ||
-    (url.hostname === "totp" && url.searchParams.has("counter"))
+    (url.hostname !== "hotp" && url.searchParams.has("counter"))
   )
     throw new Error("Parameters conflict with OTP type.");
+  if (
+    url.hostname === "steam" &&
+    (url.searchParams.get("digits") !== "5" ||
+      url.searchParams.get("period") !== "30")
+  )
+    throw new Error(
+      "Steam links require explicit five-character, 30-second settings.",
+    );
   const label = decodeURIComponent(url.pathname.slice(1));
   const colon = label.indexOf(":");
   const prefix = colon < 0 ? "" : label.slice(0, colon).trim();
   const issuer = url.searchParams.get("issuer") ?? prefix;
   if (prefix && issuer !== prefix)
     throw new Error("Issuer in label conflicts with issuer parameter.");
+  // FreeOTP+ uses issuer Steam with five-character TOTP links.
+  const steam =
+    url.hostname === "steam" ||
+    (url.hostname === "totp" &&
+      issuer === "Steam" &&
+      url.searchParams.get("digits") === "5");
   const algorithm = url.searchParams.get("algorithm") ?? "SHA1";
   const algorithms: Record<string, string> = {
     SHA1: "SHA-1",
@@ -61,9 +75,12 @@ export function parseURI(input: string): Account {
     "SHA-256": "SHA-256",
     "SHA-512": "SHA-512",
   };
-  const digits = url.searchParams.get("digits") ?? "6";
+  const digits = url.searchParams.get("digits") ?? (steam ? "5" : "6");
   const period = url.searchParams.get("period") ?? "30";
-  if (!/^(6|8)$/.test(digits) || !/^[1-9][0-9]{0,3}$/.test(period))
+  if (
+    !(steam ? digits === "5" : /^(6|8)$/.test(digits)) ||
+    !/^[1-9][0-9]{0,3}$/.test(period)
+  )
     throw new Error("Unsupported digits or period.");
   if (url.hostname === "hotp" && !url.searchParams.has("counter"))
     throw new Error("HOTP requires an explicit counter.");
@@ -72,7 +89,7 @@ export function parseURI(input: string): Account {
     issuer,
     label: colon < 0 ? label : label.slice(colon + 1).trim(),
     secret: url.searchParams.get("secret"),
-    type: url.hostname,
+    type: steam ? "steam" : url.hostname,
     algorithm: algorithms[algorithm.toUpperCase()],
     digits: Number(digits),
     period: Number(period),
@@ -89,8 +106,8 @@ export function toURI(a: Account): string {
     digits: String(a.digits),
   });
   query.set(
-    a.type === "totp" ? "period" : "counter",
-    a.type === "totp" ? String(a.period) : a.counter,
+    a.type !== "hotp" ? "period" : "counter",
+    a.type !== "hotp" ? String(a.period) : a.counter,
   );
   return `otpauth://${a.type}/${encodeURIComponent(a.issuer ? a.issuer + ":" + a.label : a.label)}?${query}`;
 }
@@ -173,7 +190,13 @@ export function parseImport(
       parsed.version !== 1 ||
       (parsed.header !== null &&
         (typeof parsed.header !== "object" ||
-          Object.keys(record(parsed.header)).length !== 0)) ||
+          (Object.keys(record(parsed.header)).length !== 0 &&
+            !(
+              Object.keys(record(parsed.header)).sort().join() ===
+                "params,slots" &&
+              record(parsed.header).params === null &&
+              record(parsed.header).slots === null
+            )))) ||
       typeof parsed.db !== "object"
     )
       throw new Error(
@@ -208,6 +231,11 @@ export function parseImport(
       };
       const type =
         format === "aegis" ? item.type : String(otp.tokenType).toLowerCase();
+      if (
+        type === "steam" &&
+        (otp.digits !== 5 || otp.period !== 30 || hash !== "SHA1")
+      )
+        throw new Error("Unsupported OTP type or Steam settings.");
       if (type === "hotp" && otp.counter === undefined)
         throw new Error("HOTP requires an explicit counter.");
       const counter = otp.counter ?? 0;

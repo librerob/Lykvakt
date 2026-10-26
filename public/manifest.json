@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Lykvakt — Development Preview",
-  "version": "0.4.0",
-  "version_name": "0.4.0-rc.1 (unaudited)",
-  "description": "Offline TOTP/HOTP vault with password encryption, QR image import and testable encrypted backups. Clipboard permission only.",
+  "version": "0.5.0",
+  "version_name": "0.5.0-rc.1 (unaudited)",
+  "description": "Offline OTP and Steam sign-in codes with encrypted storage, local imports and testable backups. Clipboard permission only.",
   "minimum_chrome_version": "120",
   "permissions": ["clipboardWrite"],
   "action": {

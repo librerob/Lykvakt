@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 4,
+  "services": [
+    {
+      "name": "Synthetic",
+      "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "otp": {
+        "issuer": "Synthetic",
+        "account": "alice",
+        "label": "alice",
+        "tokenType": "TOTP",
+        "algorithm": "SHA1",
+        "digits": 6,
+        "period": 30
+      }
+    }
+  ],
+  "groups": []
+}

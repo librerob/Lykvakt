@@ -1,0 +1,21 @@
+{
+  "Authenticators": [
+    {
+      "Type": 2,
+      "Icon": "google",
+      "Issuer": "Synthetic",
+      "Username": "alice",
+      "Secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "Pin": null,
+      "Algorithm": 0,
+      "Digits": 6,
+      "Period": 30,
+      "Counter": 0,
+      "Ranking": 0,
+      "CopyCount": 0
+    }
+  ],
+  "Categories": [],
+  "AuthenticatorCategories": [],
+  "CustomIcons": []
+}

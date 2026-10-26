@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 export default defineConfig({
   base: "./",
   build: {
+    modulePreload: { polyfill: false },
     target: "chrome120",
     minify: false,
     rollupOptions: {

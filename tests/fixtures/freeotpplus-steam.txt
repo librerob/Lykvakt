@@ -1,0 +1,1 @@
+otpauth://totp/Steam:synthetic?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&digits=5&period=30

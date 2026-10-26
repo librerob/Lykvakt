@@ -43,11 +43,21 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     const type = select(
       "type",
       "Type",
-      { totp: "TOTP · time based", hotp: "HOTP · counter based" },
+      {
+        totp: "TOTP · time based",
+        hotp: "HOTP · counter based",
+        steam: "Steam · sign-in codes",
+      },
       "totp",
     );
     const period = input("period", "Period in seconds", "number", "30"),
       counter = input("counter", "HOTP counter", "text", "0");
+    const steamSettings = () => {
+      const steam = type.control.value === "steam";
+      for (const field of [algorithm, digits, period, counter])
+        field.wrapper.hidden = steam;
+    };
+    type.control.addEventListener("change", steamSettings);
     const group = input("group", "Group (optional)");
     modal(
       "Add account",
@@ -60,10 +70,13 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
               label: data.get("label"),
               secret: data.get("secret"),
               type: data.get("type"),
-              algorithm: data.get("algorithm"),
-              digits: Number(data.get("digits")),
-              period: Number(data.get("period")),
-              counter: data.get("counter"),
+              algorithm:
+                data.get("type") === "steam" ? "SHA-1" : data.get("algorithm"),
+              digits:
+                data.get("type") === "steam" ? 5 : Number(data.get("digits")),
+              period:
+                data.get("type") === "steam" ? 30 : Number(data.get("period")),
+              counter: data.get("type") === "steam" ? "0" : data.get("counter"),
               favorite: false,
               group: data.get("group"),
             });
@@ -75,6 +88,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           "Enter the setup key supplied by the service.",
         ),
         helpBlock("account"),
+        helpBlock("steam"),
         issuer.wrapper,
         label.wrapper,
         secret.wrapper,
@@ -102,6 +116,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
   async function preview(
     accounts: Account[],
     skipped: SkippedEntry[] = [],
+    source?: string,
   ): Promise<void> {
     session.check();
     const previewEpoch = session.epoch();
@@ -112,6 +127,8 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
       );
     const rows = el("div", { class: "preview-list" });
     for (const a of result.accounts) {
+      session.check();
+      if (previewEpoch !== session.epoch()) return;
       const code = await codeFor(a);
       rows.append(
         el(
@@ -122,7 +139,9 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           el(
             "small",
             {},
-            `${a.type.toUpperCase()} · ${a.algorithm} · ${a.digits} digits · ${a.type === "hotp" ? "counter " + a.counter : a.period + " seconds"}`,
+            a.type === "steam"
+              ? "Steam · 5 characters · 30 seconds"
+              : `${a.type.toUpperCase()} · ${a.algorithm} · ${a.digits} digits · ${a.type === "hotp" ? "counter " + a.counter : a.period + " seconds"}`,
           ),
           el("p", { class: "otp small" }, code),
         ),
@@ -135,6 +154,9 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
       el(
         "div",
         { class: "stack" },
+        source
+          ? el("p", { class: "hint" }, `Detected format: ${source}`)
+          : null,
         el(
           "p",
           {},
@@ -184,16 +206,6 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
   }
 
   function importAccounts(): void {
-    const format = select(
-      "format",
-      "Import format",
-      {
-        uri: "OTP links / Google Authenticator transfer",
-        aegis: "Aegis · unencrypted v1 / database v3",
-        "2fas": "2FAS · unencrypted schema 4",
-      },
-      "uri",
-    );
     const area = el("textarea", {
       name: "payload",
       rows: "4",
@@ -202,7 +214,13 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
       placeholder: "otpauth://totp/…",
     });
     const file = input("file", "Or select an export file", "file");
-    file.control.accept = ".txt,.json";
+    file.control.accept = ".txt,.json,.2fas,.maFile,.authpro";
+    const sourcePassword = input(
+      "sourcePassword",
+      "Export file password",
+      "password",
+    );
+    sourcePassword.wrapper.hidden = true;
     const qr = input("qr", "Read a QR image locally", "file");
     qr.control.accept = "image/png,image/jpeg,image/webp";
     qr.control.multiple = true;
@@ -233,18 +251,41 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
       form(
         async (data) =>
           run(async () => {
-            const epoch = session.epoch();
-            const f = file.control.files?.[0];
-            const payload = f ? await readText(f) : String(data.get("payload"));
-            session.check();
-            if (epoch !== session.epoch()) return;
-            const imported = parseImport(
-              payload,
-              String(data.get("format")) as "uri" | "aegis" | "2fas",
-            );
-            await preview(imported.accounts, imported.skipped);
+            try {
+              const epoch = session.epoch(),
+                signal = session.cancellationSignal();
+              const f = file.control.files?.[0];
+              const payload = f
+                ? await readText(f)
+                : String(data.get("payload"));
+              session.check();
+              if (epoch !== session.epoch()) return;
+              const { detectImport, readDetectedImport } =
+                await import("../import-formats");
+              const detected = detectImport(payload);
+              sourcePassword.wrapper.hidden = !detected.encrypted;
+              if (detected.encrypted && !sourcePassword.control.value) {
+                announce(
+                  `Detected format: ${detected.name}. Enter the password for this export file, then preview again.`,
+                );
+                sourcePassword.control.focus();
+                return;
+              }
+              const imported = await readDetectedImport(
+                detected,
+                sourcePassword.control.value,
+                signal,
+              );
+              session.check();
+              if (epoch !== session.epoch()) return;
+              area.value = "";
+              file.control.value = "";
+              await preview(imported.accounts, imported.skipped, imported.name);
+            } finally {
+              sourcePassword.control.value = "";
+            }
           }),
-        format.wrapper,
+        sourcePassword.wrapper,
         helpBlock("import"),
         el(
           "label",
@@ -257,8 +298,10 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         el(
           "p",
           { class: "hint" },
-          "All parsing happens on this device. For Google Authenticator, choose Transfer accounts → Export accounts on your phone, then select images of every transfer QR together. Encrypted third-party exports are not supported. Invalid entries are listed for review before saving valid accounts. Incomplete batches and conflicting imports save nothing.",
+          "All parsing happens on this device. For Google Authenticator, choose Transfer accounts → Export accounts on your phone, then select images of every transfer QR together. Aegis and 2FAS password-protected exports can be opened locally. The file password is used only for this import. Invalid entries are listed for review before saving valid accounts. Incomplete batches and conflicting imports save nothing.",
         ),
+        helpBlock("moving"),
+        helpBlock("steam"),
         submit("Preview import"),
       ),
     );
@@ -289,7 +332,9 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         el(
           "p",
           { class: "hint" },
-          `${a.type.toUpperCase()} · ${a.algorithm} · ${a.digits} digits. OTP settings are preserved.`,
+          a.type === "steam"
+            ? "Steam · 5 characters · 30 seconds. Sign-in codes only."
+            : `${a.type.toUpperCase()} · ${a.algorithm} · ${a.digits} digits. OTP settings are preserved.`,
         ),
         submit("Save changes"),
         button(
@@ -332,7 +377,9 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
                     el(
                       "p",
                       { class: "hint" },
-                      "Standard otpauth QR. Check algorithm, digits, period and counter support in the destination app. Favorites and groups are not transferred.",
+                      entry.type === "steam"
+                        ? "Steam setup link. Only apps supporting otpauth://steam can read it. Favorites and groups are not transferred."
+                        : "Standard otpauth QR. Check algorithm, digits, period and counter support in the destination app. Favorites and groups are not transferred.",
                     ),
                   ),
                 );
