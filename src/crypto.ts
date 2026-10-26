@@ -23,15 +23,30 @@ export function base64(bytes: Uint8Array): string {
 }
 export function unbase64(value: unknown, max: number): Uint8Array<ArrayBuffer> {
   const s = text(value, Math.ceil(max / 3) * 4 + 4);
-  if (
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(s)
-  )
-    throw new Error("Invalid base64.");
-  const bytes = Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  if (s.length % 4 !== 0) throw new Error("Invalid base64.");
+  const padding = s.endsWith("==") ? 2 : s.endsWith("=") ? 1 : 0;
+  if ((s.length / 4) * 3 - padding > max)
+    throw new Error("Invalid binary field.");
+  // Scan once: repeated-group regexps can overflow V8's stack on valid large files.
+  for (let i = 0; i < s.length - padding; i++) {
+    const c = s.charCodeAt(i);
+    if (!(
+      (c >= 65 && c <= 90) ||
+      (c >= 97 && c <= 122) ||
+      (c >= 48 && c <= 57) ||
+      c === 43 ||
+      c === 47
+    ))
+      throw new Error("Invalid base64.");
+  }
+  const decoded = atob(s),
+    bytes = new Uint8Array(decoded.length);
+  for (let i = 0; i < decoded.length; i++) bytes[i] = decoded.charCodeAt(i);
   if (bytes.length > max || base64(bytes) !== s)
     throw new Error("Invalid binary field.");
   return bytes;
 }
+
 function exact(value: unknown, length: number): Uint8Array<ArrayBuffer> {
   const bytes = unbase64(value, length);
   if (bytes.length !== length) throw new Error("Invalid binary length.");
