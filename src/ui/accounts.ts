@@ -32,21 +32,29 @@ export function createAccounts(ctx: AppContext) {
     string,
     { step: string; code: string; next?: string }
   >();
-  async function enrollment() {
-    const epoch = session.epoch();
-    const { createEnrollment } = await import("./enrollment");
+  type Enrollment = ReturnType<typeof import("./enrollment").createEnrollment>;
+  let loadedEnrollment: Enrollment | undefined;
+  function enrollment(
+    action: (tools: Enrollment) => void | Promise<void>,
+  ): void | Promise<void> {
     session.check();
-    if (epoch !== session.epoch())
-      throw new Error("Account action cancelled by locking.");
-    return createEnrollment(ctx, drawAccounts);
+    if (loadedEnrollment) return action(loadedEnrollment);
+    const epoch = session.epoch();
+    return import("./enrollment").then(({ createEnrollment }) => {
+      session.check();
+      if (epoch !== session.epoch())
+        throw new Error("Account action cancelled by locking.");
+      loadedEnrollment ??= createEnrollment(ctx, drawAccounts);
+      return action(loadedEnrollment);
+    });
   }
-  const addAccount = () => run(async () => (await enrollment()).addAccount());
+  const addAccount = () => run(() => enrollment((tools) => tools.addAccount()));
   const importAccounts = () =>
-    run(async () => (await enrollment()).importAccounts());
+    run(() => enrollment((tools) => tools.importAccounts()));
   const editAccount = (id: string) =>
-    run(async () => (await enrollment()).editAccount(id));
+    run(() => enrollment((tools) => tools.editAccount(id)));
   const preview = async (accounts: Account[], skipped: SkippedEntry[] = []) =>
-    (await enrollment()).preview(accounts, skipped);
+    enrollment((tools) => tools.preview(accounts, skipped));
   function clear() {
     displayEpoch++;
     backupEpoch++;
