@@ -620,10 +620,43 @@ try {
       await expect(page.getByRole("dialog")).toHaveCount(0);
     },
   );
+  await check(
+    "encrypted backup creation requires the current master password",
+    async () => {
+      await click("Recovery");
+      await click("Create encrypted backup");
+      await page
+        .getByLabel("Master password", { exact: true })
+        .fill("wrong synthetic password");
+      await page
+        .getByLabel("Backup passphrase", { exact: true })
+        .fill("synthetic backup passphrase only");
+      await page
+        .getByLabel("Confirm backup passphrase", { exact: true })
+        .fill("synthetic backup passphrase only");
+      let downloads = 0;
+      const count = () => downloads++;
+      page.on("download", count);
+      try {
+        await click("Save encrypted file");
+        await expect(page.getByRole("status")).toContainText(
+          "password didn't work",
+        );
+        await expect(
+          page.getByLabel("Master password", { exact: true }),
+        ).toHaveValue("");
+        expect(downloads).toBe(0);
+      } finally {
+        page.off("download", count);
+        await click("Close");
+      }
+    },
+  );
   let backupPath;
   await check("encrypted backup download", async () => {
     await page.getByRole("button", { name: "Recovery", exact: true }).click();
     await click("Create encrypted backup");
+    await page.getByLabel("Master password", { exact: true }).fill(password);
     await page
       .getByLabel("Backup passphrase", { exact: true })
       .fill("synthetic backup passphrase only");

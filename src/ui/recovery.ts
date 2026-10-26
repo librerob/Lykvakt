@@ -1,7 +1,7 @@
 import { backupCompatibilityMessage, busyCopy } from "../help";
 import { savePreference } from "../preferences";
 import { withGenerator } from "./passphrase";
-import { authenticateAction } from "./reauth";
+import { authenticateAction, verifyMasterPassword } from "./reauth";
 import {
   button,
   el,
@@ -161,12 +161,15 @@ export function createRecovery(
   }
 
   function backupExport(): void {
-    const password = input("password", "Backup passphrase", "password"),
+    const master = input("masterPassword", "Master password", "password"),
+      password = input("password", "Backup passphrase", "password"),
       confirmation = input(
         "confirmation",
         "Confirm backup passphrase",
         "password",
       );
+    master.control.required = true;
+    master.control.maxLength = 1024;
     password.control.autocomplete = confirmation.control.autocomplete =
       "new-password";
     modal(
@@ -175,13 +178,14 @@ export function createRecovery(
         async (fields, f) =>
           run(async () => {
             const password = String(fields.get("password"));
-            if (password !== fields.get("confirmation"))
-              throw new Error("Passphrases do not match.");
             const data = session.accounts(),
               epoch = session.epoch();
             let contents: string;
             announce(busyCopy.backup);
             try {
+              if (password !== fields.get("confirmation"))
+                throw new Error("Passphrases do not match.");
+              await verifyMasterPassword(ctx, master.control.value);
               contents = JSON.stringify(
                 (
                   await createEnvelope(
@@ -206,6 +210,12 @@ export function createRecovery(
               "Encrypted backup exported. Verify the saved file to test restoration.",
             );
           }),
+        master.wrapper,
+        el(
+          "p",
+          { class: "hint" },
+          "Confirm your master password before exporting setup secrets.",
+        ),
         withGenerator(password),
         helpBlock("backup"),
         confirmation.wrapper,

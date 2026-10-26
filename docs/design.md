@@ -81,7 +81,7 @@ System fonts, tabular numerals, a black/pink palette and visible focus indicator
 
 ## Backups and moving accounts
 
-An encrypted backup uses independent key material and its own password. Save it outside this browser, with its password separately. This version requires current-format files; older preview files need the export/import path above.
+Creating an encrypted backup requires fresh master-password verification. The backup uses independent key material and its own password. Save it outside this browser, with its password separately. This version requires current-format files; older preview files need the export/import path above.
 
 Verify or restore a backup opens the actual selected file in memory, validates every account and generates test codes. It compares the account snapshot without replacing accounts. Only an exact match marks the current snapshot verified.
 

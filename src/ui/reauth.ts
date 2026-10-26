@@ -1,6 +1,22 @@
 import { el, input, form, submit, helpBlock } from "../dom";
 import { unwrapPassword } from "../crypto";
 import type { AppContext } from "./context";
+export async function verifyMasterPassword(
+  ctx: AppContext,
+  password: string,
+  signal = ctx.session.cancellationSignal(),
+): Promise<void> {
+  const epoch = ctx.session.epoch();
+  let raw: Uint8Array | undefined;
+  try {
+    raw = await unwrapPassword(ctx.session.current(), password, signal);
+  } finally {
+    raw?.fill(0);
+  }
+  ctx.session.check();
+  if (epoch !== ctx.session.epoch())
+    throw new Error("Authentication cancelled by locking.");
+}
 export function authenticateAction(
   ctx: AppContext,
   title: string,
@@ -16,22 +32,12 @@ export function authenticateAction(
       async (_fields, f) =>
         ctx.run(async () => {
           ctx.announce("Verifying master password…");
-          const epoch = ctx.session.epoch();
-          let raw: Uint8Array | undefined;
           try {
-            raw = await unwrapPassword(
-              ctx.session.current(),
-              password.control.value,
-              ctx.session.cancellationSignal(),
-            );
+            await verifyMasterPassword(ctx, password.control.value);
           } finally {
-            raw?.fill(0);
             f.reset();
             password.control.value = "";
           }
-          ctx.session.check();
-          if (epoch !== ctx.session.epoch())
-            throw new Error("Authentication cancelled by locking.");
           ctx.announce("Master password confirmed.");
           ctx.closeDialog();
           await action();
