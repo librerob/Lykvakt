@@ -1,5 +1,6 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { createAccounts } from "../src/ui/accounts";
+import * as enrollmentModule from "../src/ui/enrollment";
 import { emptyVault } from "../src/model";
 import type { Session } from "../src/session";
 import { context } from "./helpers/ui";
@@ -11,6 +12,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   accounts?.clear();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 function setup() {
@@ -74,4 +76,13 @@ it("locking while the first enrollment import is pending prevents opening its di
   lock();
   await vi.waitFor(() => expect(errors).toHaveLength(1));
   expect(ctx.modal).not.toHaveBeenCalled();
+});
+
+it("a fresh account view warms the form controller before its first manual account click", async () => {
+  const factory = vi.spyOn(enrollmentModule, "createEnrollment");
+  const { ctx, click } = setup();
+  await vi.waitFor(() => expect(factory).toHaveBeenCalledOnce());
+  expect(ctx.modal).not.toHaveBeenCalled();
+  click("+ Add account");
+  expect(ctx.modal).toHaveBeenCalledWith("Add account", expect.anything());
 });

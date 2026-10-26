@@ -123,6 +123,17 @@ export function createAccounts(ctx: AppContext) {
     return tip;
   }
   function codesView(): HTMLElement {
+    if (!loadedEnrollment) {
+      const epoch = session.epoch();
+      void import("./enrollment")
+        .then(({ createEnrollment }) => {
+          if (session.unlocked && epoch === session.epoch())
+            loadedEnrollment ??= createEnrollment(ctx, drawAccounts);
+        })
+        .catch(() => {
+          /* The explicit account action reports a load failure. */
+        });
+    }
     const add = button("+ Add account", () => addAccount(), "button primary");
     const searchInput = el("input", {
       name: "search",
