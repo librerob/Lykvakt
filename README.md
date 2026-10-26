@@ -61,3 +61,5 @@ All code ships with the extension. A strict Content Security Policy blocks remot
 The point of these limits is to give bugs as little browser access as possible. I want new features to fit within them and keep the code manageable. The build checks the permission list, CSP and bundled code so those limits stay part of the software.
 
 Read the [design and recovery guide](docs/design.md), [privacy policy](PRIVACY.md), and [security policy](SECURITY.md). Original code is GPL-3.0-or-later; bundled components retain their license notices.
+
+For a critical read of the implementation, start with [the reviewer brief](REVIEW.md).
