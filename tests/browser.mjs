@@ -1751,6 +1751,84 @@ try {
       }
     },
   );
+  await check(
+    "incompatible transfer names require consent and do not rename saved accounts",
+    async () => {
+      const prior = page,
+        isolated = await launch(
+          await mkdtemp(join(tmpdir(), "lykvakt-transfer-names-")),
+        );
+      isolated.on("request", (request) => {
+        if (/^https?:/.test(request.url())) network.push(request.url());
+      });
+      page = await isolated.newPage();
+      page.on("pageerror", (error) => errors.push(error.message));
+      let downloads = 0;
+      page.on("download", () => downloads++);
+      try {
+        await page.goto(base);
+        await page
+          .getByLabel("Create a master password", { exact: true })
+          .fill(password);
+        await page
+          .getByLabel("Confirm master password", { exact: true })
+          .fill(password);
+        await click("Create encrypted vault");
+        await expect(
+          page.getByLabel("Search accounts", { exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+        await click("Got it");
+        await click("+ Add account");
+        await page
+          .getByLabel("Service name", { exact: true })
+          .fill("Example: Personal ");
+        await page
+          .getByLabel("Account identifier", { exact: true })
+          .fill("alice:work");
+        await page.getByLabel("Setup key", { exact: true }).fill(secret);
+        await click("Preview account");
+        await click("Import 1 account(s)");
+        await click("Recovery");
+        await click("Export plaintext OTP links…");
+        await expect(page.getByRole("dialog")).toContainText(
+          "Your saved names will stay unchanged",
+        );
+        await page
+          .getByLabel("Master password", { exact: true })
+          .fill(password);
+        await click("Export all OTP links");
+        expect(downloads).toBe(0);
+        await expect(page.getByRole("dialog")).toBeVisible();
+        await page
+          .getByLabel("Use these transfer names", { exact: true })
+          .check();
+        const waiting = page.waitForEvent("download");
+        await click("Export all OTP links");
+        const saved = await waiting;
+        const path = resolve("artifacts/synthetic-transfer-names.txt");
+        await saved.saveAs(path);
+        const link = new URL((await readFile(path, "utf8")).trim());
+        expect(link.searchParams.get("issuer")).toBe("Example  Personal");
+        expect(decodeURIComponent(link.pathname)).toBe(
+          "/Example  Personal:alice work",
+        );
+        expect(link.searchParams.get("secret")).toBe(secret);
+        await click("Authenticator");
+        await expect(page.locator(".account h2")).toHaveAttribute(
+          "title",
+          "Example: Personal ",
+        );
+        await expect(page.locator(".account-name p")).toHaveAttribute(
+          "title",
+          "alice:work",
+        );
+      } finally {
+        await isolated.close();
+        page = prior;
+        await page.bringToFront();
+      }
+    },
+  );
   await check("every help topic was opened with the keyboard", async () => {
     for (const topic of [
       "account",

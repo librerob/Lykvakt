@@ -89,7 +89,7 @@ The reminder appears when no backup was verified or accounts changed. HOTP advan
 
 Fresh-profile recovery creates an independent local vault only when none exists. A different backup can be reviewed for a safe merge; conflicts are not silently overwritten.
 
-OTP links preserve OTP settings; Steam uses the documented Ente otpauth://steam host, with explicit digits=5 and period=30. Only compatible destination apps can read those links. Per-account transfer QR and bulk plaintext export require fresh master-password verification. These exports contain secrets. They do not preserve every app's groups/favorites.
+OTP links preserve OTP settings; Steam uses the documented Ente otpauth://steam host, with explicit digits=5 and period=30. Only compatible destination apps can read those links. Per-account transfer QR and bulk plaintext export require fresh master-password verification. These exports contain secrets. They do not preserve every app's groups/favorites. Names containing colons, surrounding spaces, an unprefixed dot segment or ill-formed Unicode require explicit approval of transfer names; saved account names are unchanged. Long OTP links can omit the repeated issuer prefix while retaining the issuer parameter, keeping output within the existing 5,000-character reader limit.
 
 Supported formats and their source contracts are listed below. Preview reports every skipped entry and requires confirmation. Battle.net and unsupported variants are rejected or reported explicitly. No passwords, trade secrets or unrelated fields are copied into accounts.
 

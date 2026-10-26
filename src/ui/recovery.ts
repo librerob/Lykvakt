@@ -1,3 +1,4 @@
+import { transferReview } from "./transfer";
 import { backupCompatibilityMessage, busyCopy } from "../help";
 import { savePreference } from "../preferences";
 import { withGenerator } from "./passphrase";
@@ -102,20 +103,24 @@ export function createRecovery(
         button(
           "Export plaintext OTP links…",
           () =>
-            authenticateAction(
-              ctx,
-              "Export every setup secret?",
-              "This unencrypted file lets anyone generate your codes. It excludes favorites and groups. Keep it private, verify the destination app, then remove the file.",
-              "Export all OTP links",
-              async (signal) => {
-                session.check();
-                signal.throwIfAborted();
-                download(
-                  session.accounts().accounts.map(toURI).join("\n") + "\n",
-                  "lykvakt-otp-links.txt",
-                );
-              },
-            ),
+            run(() => {
+              const review = transferReview(session.accounts().accounts);
+              authenticateAction(
+                ctx,
+                "Export every setup secret?",
+                "This unencrypted file lets anyone generate your codes. It excludes favorites and groups. Keep it private, verify the destination app, then remove the file.",
+                "Export all OTP links",
+                async (signal) => {
+                  session.check();
+                  signal.throwIfAborted();
+                  download(
+                    review.accounts.map(toURI).join("\n") + "\n",
+                    "lykvakt-otp-links.txt",
+                  );
+                },
+                review,
+              );
+            }),
           "button text",
         ),
       ),

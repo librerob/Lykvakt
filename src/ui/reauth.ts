@@ -24,6 +24,7 @@ export function authenticateAction(
   message: string,
   label: string,
   action: (signal: AbortSignal) => Promise<void>,
+  review?: { content?: Node; check: () => void },
 ): void {
   const password = input("password", "Master password", "password");
   password.control.required = true;
@@ -35,6 +36,7 @@ export function authenticateAction(
           const signal = dialogOperation(ctx);
           ctx.announce("Verifying master password…");
           try {
+            review?.check();
             await verifyMasterPassword(ctx, password.control.value, signal);
           } finally {
             f.reset();
@@ -45,6 +47,7 @@ export function authenticateAction(
           if (!signal.aborted) ctx.closeDialog();
         }),
       el("p", {}, message),
+      review?.content,
       password.wrapper,
       helpBlock("password"),
       helpBlock("export"),

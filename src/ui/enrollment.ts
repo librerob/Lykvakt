@@ -1,3 +1,4 @@
+import { transferReview } from "./transfer";
 import { authenticateAction } from "./reauth";
 import {
   button,
@@ -361,71 +362,79 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         button(
           "Show transfer QR…",
           () =>
-            authenticateAction(
-              ctx,
-              "Reveal account QR?",
-              "This QR contains the setup secret. Anyone who scans it can generate codes. Scan it in the destination app, compare codes, then close this dialog.",
-              "Reveal QR",
-              async (signal) => {
-                const epoch = session.epoch();
-                const entry = session
-                  .accounts()
-                  .accounts.find((x) => x.id === id)!;
-                const QRCode = await import("qrcode");
-                const uri = toURI(entry);
-                if (uri.length > 1500)
-                  throw new Error(
-                    "This setup key is too large for a practical QR. Export its OTP link instead.",
-                  );
-                const image = await QRCode.toDataURL(uri, {
-                  width: 320,
-                  margin: 4,
-                  errorCorrectionLevel: "M",
-                });
-                session.check();
-                if (epoch !== session.epoch()) return;
-                signal.throwIfAborted();
-                modal(
-                  "Account transfer QR",
-                  el(
-                    "div",
-                    { class: "stack" },
-                    el("p", {}, entry.issuer + " · " + entry.label),
-                    el("img", {
-                      src: image,
-                      alt: "Secret account transfer QR",
-                      class: "transfer-qr",
-                    }),
+            run(() => {
+              const review = transferReview([
+                session.accounts().accounts.find((entry) => entry.id === id)!,
+              ]);
+              authenticateAction(
+                ctx,
+                "Reveal account QR?",
+                "This QR contains the setup secret. Anyone who scans it can generate codes. Scan it in the destination app, compare codes, then close this dialog.",
+                "Reveal QR",
+                async (signal) => {
+                  const epoch = session.epoch();
+                  const entry = review.accounts[0]!;
+                  const QRCode = await import("qrcode");
+                  const uri = toURI(entry);
+                  if (uri.length > 1500)
+                    throw new Error(
+                      "This setup key is too large for a practical QR. Export its OTP link instead.",
+                    );
+                  const image = await QRCode.toDataURL(uri, {
+                    width: 320,
+                    margin: 4,
+                    errorCorrectionLevel: "M",
+                  });
+                  session.check();
+                  if (epoch !== session.epoch()) return;
+                  signal.throwIfAborted();
+                  modal(
+                    "Account transfer QR",
                     el(
-                      "p",
-                      { class: "hint" },
-                      entry.type === "steam"
-                        ? "Steam setup link. Only apps supporting otpauth://steam can read it. Favorites and groups are not transferred."
-                        : "Standard otpauth QR. Check algorithm, digits, period and counter support in the destination app. Favorites and groups are not transferred.",
+                      "div",
+                      { class: "stack" },
+                      el("p", {}, entry.issuer + " · " + entry.label),
+                      el("img", {
+                        src: image,
+                        alt: "Secret account transfer QR",
+                        class: "transfer-qr",
+                      }),
+                      el(
+                        "p",
+                        { class: "hint" },
+                        entry.type === "steam"
+                          ? "Steam setup link. Only apps supporting otpauth://steam can read it. Favorites and groups are not transferred."
+                          : "Standard otpauth QR. Check algorithm, digits, period and counter support in the destination app. Favorites and groups are not transferred.",
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+                review,
+              );
+            }),
           "button text",
         ),
         button(
           "Export plaintext OTP URI…",
           () =>
-            authenticateAction(
-              ctx,
-              "Export secret in plaintext?",
-              "Anyone with this file can generate codes for this account. Keep it private and remove the file when migration is complete.",
-              "Export this account",
-              async (signal) => {
-                session.check();
-                signal.throwIfAborted();
-                const entry = session
-                  .accounts()
-                  .accounts.find((x) => x.id === id)!;
-                download(toURI(entry), "otp-account.txt");
-              },
-            ),
+            run(() => {
+              const review = transferReview([
+                session.accounts().accounts.find((entry) => entry.id === id)!,
+              ]);
+              authenticateAction(
+                ctx,
+                "Export secret in plaintext?",
+                "Anyone with this file can generate codes for this account. Keep it private and remove the file when migration is complete.",
+                "Export this account",
+                async (signal) => {
+                  session.check();
+                  signal.throwIfAborted();
+                  const entry = review.accounts[0]!;
+                  download(toURI(entry), "otp-account.txt");
+                },
+                review,
+              );
+            }),
           "button text",
         ),
         button(
