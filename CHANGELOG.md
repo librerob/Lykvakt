@@ -4,6 +4,7 @@
 
 - Restore the quick toolbar popup, with an explicit window for native file selection and a five-minute window timer.
 - Group import, export and backup in Backup; compact empty/account views and keep essential help available offline.
+- Wait for vault metadata before enabling password forms, and clear filters when the vault becomes empty.
 
 - Use Lykvakt as the product name and remove development-preview labels from the app and Store assets.
 - Shorten the Store description and replace the long list of authenticator names with a general import summary.

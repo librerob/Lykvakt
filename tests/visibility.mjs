@@ -13,10 +13,28 @@ const context = await chromium.launchPersistentContext(profile, {
     `--load-extension=${extension}`,
   ],
 });
+async function hideTab(page) {
+  await page.evaluate(async () => {
+    const current = await chrome.tabs.getCurrent();
+    await chrome.tabs.create({
+      windowId: current.windowId,
+      url: "about:blank",
+      active: true,
+    });
+  });
+  await expect
+    .poll(() => page.evaluate(() => document.visibilityState))
+    .toBe("hidden");
+}
 try {
   const id = await extensionId(context);
   const page = await context.newPage();
   await page.goto(`chrome-extension://${id}/index.html?window`);
+  // Use real visibility; Playwright otherwise emulates focus.
+  const windowCDP = await context.newCDPSession(page);
+  await windowCDP.send("Emulation.setFocusEmulationEnabled", {
+    enabled: false,
+  });
   await page
     .getByLabel("Create a master password")
     .fill("synthetic visibility test password");
@@ -42,9 +60,7 @@ try {
   await page
     .getByRole("button", { name: "Import 1 account(s)", exact: true })
     .click();
-  await page.evaluate(async () => {
-    await chrome.tabs.create({ url: "about:blank", active: true });
-  });
+  await hideTab(page);
   await page.bringToFront();
   await expect(
     page.getByLabel("Search accounts", { exact: true }),
@@ -58,6 +74,8 @@ try {
   ).toBeVisible();
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${id}/index.html`);
+  const popupCDP = await context.newCDPSession(popup);
+  await popupCDP.send("Emulation.setFocusEmulationEnabled", { enabled: false });
   await popup
     .getByLabel("Master password", { exact: true })
     .fill("synthetic visibility test password");
@@ -67,12 +85,7 @@ try {
   await expect(
     popup.getByRole("button", { name: "Lock", exact: true }),
   ).toBeVisible();
-  await popup.evaluate(async () => {
-    await chrome.tabs.create({ url: "about:blank", active: true });
-  });
-  await expect
-    .poll(() => popup.evaluate(() => document.visibilityState))
-    .toBe("hidden");
+  await hideTab(popup);
   await popup.bringToFront();
   await expect(
     popup.getByRole("heading", { name: "Welcome back." }),
