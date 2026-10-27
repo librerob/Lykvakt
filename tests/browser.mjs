@@ -1522,6 +1522,7 @@ try {
         await screenshot("import-help");
         await closeImport();
         for (const name of ["aegis", "2fas"]) {
+          const beforeRead = await storedVault();
           await previewFile(name + "-encrypted.json");
           const source = page.getByLabel("Export file password", {
             exact: true,
@@ -1533,6 +1534,7 @@ try {
             "password didn't work",
           );
           await expect(source).toHaveValue("");
+          expect(await storedVault()).toEqual(beforeRead);
           await expect(page.locator(".account")).toHaveCount(0);
           await source.fill("synthetic source password å");
           await click("Preview import");
@@ -1540,8 +1542,9 @@ try {
           await expect(page.getByRole("dialog")).toContainText(
             "Detected format: " + (name === "aegis" ? "Aegis" : "2FAS"),
           );
+          expect(await storedVault()).toEqual(beforeRead);
+          await closeImport();
           await expect(page.locator(".account")).toHaveCount(0);
-          await click("Close");
         }
         await previewFile("steam.maFile");
         await expect(page.getByRole("dialog")).toContainText(
@@ -2131,9 +2134,19 @@ try {
         await expect(
           vault.getByRole("button", { name: "Open in a window", exact: true }),
         ).toHaveCount(0);
+        await popup.evaluate(async () => {
+          const current = await chrome.windows.getCurrent();
+          await chrome.tabs.create({
+            windowId: current.id,
+            url: "about:blank",
+            active: true,
+          });
+        });
+        await popup.bringToFront();
         await expect(
           popup.getByRole("heading", { name: "Welcome back." }),
         ).toBeVisible();
+        await vault.bringToFront();
         await vault
           .getByRole("button", { name: "Authenticator", exact: true })
           .click();

@@ -225,6 +225,12 @@ export function createAccounts(ctx: AppContext) {
 
   function drawAccounts(): void {
     if (!list || !session.unlocked) return;
+    const data = session.accounts();
+    if (!data.accounts.length) {
+      search = "";
+      favorites = false;
+      if (searchControl) searchControl.value = "";
+    }
     maskAll();
     const notice = backupNotice,
       epoch = ++backupEpoch;
@@ -240,9 +246,8 @@ export function createAccounts(ctx: AppContext) {
     if (searchRow) searchRow.hidden = !session.accounts().accounts.length;
     if (searchControl)
       searchControl.hidden = !session.accounts().accounts.length;
-    const accounts = session
-      .accounts()
-      .accounts.filter(
+    const accounts = data.accounts
+      .filter(
         (a) =>
           (!favorites || a.favorite) &&
           `${a.issuer} ${a.label} ${a.group}`

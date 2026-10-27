@@ -25,7 +25,7 @@ function fixture(withAccount = false) {
     epoch: () => 0,
   } as Session);
   ctx.state.firstRunTip = true;
-  return { ctx, accounts: createAccounts(ctx) };
+  return { ctx, data, accounts: createAccounts(ctx) };
 }
 it("shows one empty-state message and hides search, favorites and backup reminder", async () => {
   const { ctx, accounts } = fixture();
@@ -111,3 +111,22 @@ it.each([true, false])(
     expect(primaryText(help)).not.toMatch(/Argon2|AES|envelope|nonce|WASM/);
   },
 );
+
+it("clears filters when the last account is removed so empty controls do not trap the view", () => {
+  const { data, accounts } = fixture(true);
+  const view = accounts.codesView() as unknown as TestElement;
+  view
+    .querySelectorAll("button")
+    .find((n) => n.textContent === "☆ Favorites")!
+    .click();
+  data.accounts = [];
+  const empty = accounts.codesView() as unknown as TestElement;
+  expect(empty.querySelector(".empty")!.textContent).toContain(
+    "A fresh start.",
+  );
+  expect(empty.querySelector(".empty")!.textContent).not.toContain(
+    "No matching accounts",
+  );
+  expect(empty.querySelector(".search-row")!.hidden).toBe(true);
+  accounts.clear();
+});
