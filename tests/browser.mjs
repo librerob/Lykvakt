@@ -59,6 +59,7 @@ async function click(name) {
     ).toBeVisible();
 }
 async function unlock() {
+  await expect(page.locator("#app")).toHaveAttribute("aria-busy", "false");
   if (
     await page
       .getByRole("button", { name: "Unlock vault", exact: true })
@@ -2019,6 +2020,95 @@ try {
     },
   );
   await check(
+    "password forms wait for vault metadata on setup and restart",
+    async () => {
+      const isolated = await launch(
+        await mkdtemp(join(tmpdir(), "lykvakt-load-gate-")),
+      );
+      const startup = await isolated.newPage();
+      startup.on("pageerror", (error) => errors.push(error.message));
+      try {
+        await startup.addInitScript(() => {
+          const open = indexedDB.open.bind(indexedDB);
+          let first = true;
+          indexedDB.open = (...args) => {
+            const request = open(...args);
+            if (first) {
+              first = false;
+              Object.defineProperty(request, "onsuccess", {
+                configurable: true,
+                set(handler) {
+                  request.addEventListener(
+                    "success",
+                    (event) => {
+                      window.__releaseVaultLoad = () => {
+                        delete window.__releaseVaultLoad;
+                        handler.call(request, event);
+                      };
+                    },
+                    { once: true },
+                  );
+                },
+              });
+            }
+            return request;
+          };
+        });
+        for (const existing of [false, true]) {
+          if (existing) await startup.reload();
+          else await startup.goto(`chrome-extension://${id}/index.html`);
+          await expect
+            .poll(() =>
+              startup.evaluate(() => typeof window.__releaseVaultLoad),
+            )
+            .toBe("function");
+          await expect(startup.locator("#app")).toHaveAttribute(
+            "aria-busy",
+            "true",
+          );
+          await expect(startup.locator('input[type="password"]')).toHaveCount(
+            0,
+          );
+          await expect(
+            startup.getByText("Opening your vault…", { exact: true }),
+          ).toBeVisible();
+          await startup.evaluate(() => window.__releaseVaultLoad());
+          await expect(startup.locator("#app")).toHaveAttribute(
+            "aria-busy",
+            "false",
+          );
+          if (existing) {
+            await startup
+              .getByLabel("Master password", { exact: true })
+              .fill("x");
+            await startup
+              .getByRole("button", { name: "Unlock vault", exact: true })
+              .click();
+          } else {
+            await startup
+              .getByLabel("Create a master password", { exact: true })
+              .fill("x");
+            await startup
+              .getByLabel("Confirm master password", { exact: true })
+              .fill("x");
+            await startup
+              .getByRole("button", {
+                name: "Create encrypted vault",
+                exact: true,
+              })
+              .click();
+          }
+          await expect(
+            startup.getByRole("button", { name: "+ Add account", exact: true }),
+          ).toBeVisible();
+        }
+      } finally {
+        await isolated.close();
+        await page.bringToFront();
+      }
+    },
+  );
+  await check(
     "popup pastes imports and hands file selection to an independently locked window",
     async () => {
       const isolated = await launch(
@@ -2188,6 +2278,10 @@ try {
       const open = async () => {
         const popup = await isolated.newPage();
         await popup.goto(popupUrl);
+        await expect(popup.locator("#app")).toHaveAttribute(
+          "aria-busy",
+          "false",
+        );
         if (
           await popup
             .getByRole("button", {

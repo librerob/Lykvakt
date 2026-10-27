@@ -23,6 +23,7 @@ const state: AppState = {
   view: "codes",
   firstRunTip: preferenceEnabled("firstRunTips"),
 };
+let loading = true;
 let dialog: HTMLDialogElement | undefined;
 const dialogLifetime = new DialogLifetime();
 let status: HTMLElement;
@@ -206,21 +207,20 @@ setInterval(() => {
 }, 1000);
 
 function render(): void {
+  root.setAttribute("aria-busy", String(loading));
   const title = el(
     "div",
     { class: "wordmark" },
     el("img", { src: "icons/32.png", width: "32", height: "32", alt: "" }),
     el("div", {}, el("strong", {}, "Lykvakt")),
   );
-  const tools = el(
-    "div",
-    { class: "header-actions" },
-    button(
-      "Help & documentation",
-      () => modal("Help & documentation", offlineHelp(isPopup)),
-      "button text help-link",
-    ),
+  const help = button(
+    "Help & documentation",
+    () => modal("Help & documentation", offlineHelp(isPopup)),
+    "button text help-link",
   );
+  help.disabled = loading;
+  const tools = el("div", { class: "header-actions" }, help);
   if (session.unlocked)
     tools.append(button("Lock", () => session.lock(), "button tonal"));
   const header = el("header", {}, title, tools);
@@ -230,7 +230,11 @@ function render(): void {
     "aria-live": "polite",
   });
   const main = el("main");
-  if (!session.unlocked) main.append(welcome.locked());
+  if (loading)
+    main.append(
+      el("p", { class: "content", role: "status" }, "Opening your vault…"),
+    );
+  else if (!session.unlocked) main.append(welcome.locked());
   else {
     const nav = el("nav", { "aria-label": "Vault" });
     for (const [key, title] of [
@@ -280,10 +284,14 @@ function render(): void {
 void run(async () => {
   // A load error must not expose setup over an existing vault.
   state.exists = true;
-  const loaded = await load();
-  state.exists = !!loaded;
-  state.oldVault = loaded && isOldVault(loaded) ? loaded : undefined;
-  state.recovery = loaded && isRecoveryOffer(loaded) ? loaded : undefined;
-  render();
+  try {
+    const loaded = await load();
+    state.exists = !!loaded;
+    state.oldVault = loaded && isOldVault(loaded) ? loaded : undefined;
+    state.recovery = loaded && isRecoveryOffer(loaded) ? loaded : undefined;
+  } finally {
+    loading = false;
+    render();
+  }
 });
 render();
