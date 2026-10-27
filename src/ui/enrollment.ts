@@ -1,4 +1,5 @@
 import { transferReview } from "./transfer";
+import { fileChoice } from "./file-choice";
 import { authenticateAction } from "./reauth";
 import {
   button,
@@ -319,8 +320,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           el("span", {}, "OTP URIs or export text"),
           area,
         ),
-        file.wrapper,
-        qr.wrapper,
+        fileChoice(ctx, file.wrapper, qr.wrapper),
         el(
           "p",
           { class: "hint" },

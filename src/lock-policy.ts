@@ -8,5 +8,5 @@ export const AUTO_LOCK_OPTIONS: Record<string, string> = {
 };
 
 export function autoLockTimeout(value: number): number {
-  return Object.hasOwn(AUTO_LOCK_OPTIONS, String(value)) ? value : 0;
+  return Object.hasOwn(AUTO_LOCK_OPTIONS, String(value)) ? value : 300_000;
 }

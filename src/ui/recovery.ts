@@ -1,4 +1,5 @@
 import { transferReview } from "./transfer";
+import { fileChoice } from "./file-choice";
 import { backupCompatibilityMessage, busyCopy } from "../help";
 import { savePreference } from "../preferences";
 import { withGenerator } from "./passphrase";
@@ -226,6 +227,10 @@ export function createRecovery(
   }
 
   function backupVerify(): void {
+    if (ctx.isPopup) {
+      modal("Choose a backup file", fileChoice(ctx));
+      return;
+    }
     const file = input("file", "Encrypted backup file", "file"),
       password = input("password", "Backup passphrase", "password");
     file.control.accept = ".json";
@@ -321,6 +326,10 @@ export function createRecovery(
   }
 
   function recoverySetup(): void {
+    if (ctx.isPopup) {
+      modal("Choose a backup file", fileChoice(ctx));
+      return;
+    }
     const file = input("file", "Encrypted backup file", "file"),
       backup = input("backup", "Backup passphrase", "password"),
       password = input("password", "New master password", "password"),

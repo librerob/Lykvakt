@@ -1934,11 +1934,115 @@ try {
     },
   );
   await check(
+    "popup pastes imports, hands file selection to a locked window, and locks on hide",
+    async () => {
+      const isolated = await launch(
+        await mkdtemp(join(tmpdir(), "lykvakt-popup-")),
+      );
+      try {
+        const popup = await isolated.newPage();
+        await popup.setViewportSize({ width: 400, height: 580 });
+        await popup.goto(`chrome-extension://${id}/index.html`);
+        await popup
+          .getByLabel("Create a master password", { exact: true })
+          .fill("x");
+        await popup
+          .getByLabel("Confirm master password", { exact: true })
+          .fill("x");
+        await popup
+          .getByRole("button", { name: "Create encrypted vault", exact: true })
+          .click();
+        await popup
+          .getByRole("button", { name: "Import accounts", exact: true })
+          .click();
+        await expect(popup.locator('input[type="file"]')).toHaveCount(0);
+        await expect(
+          popup.getByText(
+            "Chrome can close this small popup while you pick a file. The window will ask for your password.",
+          ),
+        ).toBeVisible();
+        await popup.getByLabel("OTP URIs or export text").fill(uri);
+        await popup
+          .getByRole("button", { name: "Preview import", exact: true })
+          .click();
+        await popup
+          .getByRole("button", { name: "Import 1 account(s)", exact: true })
+          .click();
+        await expect(popup.locator(".account")).toHaveCount(1);
+        await popup.screenshot({
+          path: "artifacts/screenshots/popup-mode.png",
+        });
+        const popupAxe = await new AxeBuilder({ page: popup })
+          .setLegacyMode()
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+          .analyze();
+        await writeFile(
+          "artifacts/axe-popup.json",
+          JSON.stringify(popupAxe.violations, null, 2),
+        );
+        expect(popupAxe.violations).toEqual([]);
+        await popup
+          .getByRole("button", { name: "Import accounts", exact: true })
+          .click();
+        await popup
+          .getByRole("button", {
+            name: "Open in a window to choose a file",
+            exact: true,
+          })
+          .click();
+        await expect
+          .poll(() => isolated.pages().some((p) => p.url() === base))
+          .toBe(true);
+        const vault = isolated.pages().find((p) => p.url() === base);
+        await vault.setViewportSize({ width: 400, height: 700 });
+        await expect(
+          vault.getByRole("heading", { name: "Welcome back." }),
+        ).toBeVisible();
+        await vault.getByLabel("Master password", { exact: true }).fill("x");
+        await vault
+          .getByRole("button", { name: "Unlock vault", exact: true })
+          .click();
+        await expect(vault.locator(".account")).toHaveCount(1);
+        await vault.screenshot({
+          path: "artifacts/screenshots/window-mode.png",
+        });
+        await vault
+          .getByRole("button", { name: "Settings", exact: true })
+          .click();
+        await expect(
+          vault.getByLabel("Auto-lock", { exact: true }),
+        ).toHaveValue("300000");
+        await expect(
+          vault.getByRole("button", { name: "Open in a window", exact: true }),
+        ).toHaveCount(0);
+        await expect(
+          popup.getByRole("heading", { name: "Welcome back." }),
+        ).toBeVisible();
+        await vault
+          .getByRole("button", { name: "Authenticator", exact: true })
+          .click();
+        await vault
+          .getByRole("button", { name: "Import accounts", exact: true })
+          .click();
+        await expect(vault.locator('input[type="file"]')).toHaveCount(2);
+        await expect(
+          vault.getByRole("button", {
+            name: "Open in a window to choose a file",
+            exact: true,
+          }),
+        ).toHaveCount(0);
+      } finally {
+        await isolated.close();
+        await page.bringToFront();
+      }
+    },
+  );
+  await check(
     "a chosen inactivity timer locks the vault and can be disabled",
     async () => {
       await click("Settings");
       const timeout = page.getByLabel("Auto-lock", { exact: true });
-      await expect(timeout).toHaveValue("0");
+      await expect(timeout).toHaveValue("300000");
       await timeout.selectOption("60000");
       await page.clock.fastForward(61_000);
       await expect(
@@ -1959,34 +2063,61 @@ try {
     },
   );
   await check(
-    "the toolbar launcher reuses its dedicated window and supports a chosen short password",
+    "explicit window opening reuses the vault and supports a chosen short password",
     async () => {
       const directory = await mkdtemp(join(tmpdir(), "lykvakt-window-"));
       const isolated = await launch(directory);
       const vaultUrl = base;
-      const launcherUrl = `chrome-extension://${id}/launcher.html`;
+      const popupUrl = `chrome-extension://${id}/index.html`;
       const open = async () => {
-        const launcher = await isolated.newPage();
-        try {
-          await launcher.goto(launcherUrl, { waitUntil: "domcontentloaded" });
-        } catch (error) {
-          if (!launcher.isClosed()) throw error;
+        const popup = await isolated.newPage();
+        await popup.goto(popupUrl);
+        if (
+          await popup
+            .getByRole("button", {
+              name: "Create encrypted vault",
+              exact: true,
+            })
+            .count()
+        ) {
+          await popup
+            .getByLabel("Create a master password", { exact: true })
+            .fill("x");
+          await popup
+            .getByLabel("Confirm master password", { exact: true })
+            .fill("x");
+          await popup
+            .getByRole("button", {
+              name: "Create encrypted vault",
+              exact: true,
+            })
+            .click();
+        } else {
+          await popup.getByLabel("Master password", { exact: true }).fill("x");
+          await popup
+            .getByRole("button", { name: "Unlock vault", exact: true })
+            .click();
         }
+        await popup
+          .getByRole("button", { name: "Settings", exact: true })
+          .click();
+        await popup
+          .getByRole("button", { name: "Open in a window", exact: true })
+          .click();
         await expect
           .poll(() => isolated.pages().some((p) => p.url() === vaultUrl))
           .toBe(true);
+        await popup.close();
         return isolated.pages().find((p) => p.url() === vaultUrl);
       };
       try {
         const vault = await open();
+        await expect(
+          vault.getByRole("heading", { name: "Welcome back." }),
+        ).toBeVisible();
+        await vault.getByLabel("Master password", { exact: true }).fill("x");
         await vault
-          .getByLabel("Create a master password", { exact: true })
-          .fill("x");
-        await vault
-          .getByLabel("Confirm master password", { exact: true })
-          .fill("x");
-        await vault
-          .getByRole("button", { name: "Create encrypted vault", exact: true })
+          .getByRole("button", { name: "Unlock vault", exact: true })
           .click();
         await expect(
           vault.getByLabel("Search accounts", { exact: true }),

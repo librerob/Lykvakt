@@ -25,6 +25,7 @@ beforeEach(() => {
     },
   };
   vi.stubGlobal("chrome", api);
+  vi.stubGlobal("screen", { availHeight: 900 });
 });
 afterEach(() => vi.unstubAllGlobals());
 it("opens a dedicated vault window without inspecting website tabs", async () => {
@@ -34,7 +35,7 @@ it("opens a dedicated vault window without inspecting website tabs", async () =>
     url,
     type: "popup",
     width: 440,
-    height: 800,
+    height: 700,
     focused: true,
   });
   expect(api.tabs.update).not.toHaveBeenCalled();
@@ -83,4 +84,12 @@ it("restores a minimized vault window while keeping its page", async () => {
     state: "normal",
   });
   expect(api.windows.create).not.toHaveBeenCalled();
+});
+
+it("clamps a new window to the available screen height", async () => {
+  vi.stubGlobal("screen", { availHeight: 540 });
+  await openVault();
+  expect(api.windows.create).toHaveBeenCalledWith(
+    expect.objectContaining({ height: 540, width: 440 }),
+  );
 });

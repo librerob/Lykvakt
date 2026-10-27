@@ -41,8 +41,26 @@ try {
   await expect(
     page.getByRole("heading", { name: "Welcome back." }),
   ).toBeVisible();
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${id}/index.html`);
+  await popup
+    .getByLabel("Master password", { exact: true })
+    .fill("synthetic visibility test password");
+  await popup
+    .getByRole("button", { name: "Unlock vault", exact: true })
+    .click();
+  await expect(
+    popup.getByRole("button", { name: "Lock", exact: true }),
+  ).toBeVisible();
+  await popup.evaluate(async () => {
+    await chrome.tabs.create({ url: "about:blank", active: true });
+  });
+  await popup.bringToFront();
+  await expect(
+    popup.getByRole("heading", { name: "Welcome back." }),
+  ).toBeVisible();
   console.log(
-    "PASS headed Chromium switching keeps the vault unlocked; explicit Lock still locks it",
+    "PASS headed Chromium window switching stays unlocked; popup switching and explicit Lock lock the vault",
   );
 } finally {
   await context.close();

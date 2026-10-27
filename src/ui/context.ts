@@ -10,6 +10,7 @@ export interface AppContext {
   session: Session;
   state: AppState;
   isExtension: boolean;
+  isPopup: boolean;
   isVisible: () => boolean;
   run: (action: () => void | Promise<void>) => Promise<void>;
   announce: (message: string, error?: boolean) => void;

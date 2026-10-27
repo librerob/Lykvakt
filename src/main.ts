@@ -7,6 +7,7 @@ import { friendlyError } from "./help";
 import { focusVault, installEscape } from "./keyboard";
 import { preferenceEnabled, readPreference } from "./preferences";
 import { autoLockTimeout } from "./lock-policy";
+import { isPopupMode, installViewLock } from "./view-mode";
 import { Session } from "./session";
 import { load, isRecoveryOffer, isOldVault } from "./storage";
 import { createAccounts } from "./ui/accounts";
@@ -25,7 +26,9 @@ let dialog: HTMLDialogElement | undefined;
 const dialogLifetime = new DialogLifetime();
 let status: HTMLElement;
 const isExtension = !!globalThis.chrome?.runtime?.id;
-const storedTimeout = Number(readPreference("timeout"));
+const isPopup = isPopupMode(location.search);
+document.body.classList.add(isPopup ? "popup-mode" : "window-mode");
+const storedTimeout = Number(readPreference("timeout") ?? NaN);
 session.timeout = autoLockTimeout(storedTimeout);
 async function run(action: () => void | Promise<void>): Promise<void> {
   const originDialog = dialog;
@@ -135,6 +138,7 @@ const ctx: AppContext = {
   session,
   state,
   isExtension,
+  isPopup,
   isVisible: () => !document.hidden,
   run,
   announce,
@@ -165,13 +169,14 @@ function refreshWindow(): void {
     // Expiry already rendered the locked view.
   }
 }
-window.addEventListener("focus", refreshWindow);
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) accounts.mask();
-  else refreshWindow();
-});
-window.addEventListener("blur", accounts.mask);
-window.addEventListener("pagehide", () => session.lock());
+installViewLock(
+  isPopup,
+  session,
+  document,
+  window,
+  accounts.mask,
+  refreshWindow,
+);
 
 for (const event of ["pointerdown", "keydown"])
   document.addEventListener(

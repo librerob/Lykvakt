@@ -19,11 +19,11 @@ Choosing **Erase the old vault and start fresh** asks for a second confirmation.
 
 ## Small, offline architecture
 
-A dedicated extension window holds the Session, DOM and keys. The toolbar's small launcher finds only Lykvakt's own extension contexts and opens or focuses that window. Switching away masks revealed codes and keeps the vault unlocked. The default has no inactivity timer; optional timers are checked before operations and when returning. Closing or reloading the vault window discards its key, as does quitting Chrome. There is no unlock state saved outside the page. The browser doesn't provide a guaranteed signal for an operating-system lock.
+Each popup or explicit window holds its own Session, DOM and keys. The toolbar button and Ctrl+Shift+Y open a 400 px popup. It locks on hide, loss of focus or close. Use Open in a window for a separate 440 x 700 window (height is clamped to the available screen). File imports, QR images and backup-file selection are available only in that window; pasted links and text work in the popup. The window asks for its own unlock; no key is passed between views.
 
 The manifest permissions are exactly ["clipboardWrite"]. There are no host or optional permissions, background scripts or service workers, content scripts, developer backend, advertising, subscriptions or telemetry. There is no externally_connectable setting or external-message handler. The extension never reads or changes web page content. Copying requires an explicit click, or a non-empty search followed by Enter. The confirmation names the account. Clipboard history and other apps may retain the copied value.
 
-Ctrl+Shift+Y is the suggested vault-window shortcut, or Command+Shift+Y on Mac. You can change it at chrome://extensions/shortcuts. Keyboard-layout shortcuts, the operating system and other extensions may still conflict with it. Outside a dialog, Escape clears search without closing the vault window. In a dialog, Escape closes it and cancels its pending work.
+Ctrl+Shift+Y is the suggested popup shortcut, or Command+Shift+Y on Mac. You can change it at chrome://extensions/shortcuts. Keyboard-layout shortcuts, the operating system and other extensions may still conflict with it. Outside a dialog, Escape clears search without closing the vault window. In a dialog, Escape closes it and cancels its pending work.
 
 Account creation and import forms load when the unlocked account view opens, so they stay out of the locked popup's initial code. Format readers, encrypted-import support, scrypt, Steam code generation, QR image scanning and export, generated-passphrase words and the Argon2 implementation load only when used. Chrome 120+ supports module preloading natively, so the build leaves out Vite's unused fetch-based preload fallback. The package guard rejects network APIs in bundled code.
 
@@ -50,6 +50,8 @@ Payload schema 3 contains accounts, verifiedAt and verifiedSnapshot. Each accoun
 Existing vaults in the current format still open. Older builds reject Steam records, and earlier schemas show the same old-format screen. IDs must be unique, counters are precise unsigned 64-bit strings, and files, account counts and text fields have limits. Website associations and earlier payload schemas are rejected.
 
 ## Derivation and locking
+
+A popup locks when it closes, hides or loses focus. A separate window keeps its key in memory when you switch away and defaults to a five-minute inactivity limit. Settings offers 1, 5, 15 and 30 minutes, 1 hour, and When this window closes. Existing valid choices are retained. Closing or reloading either view clears its key; no unlocked session is persisted or shared between views. A background page may be suspended, so the deadline is also checked before operations and when focus returns.
 
 A bundled module Web Worker handles one password derivation at a time. It derives the password key, imports it immediately and returns only a nonextractable CryptoKey. Node tests and benchmarks explicitly inject the real yielding engine. The extension ships that engine only in its worker. If the worker is missing or fails to start, the app shows an error rather than deriving on the main thread.
 

@@ -653,12 +653,6 @@ footer {
   align-items: center;
   gap: var(--s2);
 }
-.launcher {
-  padding: var(--s4);
-  display: grid;
-  gap: var(--s3);
-  min-height: 120px;
-}
 
 .documentation-link {
   display: inline-flex;
@@ -667,4 +661,52 @@ footer {
   padding: 4px;
   font-size: var(--t1);
   white-space: nowrap;
+}
+
+/* Keep the toolbar popup stable while its account list scrolls. */
+body.popup-mode {
+  width: 400px;
+  height: 580px;
+  min-height: 480px;
+  overflow: hidden;
+}
+.popup-mode #app {
+  height: 100%;
+  min-height: 480px;
+  display: flex;
+  flex-direction: column;
+}
+.popup-mode header,
+.popup-mode nav,
+.popup-mode footer {
+  flex-shrink: 0;
+}
+.popup-mode main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.popup-mode main > section {
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+.popup-mode main > section:has(.account-list) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.popup-mode .account-list {
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1;
+  padding: 3px;
+  margin: -3px;
+}
+.popup-mode .account-tools,
+.popup-mode .search-row,
+.popup-mode .backup-notice,
+.popup-mode .notice {
+  flex-shrink: 0;
 }
