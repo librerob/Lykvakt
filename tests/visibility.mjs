@@ -1,18 +1,58 @@
 import { extensionId } from "./extension-id.mjs";
 import { chromium, expect } from "@playwright/test";
+import { spawn } from "node:child_process";
 import { mkdtemp } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 const extension = resolve("dist");
 const profile = await mkdtemp(join(tmpdir(), "otp-visibility-"));
-const context = await chromium.launchPersistentContext(profile, {
-  channel: "chromium",
-  headless: false,
-  args: [
+// Attach without Playwright's forced-focus defaults so Chrome can hide tabs.
+const chromeProcess = spawn(
+  process.env.CHROMIUM_PATH || chromium.executablePath(),
+  [
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-background-networking",
+    "--disable-component-update",
+    "--disable-sync",
+    "--remote-debugging-address=127.0.0.1",
+    "--remote-debugging-port=0",
+    `--user-data-dir=${profile}`,
     `--disable-extensions-except=${extension}`,
     `--load-extension=${extension}`,
+    "about:blank",
   ],
+  { stdio: ["ignore", "ignore", "pipe"], windowsHide: true },
+);
+const started = new Promise((resolve, reject) => {
+  let output = "";
+  const timeout = setTimeout(
+    () =>
+      reject(new Error("Chrome did not expose its test endpoint. " + output)),
+    30_000,
+  );
+  chromeProcess.once("error", (error) => {
+    clearTimeout(timeout);
+    reject(error);
+  });
+  chromeProcess.once("exit", (code) => {
+    clearTimeout(timeout);
+    reject(new Error("Chrome exited: " + code + " " + output));
+  });
+  chromeProcess.stderr.on("data", (chunk) => {
+    output = (output + chunk.toString()).slice(-32_000);
+    const endpoint = output.match(
+      /DevTools listening on (ws:\/\/[^\r\n]+)[\r\n]/,
+    )?.[1];
+    if (endpoint) {
+      clearTimeout(timeout);
+      resolve(endpoint);
+    }
+  });
 });
+let browser;
 async function hideTab(page) {
   await page.evaluate(async () => {
     const current = await chrome.tabs.getCurrent();
@@ -27,14 +67,12 @@ async function hideTab(page) {
     .toBe("hidden");
 }
 try {
+  const endpoint = await started;
+  browser = await chromium.connectOverCDP(endpoint, { noDefaults: true });
+  const context = browser.contexts()[0];
   const id = await extensionId(context);
   const page = await context.newPage();
   await page.goto(`chrome-extension://${id}/index.html?window`);
-  // Use real visibility; Playwright otherwise emulates focus.
-  const windowCDP = await context.newCDPSession(page);
-  await windowCDP.send("Emulation.setFocusEmulationEnabled", {
-    enabled: false,
-  });
   await page
     .getByLabel("Create a master password")
     .fill("synthetic visibility test password");
@@ -74,8 +112,6 @@ try {
   ).toBeVisible();
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${id}/index.html`);
-  const popupCDP = await context.newCDPSession(popup);
-  await popupCDP.send("Emulation.setFocusEmulationEnabled", { enabled: false });
   await popup
     .getByLabel("Master password", { exact: true })
     .fill("synthetic visibility test password");
@@ -94,5 +130,10 @@ try {
     "PASS headed Chromium window switching stays unlocked; popup switching and explicit Lock lock the vault",
   );
 } finally {
-  await context.close();
+  if (browser) {
+    const client = await browser.newBrowserCDPSession().catch(() => undefined);
+    await client?.send("Browser.close").catch(() => {});
+    await browser.close().catch(() => {});
+  }
+  if (chromeProcess.exitCode === null) chromeProcess.kill();
 }
