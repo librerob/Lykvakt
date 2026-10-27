@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { helpBlock, technicalDetails, el } from "../src/dom";
-import { helpCopy, friendlyError, type HelpTopic } from "../src/help";
+import { documentationLink, technicalDetails, el } from "../src/dom";
+import { DOCUMENTATION_URL } from "../src/documentation";
+import { friendlyError } from "../src/help";
 import { createSettings } from "../src/ui/settings";
 import { createWelcome } from "../src/ui/welcome";
 import { createRecovery } from "../src/ui/recovery";
@@ -19,23 +20,15 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-it.each(Object.keys(helpCopy) as HelpTopic[])(
-  "%s help uses native collapsed details and centralized copy",
-  (topic) => {
-    const node = helpBlock(topic) as unknown as TestElement;
-    expect(node.tagName).toBe("DETAILS");
-    expect(node.hasAttribute("open")).toBe(false);
-    expect(node.getAttribute("data-help")).toBe(topic);
-    expect(
-      node.children[0] instanceof TestElement && node.children[0].tagName,
-    ).toBe("SUMMARY");
-    expect(
-      node.children[0] instanceof TestElement && node.children[0].textContent,
-    ).toBe("What does this mean?");
-    for (const paragraph of helpCopy[topic].text)
-      expect(node.textContent).toContain(paragraph);
-  },
-);
+it("the documentation link is a native, isolated link to the GitHub guide", () => {
+  const link = documentationLink() as unknown as TestElement;
+  expect(link.tagName).toBe("A");
+  expect(link.textContent).toBe("Help & documentation");
+  expect(link.getAttribute("href")).toBe(DOCUMENTATION_URL);
+  expect(link.getAttribute("target")).toBe("_blank");
+  expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+});
+
 it("rendered primary screens and secret-export forms contain no cryptography jargon outside Technical details", () => {
   const data = emptyVault();
   data.accounts.push(
@@ -143,7 +136,7 @@ it("Recovery shows a plain-language version note beside Save an encrypted backup
   );
 });
 
-it("setup and settings omit preview branding while retaining security help", () => {
+it("setup and settings omit preview branding and repeated inline help", () => {
   const session = {
     accounts: () => emptyVault(),
     current: () => ({ password: DEFAULT_KDF }),
@@ -157,6 +150,7 @@ it("setup and settings omit preview branding while retaining security help", () 
     expect(view.textContent).not.toMatch(
       /development preview|unaudited|test accounts only/i,
     );
-  expect(settings.querySelector('[data-help="security"]')).not.toBeNull();
+  expect(setup.querySelectorAll("[data-help]")).toHaveLength(0);
+  expect(settings.querySelectorAll("[data-help]")).toHaveLength(0);
   expect(settings.textContent).toContain("there is no password reset");
 });

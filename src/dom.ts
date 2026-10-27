@@ -1,4 +1,5 @@
-import { helpCopy, type HelpTopic } from "./help";
+import { DOCUMENTATION_URL } from "./documentation";
+
 export type Child = Node | string | null | undefined | false;
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -112,21 +113,6 @@ export function technicalDetails(...children: Child[]): HTMLDetailsElement {
     ...children,
   );
 }
-export function helpBlock(
-  topic: HelpTopic,
-  title = "What does this mean?",
-): HTMLDetailsElement {
-  const copy: { text: string[]; technical?: string[] } = helpCopy[topic];
-  return el(
-    "details",
-    { class: "inline-help", "data-help": topic },
-    el("summary", {}, title),
-    ...copy.text.map((text) => el("p", {}, text)),
-    copy.technical
-      ? technicalDetails(...copy.technical.map((text) => el("p", {}, text)))
-      : null,
-  );
-}
 
 export function svg<K extends keyof SVGElementTagNameMap>(
   tag: K,
@@ -138,4 +124,17 @@ export function svg<K extends keyof SVGElementTagNameMap>(
     node.setAttribute(key, value);
   node.append(...children);
   return node;
+}
+
+export function documentationLink(): HTMLAnchorElement {
+  return el(
+    "a",
+    {
+      href: DOCUMENTATION_URL,
+      target: "_blank",
+      rel: "noopener noreferrer",
+      class: "documentation-link",
+    },
+    "Help & documentation",
+  );
 }

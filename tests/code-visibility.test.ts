@@ -55,7 +55,6 @@ vi.mock("../src/dom", () => ({
     n.action = action;
     return n;
   },
-  helpBlock: () => new Node("details"),
   input: () => ({
     control: { addEventListener() {} },
     wrapper: new Node("label"),
@@ -90,10 +89,11 @@ async function setup() {
     check() {},
     epoch: () => 0,
   } as unknown as Session;
-  const accounts = createAccounts(context(session));
+  const ctx = context(session);
+  const accounts = createAccounts(ctx);
   const view = accounts.codesView() as unknown as Node;
   await accounts.tick();
-  return { accounts, view, code: view.querySelector(".otp")!, session };
+  return { accounts, view, code: view.querySelector(".otp")!, session, ctx };
 }
 it("masks by default with an accessible keyboard-operable control and copies without revealing", async () => {
   const { view, code } = await setup();
@@ -134,4 +134,23 @@ it("uses the explicit always-show preference without starting reveal timers", as
   expect(code.textContent).toBe("123 456");
   await code.action!();
   expect(vi.getTimerCount()).toBe(0);
+});
+
+it("masks on switching away while keeping the unlocked session and copy action", async () => {
+  const { code, accounts, view, session, ctx } = await setup();
+  await code.action!();
+  expect(code.textContent).toBe("123 456");
+  ctx.isVisible = () => false;
+  accounts.mask();
+  await accounts.tick();
+  expect(code.textContent).toBe("••• •••");
+  expect(session.unlocked).toBe(true);
+  ctx.isVisible = () => true;
+  await accounts.tick();
+  expect(code.textContent).toBe("••• •••");
+  const copy = view
+    .querySelectorAll(".button")
+    .find((node) => node.textContent === "Copy")!;
+  await copy.action!();
+  expect(writeText).toHaveBeenCalledWith("123456");
 });

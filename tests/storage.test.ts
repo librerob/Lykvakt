@@ -44,14 +44,22 @@ it("requires unlocking for all sensitive session access and cancels late unlock"
 it("locks on the next operation if timers were suspended", async () => {
   const session = new Session();
   await session.unlock("test database passphrase");
-  session.timeout = 0;
-  expect(() => session.accounts()).toThrow("Unlock");
-  expect(session.unlocked).toBe(false);
+  session.timeout = 1;
+  const tick = vi
+    .spyOn(performance, "now")
+    .mockReturnValue(performance.now() + 2);
+  try {
+    expect(() => session.accounts()).toThrow("Unlock");
+    expect(session.unlocked).toBe(false);
+  } finally {
+    tick.mockRestore();
+  }
 }, 60_000);
 
 it("monotonic inactivity expiry survives a wall-clock rollback", async () => {
   const session = new Session();
   await session.unlock("test database passphrase");
+  session.timeout = 300_000;
   const monotonic = performance.now();
   const wall = Date.now();
   const clock = vi.spyOn(Date, "now").mockReturnValue(wall - 86_400_000);

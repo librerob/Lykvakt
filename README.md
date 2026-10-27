@@ -22,17 +22,19 @@ npm run test:browser
 
 To load the extension, open chrome://extensions, enable **Developer mode**, choose **Load unpacked** and select `dist/`. Run `npm run package` if you want an install ZIP.
 
-CI also runs axe accessibility checks, tests locking when you switch tabs in a browser with a visible window, and takes repeated popup measurements. The workflow runs show which checks passed.
+CI also runs axe accessibility checks, tests switching away without locking in a browser with a visible window, and takes repeated vault-window startup measurements. The workflow runs show which checks passed.
 
 ## Using Lykvakt
 
 Click an account row to copy its current code. Codes stay hidden until you reveal them, and hide again after 30 seconds. The optional **Next** preview follows the same rules. For HOTP accounts, the counter advances only when you confirm it in **More**.
 
-Ctrl+Shift+Y opens the popup, or Command+Shift+Y on Mac. You can change this at chrome://extensions/shortcuts. To copy with Enter, type part of an account name into search first. The confirmation tells you which account was copied.
+Ctrl+Shift+Y opens or focuses the vault window, or Command+Shift+Y on Mac. You can change this at chrome://extensions/shortcuts. To copy with Enter, type part of an account name into search first. The confirmation tells you which account was copied.
 
 Save an encrypted backup somewhere outside the browser, then choose **Verify or restore a backup** in **Recovery** to test the file you saved. Creating a backup, exporting plaintext OTP links and revealing a transfer QR all ask for your master password again.
 
 Imports recognise supported formats and show any skipped entries before you save. The [design and recovery guide](docs/design.md) explains the formats, migration steps and compatibility limits. Steam support covers sign-in codes; it doesn't handle trade or market confirmations.
+
+The vault stays unlocked while its window is open. In Settings, you can choose an inactivity timer; closing the window or quitting Chrome locks it. Password length is your choice, with a long, unique passphrase recommended. The app links to the [usage guide](docs/usage.md) for explanations.
 
 ## Under the hood
 

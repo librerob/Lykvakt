@@ -6,7 +6,7 @@
   "minimum_chrome_version": "120",
   "permissions": ["clipboardWrite"],
   "action": {
-    "default_popup": "index.html",
+    "default_popup": "launcher.html",
     "default_title": "Lykvakt"
   },
   "icons": {

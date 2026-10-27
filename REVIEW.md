@@ -78,4 +78,4 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-CI also runs axe and the headed tab-lock check. The design guide lists manual and unverified checks; a passing CI run isn't evidence for behavior those checks don't cover.
+CI also runs axe and the headed focus-switch and manual-lock check. The design guide lists manual and unverified checks; a passing CI run isn't evidence for behavior those checks don't cover.

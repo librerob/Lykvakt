@@ -148,10 +148,10 @@ async function passwordKey(
     bytes.fill(0);
   }
 }
-export function requireStrongPassword(password: string): void {
-  if (password.length < 14 || password.length > 1024)
+export function requirePassword(password: string): void {
+  if (!password.length || password.length > 1024)
     throw new Error(
-      "Use at least 14 characters. A long, unique passphrase is best.",
+      "Invalid password length. Enter a password of up to 1,024 characters.",
     );
 }
 export async function makePasswordSlot(
@@ -161,7 +161,7 @@ export async function makePasswordSlot(
   kind: Header["kind"],
   signal?: AbortSignal,
 ): Promise<PasswordSlot> {
-  requireStrongPassword(password);
+  requirePassword(password);
   const slot: PasswordSlot = {
     ...DEFAULT_KDF,
     salt: base64(random(32)),

@@ -20,7 +20,7 @@ try {
   const id = await extensionId(context),
     url = `chrome-extension://${id}/index.html`;
   await context.addInitScript(() => {
-    const sample = (globalThis.__popupSample = {});
+    const sample = (globalThis.__vaultSample = {});
     let waiting = false,
       submit;
     document.addEventListener(
@@ -96,10 +96,10 @@ try {
     const page = await context.newPage();
     await page.goto(url);
     await page.waitForFunction(
-      () => globalThis.__popupSample?.interactivePaint !== undefined,
+      () => globalThis.__vaultSample?.interactivePaint !== undefined,
     );
     const sample = await page.evaluate(() => ({
-      interactivePaintMs: globalThis.__popupSample.interactivePaint,
+      interactivePaintMs: globalThis.__vaultSample.interactivePaint,
       firstContentfulPaintMs:
         performance.getEntriesByName("first-contentful-paint")[0]?.startTime ??
         null,
@@ -113,12 +113,12 @@ try {
           .getByRole("button", { name: "Unlock vault", exact: true })
           .click();
         await page.waitForFunction(
-          () => globalThis.__popupSample?.unlockPaint !== undefined,
+          () => globalThis.__vaultSample?.unlockPaint !== undefined,
           undefined,
           { timeout: 60_000 },
         );
         sample.unlockMs = await page.evaluate(
-          () => globalThis.__popupSample.unlockPaint,
+          () => globalThis.__vaultSample.unlockPaint,
         );
       }
       samples.push(sample);
@@ -144,7 +144,7 @@ try {
     firstContentfulPaintMs: summary("firstContentfulPaintMs"),
     unlockMs: summary("unlockMs"),
     scope:
-      "Headless 400x760 popup document, warm browser profile, three warmups and fifteen fresh pages. Interactive paint is two frame callbacks after enabled password/submit controls exist. Five real unlocks include worker derivation and account rendering. Not a physical toolbar/window-compositor measurement.",
+      "Headless 400x760 vault document, warm browser profile, three warmups and fifteen fresh pages. Interactive paint is two frame callbacks after enabled password/submit controls exist. Five real unlocks include worker derivation and account rendering. Not a toolbar-launcher or physical window-compositor measurement.",
   };
   await mkdir(resolve(output, ".."), { recursive: true });
   await writeFile(output, JSON.stringify(result, null, 2) + "\n");

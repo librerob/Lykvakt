@@ -2,7 +2,7 @@ import { busyCopy } from "../help";
 import { OldFormatError, oldFormatMessage } from "../format";
 import { savePreference } from "../preferences";
 import { withGenerator } from "./passphrase";
-import { button, el, input, form, submit, helpBlock } from "../dom";
+import { button, el, input, form, submit } from "../dom";
 import { RecoveryRequired, load, isOldVault, eraseOldVault } from "../storage";
 import type { AppContext } from "./context";
 
@@ -14,7 +14,7 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
       { class: "welcome stack" },
       el("h1", {}, "Earlier preview"),
       el("p", {}, oldFormatMessage),
-      helpBlock("oldFormat"),
+
       button(
         "Erase the old vault and start fresh",
         () => {
@@ -49,7 +49,7 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
     password.control.autocomplete = state.exists
       ? "current-password"
       : "new-password";
-    password.control.minLength = state.exists ? 1 : 14;
+    password.control.minLength = 1;
     password.control.maxLength = 1024;
     const confirmation = input(
       "confirmation",
@@ -101,9 +101,9 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
             new RecoveryRequired(state.recovery).message,
           )
         : null,
-      state.recovery ? helpBlock("olderCopy") : null,
+
       state.exists ? password.wrapper : withGenerator(password),
-      helpBlock("password"),
+
       state.exists ? null : confirmation.wrapper,
       submit(
         state.recovery

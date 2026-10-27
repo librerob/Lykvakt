@@ -35,13 +35,12 @@ export function focusVault(
 export function installEscape(
   target: EventTarget,
   clearSearch: () => boolean,
-  closePopup: () => void,
   dialogOpen: () => boolean,
 ): void {
   target.addEventListener("keydown", (incoming) => {
     const event = incoming as KeyboardEvent;
     if (event.key !== "Escape" || dialogOpen()) return;
     event.preventDefault();
-    if (!clearSearch()) closePopup();
+    clearSearch();
   });
 }

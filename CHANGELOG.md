@@ -1,10 +1,13 @@
 # Changelog
 
-## 0.5.1 — 26 October 2026
+## 0.5.1 — 27 October 2026
 
 - Use Lykvakt as the product name and remove development-preview labels from the app and Store assets.
 - Shorten the Store description and replace the long list of authenticator names with a general import summary.
 - Use Steam support in the public description, with trade and market confirmations still outside its scope.
+- Open or focus a dedicated vault window from the toolbar. Keep it unlocked while open by default, with optional inactivity timers and no background service worker.
+- Replace repeated inline explanations with one GitHub documentation link.
+- Make new password length a user choice, with a recommendation and the existing non-empty/maximum bounds.
 - Keep vault formats, encryption, permissions and recovery behavior unchanged.
 
 ## 0.5.0-rc.1 — 26 October 2026

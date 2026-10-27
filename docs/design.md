@@ -19,11 +19,11 @@ Choosing **Erase the old vault and start fresh** asks for a second confirmation.
 
 ## Small, offline architecture
 
-A single TypeScript/Vite extension page holds the Session, DOM and keys. It locks when hidden or closed, when another tab is activated, after the idle timeout, and before opening another window. Closing the popup discards its unlock key. The browser doesn't provide a guaranteed signal for an operating-system lock.
+A dedicated extension window holds the Session, DOM and keys. The toolbar's small launcher finds only Lykvakt's own extension contexts and opens or focuses that window. Switching away masks revealed codes and keeps the vault unlocked. The default has no inactivity timer; optional timers are checked before operations and when returning. Closing or reloading the vault window discards its key, as does quitting Chrome. There is no unlock state saved outside the page. The browser doesn't provide a guaranteed signal for an operating-system lock.
 
 The manifest permissions are exactly ["clipboardWrite"]. There are no host or optional permissions, background scripts or service workers, content scripts, developer backend, advertising, subscriptions or telemetry. There is no externally_connectable setting or external-message handler. The extension never reads or changes web page content. Copying requires an explicit click, or a non-empty search followed by Enter. The confirmation names the account. Clipboard history and other apps may retain the copied value.
 
-Ctrl+Shift+Y is the suggested popup shortcut, or Command+Shift+Y on Mac. You can change it at chrome://extensions/shortcuts. Keyboard-layout shortcuts, the operating system and other extensions may still conflict with it. Outside a dialog, Escape clears a search first and then closes the popup. In a dialog, Escape closes it and cancels its pending work.
+Ctrl+Shift+Y is the suggested vault-window shortcut, or Command+Shift+Y on Mac. You can change it at chrome://extensions/shortcuts. Keyboard-layout shortcuts, the operating system and other extensions may still conflict with it. Outside a dialog, Escape clears search without closing the vault window. In a dialog, Escape closes it and cancels its pending work.
 
 Account creation and import forms load when the unlocked account view opens, so they stay out of the locked popup's initial code. Format readers, encrypted-import support, scrypt, Steam code generation, QR image scanning and export, generated-passphrase words and the Argon2 implementation load only when used. Chrome 120+ supports module preloading natively, so the build leaves out Vite's unused fetch-based preload fallback. The package guard rejects network APIs in bundled code.
 
@@ -37,7 +37,7 @@ The envelope uses format "otp-vault", version 2. Every header field is authentic
 
 New slots use Argon2id v0x13 with 65,536 KiB (64 MiB) of memory, three passes, one lane and a 32-byte output. Stored costs must be integers within 19,456–262,144 KiB, two–ten passes and exactly one lane. Validation rejects costs outside those bounds before allocation. There are no strength choices, calibration or unlock-time upgrades.
 
-Passwords use NFKC-normalized UTF-8 only, and new passwords must be 14–1024 characters long. The optional generator chooses seven words from the EFF wordlist using browser-provided random bytes and unbiased rejection sampling.
+Passwords use NFKC-normalized UTF-8. Non-empty passwords up to 1,024 characters are accepted; a long, unique passphrase of at least 14 characters is recommended rather than enforced. The optional generator chooses seven words from the EFF wordlist using browser-provided random bytes and unbiased rejection sampling.
 
 The random 32-byte vault key is imported as a nonextractable AES-256-KW key. A nonextractable AES-256-GCM key derived from the password protects it, using a fresh 32-byte salt, 12-byte IV and 128-bit tag. The password wrapper's AAD binds the format, version, purpose, ID, kind, salt and all password costs.
 
@@ -111,7 +111,7 @@ Run npm ci --ignore-scripts, build, lint, format:check and test as described in 
 
 Parser fuzz tests run 80,000 deterministic, bounded mutations. Each call must return a valid result or throw an Error within the existing per-call budget. The tests exercise malformed inputs; they aren't an exhaustive adversarial review.
 
-Browser CI loads the unpacked extension with synthetic accounts. It checks keyboard flows, menus and account rows, compact height, masking, old-format refusal and confirmed erasure, axe, and locking when you switch tabs in a real browser with a visible window.
+Browser CI loads the unpacked extension with synthetic accounts. It checks keyboard flows, menus and account rows, compact height, masking, old-format refusal and confirmed erasure, axe, and keeping the vault unlocked when switching tabs in a real browser with a visible window, followed by an explicit manual lock.
 
 For the imports-1 PR, CI also built the pre-change main revision and measured both popup documents on the same runner. First interactive paint means the first paint opportunity after a password field and enabled primary button exist. Repeated fresh popup-document pages use the same warmed browser profile. Results include first-contentful-paint entries and end-to-end unlock samples. They don't measure the physical toolbar or window compositor, or establish performance across devices.
 

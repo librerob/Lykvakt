@@ -1,6 +1,6 @@
 # Privacy
 
-Lykvakt processes your accounts and the files you select on your device. There is no developer server, registration, advertising, telemetry or account-data upload. Store review does not provide an independent security audit.
+Lykvakt processes your accounts and the files you select on your device. There is no developer server, registration, advertising, telemetry or account-data upload.
 
 ## Browser access and copying
 
@@ -10,7 +10,7 @@ Lykvakt never reads the clipboard. Clipboard history, clipboard managers and oth
 
 ## What stays in the browser
 
-IndexedDB stores the encrypted vault and its previous revision. localStorage stores your timeout, code-visibility, Next preview and first-run-tip preferences. Keys are held only while the vault is unlocked; closing or hiding the page locks it.
+IndexedDB stores the encrypted vault and its previous revision. localStorage stores your timeout, code-visibility, Next preview and first-run-tip preferences. Keys are held only in the unlocked vault window. By default, switching away keeps it unlocked; closing or reloading it, quitting Chrome or choosing Lock clears the session. Optional inactivity timers are checked before operations and when returning to the window.
 
 An ordinary save keeps the previous encrypted revision in the same transaction as the new one. Changing your master password rotates the key and deletes the old copy atomically. If the current record is structurally damaged, recovery requires you to choose the older copy and enter its password. Earlier previews cannot be opened or recovered by this version. Confirmed erasure affects only local records, never external files.
 
@@ -22,7 +22,7 @@ You choose where to save backup files. Verification opens the selected file and 
 
 Changing the vault password cannot revoke copies of files you've already saved or shared. Browser sync, profile backups, other extensions, the operating system and malware are outside Lykvakt's control. There is no password reset or developer recovery service.
 
-The [design and recovery guide](docs/design.md) describes the storage format and recovery process in more detail.
+The [design and recovery guide](docs/design.md) describes the storage format and recovery process in more detail. The Help & documentation link opens GitHub only when selected; no account information is included in that link.
 
 ## Data used by the authenticator
 

@@ -1,4 +1,4 @@
-import { el, input, form, submit, helpBlock } from "../dom";
+import { el, input, form, submit } from "../dom";
 import { unwrapPassword } from "../crypto";
 import { dialogOperation, type AppContext } from "./context";
 export async function verifyMasterPassword(
@@ -49,8 +49,7 @@ export function authenticateAction(
       el("p", {}, message),
       review?.content,
       password.wrapper,
-      helpBlock("password"),
-      helpBlock("export"),
+
       submit(label),
     ),
   );

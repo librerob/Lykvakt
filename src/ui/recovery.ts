@@ -3,16 +3,7 @@ import { backupCompatibilityMessage, busyCopy } from "../help";
 import { savePreference } from "../preferences";
 import { withGenerator } from "./passphrase";
 import { authenticateAction, verifyMasterPassword } from "./reauth";
-import {
-  button,
-  el,
-  input,
-  form,
-  submit,
-  download,
-  readText,
-  helpBlock,
-} from "../dom";
+import { button, el, input, form, submit, download, readText } from "../dom";
 import { load } from "../storage";
 import { createEnvelope, snapshot } from "../crypto";
 import { toURI, verifyBackup } from "../import";
@@ -78,7 +69,7 @@ export function createRecovery(
         "A backup is useful when you know it restores.",
       ),
       health,
-      helpBlock("backup"),
+
       el(
         "div",
         { class: "settings-section stack" },
@@ -88,13 +79,12 @@ export function createRecovery(
           {},
           "This browser keeps a recent locked copy for recovery when the current copy cannot be read. It is separate from the backup file you save elsewhere.",
         ),
-        helpBlock("olderCopy"),
       ),
       el(
         "div",
         { class: "settings-section" },
         el("h2", {}, "Move to another authenticator"),
-        helpBlock("export"),
+
         el(
           "p",
           {},
@@ -129,7 +119,7 @@ export function createRecovery(
         { class: "settings-section" },
         el("h2", {}, "1. Save an encrypted backup"),
         el("p", { class: "hint" }, backupCompatibilityMessage),
-        helpBlock("backup"),
+
         el(
           "p",
           {},
@@ -145,7 +135,7 @@ export function createRecovery(
         "div",
         { class: "settings-section" },
         el("h2", {}, "2. Test the file you saved"),
-        helpBlock("verify"),
+
         el(
           "p",
           {},
@@ -223,12 +213,12 @@ export function createRecovery(
           "Confirm your master password before exporting setup secrets.",
         ),
         withGenerator(password),
-        helpBlock("backup"),
+
         confirmation.wrapper,
         el(
           "p",
           { class: "hint" },
-          "At least 14 characters. This file restores using its own passphrase.",
+          "This file restores using its own passphrase.",
         ),
         submit("Save encrypted file"),
       ),
@@ -324,8 +314,7 @@ export function createRecovery(
           }),
         file.wrapper,
         password.wrapper,
-        helpBlock("verify"),
-        helpBlock("backup"),
+
         submit("Decrypt & test restoration"),
       ),
     );
@@ -393,9 +382,9 @@ export function createRecovery(
           }),
         file.wrapper,
         backup.wrapper,
-        helpBlock("backup"),
+
         withGenerator(password),
-        helpBlock("password"),
+
         confirm.wrapper,
         submit("Test & recover accounts"),
       ),

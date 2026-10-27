@@ -80,7 +80,7 @@ it("Enter copies the first matching current code without revealing it", async ()
   expect(view.querySelector(".otp")!.textContent).toBe("••• •••");
   accounts.clear();
 });
-it("Escape clears a search before closing the popup and leaves native dialog Escape alone", () => {
+it("Escape clears search without closing the vault window and leaves native dialogs alone", () => {
   const target = new EventTarget(),
     close = vi.fn();
   let searching = true,
@@ -90,18 +90,19 @@ it("Escape clears a search before closing the popup and leaves native dialog Esc
     searching = false;
     return had;
   });
-  installEscape(target, clear, close, () => dialog);
+  vi.stubGlobal("window", { close });
+  installEscape(target, clear, () => dialog);
   const first = keyEvent("Escape");
   target.dispatchEvent(first);
   expect(first.defaultPrevented).toBe(true);
   expect(close).not.toHaveBeenCalled();
   target.dispatchEvent(keyEvent("Escape"));
-  expect(close).toHaveBeenCalledOnce();
+  expect(close).not.toHaveBeenCalled();
   dialog = true;
   const event = keyEvent("Escape");
   target.dispatchEvent(event);
   expect(event.defaultPrevented).toBe(false);
-  expect(close).toHaveBeenCalledOnce();
+  expect(close).not.toHaveBeenCalled();
 });
 it("search Enter ignores composition and modified shortcuts", () => {
   const field = input("search", "Search accounts", "search").control;

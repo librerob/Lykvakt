@@ -125,3 +125,15 @@ it("stale session revision cannot overwrite another window's save", async () => 
   expect(stale.current()).toEqual(old);
   expect(await storage.load()).toEqual(first.current());
 }, 60_000);
+
+it("keeps the session open by default until an explicit lock or page destruction", async () => {
+  const session = await unlocked();
+  expect(session.timeout).toBe(0);
+  vi.spyOn(performance, "now").mockReturnValue(performance.now() + 86_400_000);
+  vi.spyOn(Date, "now").mockReturnValue(Date.now() + 86_400_000);
+  expect(() => session.check()).not.toThrow();
+  expect(session.unlocked).toBe(true);
+  session.lock();
+  expect(session.unlocked).toBe(false);
+  expect(() => session.accounts()).toThrow("Unlock");
+}, 60_000);
