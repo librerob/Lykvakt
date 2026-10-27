@@ -82,6 +82,32 @@ async function openImportOn(target) {
     .getByRole("button", { name: "Import accounts", exact: true })
     .click();
 }
+async function closeImport() {
+  await click("Close");
+  await click("Authenticator");
+}
+async function storedVault() {
+  return page.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        const r = indexedDB.open("otp-vault", 1);
+        r.onerror = () => reject(r.error);
+        r.onsuccess = () => {
+          const db = r.result,
+            tx = db.transaction("vault", "readonly"),
+            get = tx.objectStore("vault").get("active");
+          tx.oncomplete = () => {
+            resolve(get.result);
+            db.close();
+          };
+          tx.onabort = () => {
+            reject(tx.error);
+            db.close();
+          };
+        };
+      }),
+  );
+}
 async function importURI(value) {
   await click("Import accounts");
   await page.getByLabel("OTP URIs or export text").fill(value);
@@ -501,14 +527,14 @@ try {
     await expect(page.getByRole("dialog")).toContainText(
       "1 exact duplicate(s)",
     );
-    await click("Close");
+    await closeImport();
   });
   await check("malformed import preserves data", async () => {
     await click("Import accounts");
     await page.getByLabel("OTP URIs or export text").fill(uri + "\ninvalid");
     await click("Preview import");
     await expect(page.getByRole("status")).toContainText("Account 2");
-    await click("Close");
+    await closeImport();
     await expect(page.locator(".account")).toHaveCount(1);
   });
   await check("local QR image decoding", async () => {
@@ -541,16 +567,18 @@ try {
           })),
         ),
       );
+      const beforeImport = await storedVault();
       await click("Import accounts");
       await page.getByLabel("Read a QR image locally").setInputFiles(images[0]);
       await expect(page.getByRole("status")).toContainText("all 2 QR codes");
-      await expect(page.locator(".account")).toHaveCount(2);
+      expect(await storedVault()).toEqual(beforeImport);
       await page.getByLabel("Read a QR image locally").setInputFiles(images);
       await expect(page.getByRole("dialog")).toContainText(
         "2 exact duplicate(s)",
       );
       await expect(page.getByRole("dialog")).toContainText("0 new account(s)");
-      await click("Close");
+      await closeImport();
+      await expect(page.locator(".account")).toHaveCount(2);
     },
   );
   await check(
@@ -582,8 +610,8 @@ try {
         "Too many transfer fields",
       );
       await expect(page.getByRole("dialog")).not.toContainText("Review import");
+      await closeImport();
       await expect(page.locator(".account")).toHaveCount(before);
-      await click("Close");
     },
   );
   await check("account QR export round trip", async () => {
@@ -612,7 +640,7 @@ try {
     await click("Reveal QR");
     const source = await page.locator(".transfer-qr").getAttribute("src");
     expect(source).toMatch(/^data:image\/png;base64,/);
-    await click("Close");
+    await closeImport();
     await click("Import accounts");
     await page.getByLabel("Read a QR image locally").setInputFiles({
       name: "roundtrip.png",
@@ -622,7 +650,7 @@ try {
     await expect(page.getByRole("dialog")).toContainText(
       "1 exact duplicate(s)",
     );
-    await click("Close");
+    await closeImport();
   });
   await check(
     "portable bulk export includes precise OTP settings",
@@ -1184,6 +1212,7 @@ try {
         await keyboardDetails(page.getByRole("dialog"));
         await click("Close");
       }
+      await click("Authenticator");
       await openMore(page.locator(".account").first());
       await page
         .locator(".account")
@@ -1303,7 +1332,7 @@ try {
           .fill(password);
         await click("Create encrypted vault");
         await expect(
-          page.getByLabel("Search accounts", { exact: true }),
+          page.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible({ timeout: 60000 });
         const old = {
           format: "otp-vault",
@@ -1388,7 +1417,7 @@ try {
           .fill(password);
         await click("Create encrypted vault");
         await expect(
-          page.getByLabel("Search accounts", { exact: true }),
+          page.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible({ timeout: 60000 });
         const before = await records();
         await click("Backup");
@@ -1442,7 +1471,7 @@ try {
           .fill(password);
         await click("Create encrypted vault");
         await expect(
-          page.getByLabel("Search accounts", { exact: true }),
+          page.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible({ timeout: 60000 });
         const previewFile = async (name) => {
           await click("Import accounts");
@@ -1477,8 +1506,8 @@ try {
             await expect(page.getByRole("dialog")).toContainText(
               "1 skipped entry(s)",
             );
+          await closeImport();
           await expect(page.locator(".account")).toHaveCount(0);
-          await click("Close");
         }
         await click("Import accounts");
         await page
@@ -1491,7 +1520,7 @@ try {
         await keyboardDetails(page.getByRole("dialog"), true);
         await helpAxe("import-help");
         await screenshot("import-help");
-        await click("Close");
+        await closeImport();
         for (const name of ["aegis", "2fas"]) {
           await previewFile(name + "-encrypted.json");
           const source = page.getByLabel("Export file password", {
@@ -1605,7 +1634,7 @@ try {
           .fill(password);
         await click("Create encrypted vault");
         await expect(
-          page.getByLabel("Search accounts", { exact: true }),
+          page.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible({ timeout: 60000 });
         await click("Got it");
         const issuer =
@@ -1778,7 +1807,7 @@ try {
           .fill(password);
         await click("Create encrypted vault");
         await expect(
-          page.getByLabel("Search accounts", { exact: true }),
+          page.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible({ timeout: 60000 });
         await click("Got it");
         await importURI(uri);
@@ -1932,7 +1961,7 @@ try {
           .fill(password);
         await click("Create encrypted vault");
         await expect(
-          page.getByLabel("Search accounts", { exact: true }),
+          page.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible({ timeout: 60000 });
         await click("Got it");
         await click("+ Add account");
