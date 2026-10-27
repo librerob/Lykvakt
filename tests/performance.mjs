@@ -10,7 +10,7 @@ const context = await chromium.launchPersistentContext(profile, {
   executablePath: process.env.CHROMIUM_PATH || undefined,
   channel: process.env.CHROMIUM_PATH ? undefined : "chromium",
   headless: true,
-  viewport: { width: 400, height: 760 },
+  viewport: { width: 400, height: 580 },
   args: [
     `--disable-extensions-except=${extension}`,
     `--load-extension=${extension}`,
@@ -74,8 +74,14 @@ try {
     .getByRole("button", { name: "Create encrypted vault", exact: true })
     .click();
   await expect(
-    setup.getByLabel("Search accounts", { exact: true }),
+    setup.getByRole("button", { name: "+ Add account", exact: true }),
   ).toBeVisible({ timeout: 60_000 });
+  if (
+    !(await setup
+      .getByRole("button", { name: "Import accounts", exact: true })
+      .count())
+  )
+    await setup.getByRole("button", { name: "Backup", exact: true }).click();
   await setup
     .getByRole("button", { name: "Import accounts", exact: true })
     .click();
@@ -144,7 +150,7 @@ try {
     firstContentfulPaintMs: summary("firstContentfulPaintMs"),
     unlockMs: summary("unlockMs"),
     scope:
-      "Headless 400x760 vault document, warm browser profile, three warmups and fifteen fresh pages. Interactive paint is two frame callbacks after enabled password/submit controls exist. Five real unlocks include worker derivation and account rendering. Not a toolbar-launcher or physical window-compositor measurement.",
+      "Headless 400x580 popup document, warm browser profile, three warmups and fifteen fresh pages. Interactive paint is two frame callbacks after enabled password/submit controls exist. Five real unlocks include worker derivation and account rendering. Not a physical toolbar or window-compositor measurement.",
   };
   await mkdir(resolve(output, ".."), { recursive: true });
   await writeFile(output, JSON.stringify(result, null, 2) + "\n");

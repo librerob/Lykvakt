@@ -47,6 +47,11 @@ async function click(name) {
     await page.locator(".row-copy").click({ position: { x: 12, y: 12 } });
     return;
   }
+  if (
+    name === "Import accounts" &&
+    !(await page.getByRole("button", { name, exact: true }).count())
+  )
+    await page.getByRole("button", { name: "Backup", exact: true }).click();
   await page.getByRole("button", { name, exact: true }).click();
   if (name === "Lock")
     await expect(
@@ -54,6 +59,7 @@ async function click(name) {
     ).toBeVisible();
 }
 async function unlock() {
+  await expect(page.locator("#app")).toHaveAttribute("aria-busy", "false");
   if (
     await page
       .getByRole("button", { name: "Unlock vault", exact: true })
@@ -63,8 +69,45 @@ async function unlock() {
     await click("Unlock vault");
   }
   await expect(
-    page.getByLabel("Search accounts", { exact: true }),
+    page.getByRole("button", { name: "+ Add account", exact: true }),
   ).toBeVisible();
+}
+async function openImportOn(target) {
+  if (
+    !(await target
+      .getByRole("button", { name: "Import accounts", exact: true })
+      .count())
+  )
+    await target.getByRole("button", { name: "Backup", exact: true }).click();
+  await target
+    .getByRole("button", { name: "Import accounts", exact: true })
+    .click();
+}
+async function closeImport() {
+  await click("Close");
+  await click("Authenticator");
+}
+async function storedVault() {
+  return page.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        const r = indexedDB.open("otp-vault", 1);
+        r.onerror = () => reject(r.error);
+        r.onsuccess = () => {
+          const db = r.result,
+            tx = db.transaction("vault", "readonly"),
+            get = tx.objectStore("vault").get("active");
+          tx.oncomplete = () => {
+            resolve(get.result);
+            db.close();
+          };
+          tx.onabort = () => {
+            reject(tx.error);
+            db.close();
+          };
+        };
+      }),
+  );
 }
 async function importURI(value) {
   await click("Import accounts");
@@ -115,8 +158,14 @@ async function keyboardDetails(scope = page, leaveOpen = false) {
     }
 }
 async function documentationHelp() {
+  await page
+    .getByRole("button", { name: "Help & documentation", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "These tips work offline.",
+  );
   const link = page.getByRole("link", {
-    name: "Help & documentation",
+    name: "Full documentation on GitHub",
     exact: true,
   });
   await expect(link).toHaveCount(1);
@@ -128,6 +177,8 @@ async function documentationHelp() {
   await expect(link).toHaveAttribute("rel", "noopener noreferrer");
   await link.focus();
   await expect(link).toBeFocused();
+  await helpAxe("offline-help");
+  await click("Close");
 }
 async function helpAxe(name) {
   const results = await new AxeBuilder({ page })
@@ -141,11 +192,18 @@ async function helpAxe(name) {
   expect(results.violations).toEqual([]);
 }
 async function screenshot(name) {
+  const old = page.viewportSize();
+  const popup = await page
+    .locator("body")
+    .evaluate((n) => n.classList.contains("popup-mode"));
+  await page.setViewportSize({ width: 400, height: popup ? 580 : 700 });
   await page.screenshot({
     path: `artifacts/screenshots/${name}.png`,
-    fullPage: true,
+    fullPage: false,
   });
+  if (old) await page.setViewportSize(old);
 }
+
 try {
   await page.clock.install();
   await page.goto(base);
@@ -184,6 +242,11 @@ try {
       await expect(
         page.getByLabel("Create a master password", { exact: true }),
       ).toBeFocused();
+      const generator = await page.locator(".password-generator").boundingBox();
+      const hint = await page
+        .locator(".password-generator + .hint")
+        .boundingBox();
+      expect(hint.y - generator.y - generator.height).toBeGreaterThanOrEqual(8);
       await documentationHelp();
     },
   );
@@ -220,8 +283,16 @@ try {
     async () => {
       const tips = page.getByRole("complementary", { name: "Getting started" });
       await expect(tips).toBeVisible();
+      await expect(page.locator(".empty")).toHaveCount(1);
       await expect(
         page.getByLabel("Search accounts", { exact: true }),
+      ).toBeHidden();
+      await expect(
+        page.getByRole("button", { name: "☆ Favorites", exact: true }),
+      ).toBeHidden();
+      await expect(page.locator(".backup-notice")).toBeHidden();
+      await expect(
+        page.getByRole("button", { name: "+ Add account", exact: true }),
       ).toBeFocused();
       await keyboardDetails();
       await click("Got it");
@@ -233,7 +304,7 @@ try {
       await unlock();
       await expect(tips).toHaveCount(0);
       await expect(
-        page.getByLabel("Search accounts", { exact: true }),
+        page.getByRole("button", { name: "+ Add account", exact: true }),
       ).toBeFocused();
     },
   );
@@ -390,7 +461,7 @@ try {
     },
   );
   await check(
-    "unverified accounts show a non-blocking Recovery reminder",
+    "unverified accounts show a non-blocking Backup reminder",
     async () => {
       await expect(page.locator(".backup-notice")).toContainText(
         "Backup not verified.",
@@ -398,9 +469,27 @@ try {
       await expect(page.locator(".backup-notice")).toBeVisible();
       await click("Review backup");
       await expect(
-        page.getByRole("heading", { name: "Backups & recovery", exact: true }),
+        page.getByRole("heading", { name: "Backup", exact: true }),
       ).toBeVisible();
       await click("Authenticator");
+    },
+  );
+  await check(
+    "the slim backup reminder can be dismissed until lock",
+    async () => {
+      expect(
+        (await page.locator(".backup-notice").boundingBox()).height,
+      ).toBeLessThanOrEqual(32);
+      await page
+        .getByRole("button", { name: "Dismiss backup reminder", exact: true })
+        .click();
+      await expect(page.locator(".backup-notice")).toBeHidden();
+      await click("Settings");
+      await click("Authenticator");
+      await expect(page.locator(".backup-notice")).toBeHidden();
+      await click("Lock");
+      await unlock();
+      await expect(page.locator(".backup-notice")).toBeVisible();
     },
   );
   await check("independent TOTP reference", async () => {
@@ -439,14 +528,14 @@ try {
     await expect(page.getByRole("dialog")).toContainText(
       "1 exact duplicate(s)",
     );
-    await click("Close");
+    await closeImport();
   });
   await check("malformed import preserves data", async () => {
     await click("Import accounts");
     await page.getByLabel("OTP URIs or export text").fill(uri + "\ninvalid");
     await click("Preview import");
     await expect(page.getByRole("status")).toContainText("Account 2");
-    await click("Close");
+    await closeImport();
     await expect(page.locator(".account")).toHaveCount(1);
   });
   await check("local QR image decoding", async () => {
@@ -479,16 +568,18 @@ try {
           })),
         ),
       );
+      const beforeImport = await storedVault();
       await click("Import accounts");
       await page.getByLabel("Read a QR image locally").setInputFiles(images[0]);
       await expect(page.getByRole("status")).toContainText("all 2 QR codes");
-      await expect(page.locator(".account")).toHaveCount(2);
+      expect(await storedVault()).toEqual(beforeImport);
       await page.getByLabel("Read a QR image locally").setInputFiles(images);
       await expect(page.getByRole("dialog")).toContainText(
         "2 exact duplicate(s)",
       );
       await expect(page.getByRole("dialog")).toContainText("0 new account(s)");
-      await click("Close");
+      await closeImport();
+      await expect(page.locator(".account")).toHaveCount(2);
     },
   );
   await check(
@@ -520,8 +611,8 @@ try {
         "Too many transfer fields",
       );
       await expect(page.getByRole("dialog")).not.toContainText("Review import");
+      await closeImport();
       await expect(page.locator(".account")).toHaveCount(before);
-      await click("Close");
     },
   );
   await check("account QR export round trip", async () => {
@@ -550,7 +641,7 @@ try {
     await click("Reveal QR");
     const source = await page.locator(".transfer-qr").getAttribute("src");
     expect(source).toMatch(/^data:image\/png;base64,/);
-    await click("Close");
+    await closeImport();
     await click("Import accounts");
     await page.getByLabel("Read a QR image locally").setInputFiles({
       name: "roundtrip.png",
@@ -560,12 +651,12 @@ try {
     await expect(page.getByRole("dialog")).toContainText(
       "1 exact duplicate(s)",
     );
-    await click("Close");
+    await closeImport();
   });
   await check(
     "portable bulk export includes precise OTP settings",
     async () => {
-      await click("Recovery");
+      await click("Backup");
       await click("Export plaintext OTP links…");
       const deniedDownloads = [];
       const recordDenied = (download) => deniedDownloads.push(download);
@@ -673,7 +764,7 @@ try {
       ).toHaveValue("");
       await click("Close");
       await expect(page.getByRole("dialog")).toHaveCount(0);
-      await click("Recovery");
+      await click("Backup");
       await click("Create encrypted backup");
       await click("Generate");
       await expect(
@@ -691,7 +782,7 @@ try {
   await check(
     "encrypted backup creation requires the current master password",
     async () => {
-      await click("Recovery");
+      await click("Backup");
       await click("Create encrypted backup");
       await page
         .getByLabel("Master password", { exact: true })
@@ -722,7 +813,7 @@ try {
   );
   let backupPath;
   await check("encrypted backup download", async () => {
-    await page.getByRole("button", { name: "Recovery", exact: true }).click();
+    await page.getByRole("button", { name: "Backup", exact: true }).click();
     await click("Create encrypted backup");
     await page.getByLabel("Master password", { exact: true }).fill(password);
     await page
@@ -828,7 +919,7 @@ try {
         page.getByRole("button", { name: original, exact: true }),
       ).toBeVisible();
       await expect(page.locator(".backup-notice")).toBeHidden();
-      await click("Recovery");
+      await click("Backup");
     },
   );
   await check("tampered backup refused", async () => {
@@ -1097,7 +1188,7 @@ try {
       await keyboardDetails(page, true);
       await helpAxe("settings");
       await keyboardDetails();
-      await click("Recovery");
+      await click("Backup");
       await expect(
         page.getByText(
           "Backups made with this version need this version or newer to restore.",
@@ -1122,6 +1213,7 @@ try {
         await keyboardDetails(page.getByRole("dialog"));
         await click("Close");
       }
+      await click("Authenticator");
       await openMore(page.locator(".account").first());
       await page
         .locator(".account")
@@ -1241,7 +1333,7 @@ try {
           .fill(password);
         await click("Create encrypted vault");
         await expect(
-          page.getByLabel("Search accounts", { exact: true }),
+          page.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible({ timeout: 60000 });
         const old = {
           format: "otp-vault",
@@ -1326,10 +1418,10 @@ try {
           .fill(password);
         await click("Create encrypted vault");
         await expect(
-          page.getByLabel("Search accounts", { exact: true }),
+          page.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible({ timeout: 60000 });
         const before = await records();
-        await click("Recovery");
+        await click("Backup");
         await click("Verify or restore a backup");
         await page
           .getByLabel("Encrypted backup file", { exact: true })
@@ -1380,7 +1472,7 @@ try {
           .fill(password);
         await click("Create encrypted vault");
         await expect(
-          page.getByLabel("Search accounts", { exact: true }),
+          page.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible({ timeout: 60000 });
         const previewFile = async (name) => {
           await click("Import accounts");
@@ -1415,8 +1507,8 @@ try {
             await expect(page.getByRole("dialog")).toContainText(
               "1 skipped entry(s)",
             );
+          await closeImport();
           await expect(page.locator(".account")).toHaveCount(0);
-          await click("Close");
         }
         await click("Import accounts");
         await page
@@ -1429,8 +1521,9 @@ try {
         await keyboardDetails(page.getByRole("dialog"), true);
         await helpAxe("import-help");
         await screenshot("import-help");
-        await click("Close");
+        await closeImport();
         for (const name of ["aegis", "2fas"]) {
+          const beforeRead = await storedVault();
           await previewFile(name + "-encrypted.json");
           const source = page.getByLabel("Export file password", {
             exact: true,
@@ -1442,6 +1535,7 @@ try {
             "password didn't work",
           );
           await expect(source).toHaveValue("");
+          expect(await storedVault()).toEqual(beforeRead);
           await expect(page.locator(".account")).toHaveCount(0);
           await source.fill("synthetic source password å");
           await click("Preview import");
@@ -1449,8 +1543,9 @@ try {
           await expect(page.getByRole("dialog")).toContainText(
             "Detected format: " + (name === "aegis" ? "Aegis" : "2FAS"),
           );
+          expect(await storedVault()).toEqual(beforeRead);
+          await closeImport();
           await expect(page.locator(".account")).toHaveCount(0);
-          await click("Close");
         }
         await previewFile("steam.maFile");
         await expect(page.getByRole("dialog")).toContainText(
@@ -1543,7 +1638,7 @@ try {
           .fill(password);
         await click("Create encrypted vault");
         await expect(
-          page.getByLabel("Search accounts", { exact: true }),
+          page.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible({ timeout: 60000 });
         await click("Got it");
         const issuer =
@@ -1657,17 +1752,8 @@ try {
                   .locator("h2")
                   .evaluate((node) => getComputedStyle(node).textOverflow),
               ).toBe("ellipsis");
-              await long.screenshot({
-                path: "artifacts/screenshots/long-name.png",
-              });
-              await rows
-                .filter({
-                  has: page.getByRole("heading", {
-                    name: "Steam",
-                    exact: true,
-                  }),
-                })
-                .screenshot({ path: "artifacts/screenshots/steam-row.png" });
+              await screenshot("long-name");
+              await screenshot("steam-row");
             }
           }
         }
@@ -1725,7 +1811,7 @@ try {
           .fill(password);
         await click("Create encrypted vault");
         await expect(
-          page.getByLabel("Search accounts", { exact: true }),
+          page.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible({ timeout: 60000 });
         await click("Got it");
         await importURI(uri);
@@ -1774,7 +1860,7 @@ try {
               .getByLabel("Master password", { exact: true })
               .fill(password);
           } else {
-            await click("Recovery");
+            await click("Backup");
             await click(
               kind === "backup"
                 ? "Create encrypted backup"
@@ -1879,7 +1965,7 @@ try {
           .fill(password);
         await click("Create encrypted vault");
         await expect(
-          page.getByLabel("Search accounts", { exact: true }),
+          page.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible({ timeout: 60000 });
         await click("Got it");
         await click("+ Add account");
@@ -1892,7 +1978,7 @@ try {
         await page.getByLabel("Setup key", { exact: true }).fill(secret);
         await click("Preview account");
         await click("Import 1 account(s)");
-        await click("Recovery");
+        await click("Backup");
         await click("Export plaintext OTP links…");
         await expect(page.getByRole("dialog")).toContainText(
           "Your saved names will stay unchanged",
@@ -1934,11 +2020,236 @@ try {
     },
   );
   await check(
+    "password forms wait for vault metadata on setup and restart",
+    async () => {
+      const isolated = await launch(
+        await mkdtemp(join(tmpdir(), "lykvakt-load-gate-")),
+      );
+      const startup = await isolated.newPage();
+      startup.on("pageerror", (error) => errors.push(error.message));
+      try {
+        await startup.addInitScript(() => {
+          const open = indexedDB.open.bind(indexedDB);
+          let first = true;
+          indexedDB.open = (...args) => {
+            const request = open(...args);
+            if (first) {
+              first = false;
+              Object.defineProperty(request, "onsuccess", {
+                configurable: true,
+                set(handler) {
+                  request.addEventListener(
+                    "success",
+                    (event) => {
+                      window.__releaseVaultLoad = () => {
+                        delete window.__releaseVaultLoad;
+                        handler.call(request, event);
+                      };
+                    },
+                    { once: true },
+                  );
+                },
+              });
+            }
+            return request;
+          };
+        });
+        for (const existing of [false, true]) {
+          if (existing) await startup.reload();
+          else await startup.goto(`chrome-extension://${id}/index.html`);
+          await expect
+            .poll(() =>
+              startup.evaluate(() => typeof window.__releaseVaultLoad),
+            )
+            .toBe("function");
+          await expect(startup.locator("#app")).toHaveAttribute(
+            "aria-busy",
+            "true",
+          );
+          await expect(startup.locator('input[type="password"]')).toHaveCount(
+            0,
+          );
+          await expect(
+            startup.getByText("Opening your vault…", { exact: true }),
+          ).toBeVisible();
+          await startup.evaluate(() => window.__releaseVaultLoad());
+          await expect(startup.locator("#app")).toHaveAttribute(
+            "aria-busy",
+            "false",
+          );
+          if (existing) {
+            await startup
+              .getByLabel("Master password", { exact: true })
+              .fill("x");
+            await startup
+              .getByRole("button", { name: "Unlock vault", exact: true })
+              .click();
+          } else {
+            await startup
+              .getByLabel("Create a master password", { exact: true })
+              .fill("x");
+            await startup
+              .getByLabel("Confirm master password", { exact: true })
+              .fill("x");
+            await startup
+              .getByRole("button", {
+                name: "Create encrypted vault",
+                exact: true,
+              })
+              .click();
+          }
+          await expect(
+            startup.getByRole("button", { name: "+ Add account", exact: true }),
+          ).toBeVisible();
+        }
+      } finally {
+        await isolated.close();
+        await page.bringToFront();
+      }
+    },
+  );
+  await check(
+    "popup pastes imports and hands file selection to an independently locked window",
+    async () => {
+      const isolated = await launch(
+        await mkdtemp(join(tmpdir(), "lykvakt-popup-")),
+      );
+      try {
+        const popup = await isolated.newPage();
+        await popup.setViewportSize({ width: 400, height: 580 });
+        await popup.goto(`chrome-extension://${id}/index.html`);
+        await popup
+          .getByLabel("Create a master password", { exact: true })
+          .fill("x");
+        await popup
+          .getByLabel("Confirm master password", { exact: true })
+          .fill("x");
+        await popup
+          .getByRole("button", { name: "Create encrypted vault", exact: true })
+          .click();
+        await popup
+          .getByRole("button", { name: "Backup", exact: true })
+          .click();
+        await popup
+          .getByRole("button", {
+            name: "Verify or restore a backup",
+            exact: true,
+          })
+          .click();
+        await expect(
+          popup.getByRole("button", {
+            name: "Open in a window to choose a file",
+            exact: true,
+          }),
+        ).toBeVisible();
+        await expect(popup.locator('input[type="file"]')).toHaveCount(0);
+        await popup.getByRole("button", { name: "Close", exact: true }).click();
+        await openImportOn(popup);
+        await expect(popup.locator('input[type="file"]')).toHaveCount(0);
+        await expect(
+          popup.getByText(
+            "Chrome can close this small popup while you pick a file. The window will ask for your password.",
+          ),
+        ).toBeVisible();
+        const links = Array.from(
+          { length: 12 },
+          (_, i) =>
+            `otpauth://totp/Example${i}:synthetic?secret=JBSWY3DPEHPK3PX${String.fromCharCode(65 + i)}&issuer=Example${i}`,
+        ).join("\n");
+        await popup.getByLabel("OTP URIs or export text").fill(links);
+        await popup
+          .getByRole("button", { name: "Preview import", exact: true })
+          .click();
+        await popup
+          .getByRole("button", { name: "Import 12 account(s)", exact: true })
+          .click();
+        await expect(popup.locator(".account")).toHaveCount(12);
+        const headerY = (await popup.locator("header").boundingBox()).y;
+        await popup.locator(".account-list").evaluate((n) => {
+          n.scrollTop = n.scrollHeight;
+        });
+        expect(
+          await popup.locator(".account-list").evaluate((n) => n.scrollTop),
+        ).toBeGreaterThan(0);
+        expect((await popup.locator("header").boundingBox()).y).toBe(headerY);
+        const last = popup.locator(".account").last();
+        await last.locator("summary").click();
+        await last.getByRole("button", { name: "Edit", exact: true }).click();
+        await expect(popup.getByRole("dialog")).toContainText("Edit account");
+        await popup.getByRole("button", { name: "Close", exact: true }).click();
+        await popup.locator(".account-list").evaluate((n) => {
+          n.scrollTop = 0;
+        });
+        await popup.screenshot({
+          path: "artifacts/screenshots/popup-mode.png",
+        });
+        const popupAxe = await new AxeBuilder({ page: popup })
+          .setLegacyMode()
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+          .analyze();
+        await writeFile(
+          "artifacts/axe-popup.json",
+          JSON.stringify(popupAxe.violations, null, 2),
+        );
+        expect(popupAxe.violations).toEqual([]);
+        await openImportOn(popup);
+        await popup
+          .getByRole("button", {
+            name: "Open in a window to choose a file",
+            exact: true,
+          })
+          .click();
+        await expect
+          .poll(() => isolated.pages().some((p) => p.url() === base))
+          .toBe(true);
+        const vault = isolated.pages().find((p) => p.url() === base);
+        await vault.setViewportSize({ width: 400, height: 700 });
+        await expect(
+          vault.getByRole("heading", { name: "Welcome back." }),
+        ).toBeVisible();
+        await vault.getByLabel("Master password", { exact: true }).fill("x");
+        await vault
+          .getByRole("button", { name: "Unlock vault", exact: true })
+          .click();
+        await expect(vault.locator(".account")).toHaveCount(12);
+        await vault.screenshot({
+          path: "artifacts/screenshots/window-mode.png",
+        });
+        await vault
+          .getByRole("button", { name: "Settings", exact: true })
+          .click();
+        await expect(
+          vault.getByLabel("Auto-lock", { exact: true }),
+        ).toHaveValue("300000");
+        await expect(
+          vault.getByRole("button", { name: "Open in a window", exact: true }),
+        ).toHaveCount(0);
+        await expect(popup.locator("body")).toHaveClass("popup-mode");
+        await vault.bringToFront();
+        await vault
+          .getByRole("button", { name: "Authenticator", exact: true })
+          .click();
+        await openImportOn(vault);
+        await expect(vault.locator('input[type="file"]')).toHaveCount(2);
+        await expect(
+          vault.getByRole("button", {
+            name: "Open in a window to choose a file",
+            exact: true,
+          }),
+        ).toHaveCount(0);
+      } finally {
+        await isolated.close();
+        await page.bringToFront();
+      }
+    },
+  );
+  await check(
     "a chosen inactivity timer locks the vault and can be disabled",
     async () => {
       await click("Settings");
       const timeout = page.getByLabel("Auto-lock", { exact: true });
-      await expect(timeout).toHaveValue("0");
+      await expect(timeout).toHaveValue("300000");
+      await screenshot("settings");
       await timeout.selectOption("60000");
       await page.clock.fastForward(61_000);
       await expect(
@@ -1950,7 +2261,6 @@ try {
         "60000",
       );
       await page.getByLabel("Auto-lock", { exact: true }).selectOption("0");
-      await screenshot("settings");
       await page.clock.fastForward(3_700_000);
       await expect(
         page.getByRole("button", { name: "Lock", exact: true }),
@@ -1959,44 +2269,75 @@ try {
     },
   );
   await check(
-    "the toolbar launcher reuses its dedicated window and supports a chosen short password",
+    "explicit window opening reuses the vault and supports a chosen short password",
     async () => {
       const directory = await mkdtemp(join(tmpdir(), "lykvakt-window-"));
       const isolated = await launch(directory);
       const vaultUrl = base;
-      const launcherUrl = `chrome-extension://${id}/launcher.html`;
+      const popupUrl = `chrome-extension://${id}/index.html`;
       const open = async () => {
-        const launcher = await isolated.newPage();
-        try {
-          await launcher.goto(launcherUrl, { waitUntil: "domcontentloaded" });
-        } catch (error) {
-          if (!launcher.isClosed()) throw error;
+        const popup = await isolated.newPage();
+        await popup.goto(popupUrl);
+        await expect(popup.locator("#app")).toHaveAttribute(
+          "aria-busy",
+          "false",
+        );
+        if (
+          await popup
+            .getByRole("button", {
+              name: "Create encrypted vault",
+              exact: true,
+            })
+            .count()
+        ) {
+          await popup
+            .getByLabel("Create a master password", { exact: true })
+            .fill("x");
+          await popup
+            .getByLabel("Confirm master password", { exact: true })
+            .fill("x");
+          await popup
+            .getByRole("button", {
+              name: "Create encrypted vault",
+              exact: true,
+            })
+            .click();
+        } else {
+          await popup.getByLabel("Master password", { exact: true }).fill("x");
+          await popup
+            .getByRole("button", { name: "Unlock vault", exact: true })
+            .click();
         }
+        await popup
+          .getByRole("button", { name: "Settings", exact: true })
+          .click();
+        await popup
+          .getByRole("button", { name: "Open in a window", exact: true })
+          .click();
         await expect
           .poll(() => isolated.pages().some((p) => p.url() === vaultUrl))
           .toBe(true);
+        await popup.close();
         return isolated.pages().find((p) => p.url() === vaultUrl);
       };
       try {
         const vault = await open();
+        await expect(
+          vault.getByRole("heading", { name: "Welcome back." }),
+        ).toBeVisible();
+        await vault.getByLabel("Master password", { exact: true }).fill("x");
         await vault
-          .getByLabel("Create a master password", { exact: true })
-          .fill("x");
-        await vault
-          .getByLabel("Confirm master password", { exact: true })
-          .fill("x");
-        await vault
-          .getByRole("button", { name: "Create encrypted vault", exact: true })
+          .getByRole("button", { name: "Unlock vault", exact: true })
           .click();
         await expect(
-          vault.getByLabel("Search accounts", { exact: true }),
+          vault.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible();
         const other = await isolated.newPage();
         await other.goto("about:blank");
         await other.bringToFront();
         await vault.bringToFront();
         await expect(
-          vault.getByLabel("Search accounts", { exact: true }),
+          vault.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible();
         await vault.evaluate(async () => {
           const current = await chrome.windows.getCurrent();
@@ -2021,7 +2362,7 @@ try {
           isolated.pages().filter((p) => p.url() === vaultUrl),
         ).toHaveLength(1);
         await expect(
-          vault.getByLabel("Search accounts", { exact: true }),
+          vault.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible();
         await vault.close();
         const reopened = await open();
@@ -2033,7 +2374,7 @@ try {
           .getByRole("button", { name: "Unlock vault", exact: true })
           .click();
         await expect(
-          reopened.getByLabel("Search accounts", { exact: true }),
+          reopened.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible();
       } finally {
         await isolated.close();
@@ -2044,7 +2385,12 @@ try {
   await check(
     "documentation is keyboard accessible without repeated inline help",
     async () => {
-      await documentationHelp();
+      await context.setOffline(true);
+      try {
+        await documentationHelp();
+      } finally {
+        await context.setOffline(false);
+      }
       await expect(page.locator("[data-help]")).toHaveCount(0);
       await expect(
         page.getByText("What does this mean?", { exact: true }),

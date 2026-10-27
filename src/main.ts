@@ -2,11 +2,13 @@ import { DialogLifetime } from "./dialog";
 import { dialogOperation } from "./ui/context";
 import { OldFormatError } from "./format";
 import "./style.css";
-import { button, el, technicalDetails, documentationLink } from "./dom";
+import { button, el, technicalDetails } from "./dom";
+import { offlineHelp } from "./ui/offline-help";
 import { friendlyError } from "./help";
 import { focusVault, installEscape } from "./keyboard";
-import { preferenceEnabled, readPreference } from "./preferences";
-import { autoLockTimeout } from "./lock-policy";
+import { preferenceEnabled } from "./preferences";
+import { preferredAutoLockTimeout } from "./lock-policy";
+import { isPopupMode, installViewLock } from "./view-mode";
 import { Session } from "./session";
 import { load, isRecoveryOffer, isOldVault } from "./storage";
 import { createAccounts } from "./ui/accounts";
@@ -21,12 +23,14 @@ const state: AppState = {
   view: "codes",
   firstRunTip: preferenceEnabled("firstRunTips"),
 };
+let loading = true;
 let dialog: HTMLDialogElement | undefined;
 const dialogLifetime = new DialogLifetime();
 let status: HTMLElement;
 const isExtension = !!globalThis.chrome?.runtime?.id;
-const storedTimeout = Number(readPreference("timeout"));
-session.timeout = autoLockTimeout(storedTimeout);
+const isPopup = isPopupMode(location.search);
+document.body.classList.add(isPopup ? "popup-mode" : "window-mode");
+session.timeout = preferredAutoLockTimeout();
 async function run(action: () => void | Promise<void>): Promise<void> {
   const originDialog = dialog;
   try {
@@ -135,6 +139,7 @@ const ctx: AppContext = {
   session,
   state,
   isExtension,
+  isPopup,
   isVisible: () => !document.hidden,
   run,
   announce,
@@ -145,12 +150,13 @@ const ctx: AppContext = {
   confirmAction,
 };
 const accounts = createAccounts(ctx);
-const recovery = createRecovery(ctx, accounts.preview);
+const recovery = createRecovery(ctx, accounts.preview, accounts.importAccounts);
 const settings = createSettings(ctx);
 const welcome = createWelcome(ctx, recovery.recoverySetup);
 installEscape(document, accounts.clearSearch, () => !!dialog);
 
 session.onlock = () => {
+  state.backupDismissed = false;
   accounts.clear();
   closeDialog();
 
@@ -165,13 +171,14 @@ function refreshWindow(): void {
     // Expiry already rendered the locked view.
   }
 }
-window.addEventListener("focus", refreshWindow);
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) accounts.mask();
-  else refreshWindow();
-});
-window.addEventListener("blur", accounts.mask);
-window.addEventListener("pagehide", () => session.lock());
+installViewLock(
+  isPopup,
+  session,
+  document,
+  window,
+  accounts.mask,
+  refreshWindow,
+);
 
 for (const event of ["pointerdown", "keydown"])
   document.addEventListener(
@@ -200,13 +207,20 @@ setInterval(() => {
 }, 1000);
 
 function render(): void {
+  root.setAttribute("aria-busy", String(loading));
   const title = el(
     "div",
     { class: "wordmark" },
     el("img", { src: "icons/32.png", width: "32", height: "32", alt: "" }),
     el("div", {}, el("strong", {}, "Lykvakt")),
   );
-  const tools = el("div", { class: "header-actions" }, documentationLink());
+  const help = button(
+    "Help & documentation",
+    () => modal("Help & documentation", offlineHelp(isPopup)),
+    "button text help-link",
+  );
+  help.disabled = loading;
+  const tools = el("div", { class: "header-actions" }, help);
   if (session.unlocked)
     tools.append(button("Lock", () => session.lock(), "button tonal"));
   const header = el("header", {}, title, tools);
@@ -216,12 +230,16 @@ function render(): void {
     "aria-live": "polite",
   });
   const main = el("main");
-  if (!session.unlocked) main.append(welcome.locked());
+  if (loading)
+    main.append(
+      el("p", { class: "content", role: "status" }, "Opening your vault…"),
+    );
+  else if (!session.unlocked) main.append(welcome.locked());
   else {
     const nav = el("nav", { "aria-label": "Vault" });
     for (const [key, title] of [
       ["codes", "Authenticator"],
-      ["backups", "Recovery"],
+      ["backups", "Backup"],
       ["settings", "Settings"],
     ] as const) {
       const tab = button(
@@ -266,10 +284,14 @@ function render(): void {
 void run(async () => {
   // A load error must not expose setup over an existing vault.
   state.exists = true;
-  const loaded = await load();
-  state.exists = !!loaded;
-  state.oldVault = loaded && isOldVault(loaded) ? loaded : undefined;
-  state.recovery = loaded && isRecoveryOffer(loaded) ? loaded : undefined;
-  render();
+  try {
+    const loaded = await load();
+    state.exists = !!loaded;
+    state.oldVault = loaded && isOldVault(loaded) ? loaded : undefined;
+    state.recovery = loaded && isRecoveryOffer(loaded) ? loaded : undefined;
+  } finally {
+    loading = false;
+    render();
+  }
 });
 render();

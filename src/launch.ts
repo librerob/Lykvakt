@@ -28,7 +28,7 @@ export async function openVault(): Promise<void> {
     url,
     type: "popup",
     width: 440,
-    height: 800,
+    height: Math.min(700, globalThis.screen?.availHeight || 700),
     focused: true,
   });
 }

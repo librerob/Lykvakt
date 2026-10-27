@@ -3,6 +3,7 @@ import { button, el, input, select, form, submit } from "../dom";
 import { preferenceEnabled, savePreference } from "../preferences";
 import { busyCopy } from "../help";
 import { AUTO_LOCK_OPTIONS } from "../lock-policy";
+import { openVault } from "../launch";
 import { rotatePassword } from "../crypto";
 import { dialogOperation, type AppContext } from "./context";
 export function createSettings(ctx: AppContext) {
@@ -49,8 +50,13 @@ export function createSettings(ctx: AppContext) {
         el(
           "p",
           { class: "hint" },
-          "Switching away keeps this window unlocked. Closing it or quitting Chrome locks it.",
+          ctx.isPopup
+            ? "This popup locks when it closes or loses focus. The timer applies while it is open and to the separate window."
+            : "This window locks after 5 minutes of inactivity by default. Choose another timer or When this window closes. Switching away keeps it open; closing or reloading it locks it.",
         ),
+        ctx.isPopup
+          ? button("Open in a window", () => run(openVault), "button text")
+          : null,
         button(
           "Change master password",
           () => run(async () => changePassword()),

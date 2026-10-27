@@ -13,7 +13,7 @@
   --surface: #101010;
   --surface-alt: #1c1c1c;
   --text: #f5f5f5;
-  --muted: #b8b8b8;
+  --muted: #c4c4c4;
   --line: #858585;
   --primary: #ff1683;
   --on-primary: #000000;
@@ -653,12 +653,6 @@ footer {
   align-items: center;
   gap: var(--s2);
 }
-.launcher {
-  padding: var(--s4);
-  display: grid;
-  gap: var(--s3);
-  min-height: 120px;
-}
 
 .documentation-link {
   display: inline-flex;
@@ -667,4 +661,104 @@ footer {
   padding: 4px;
   font-size: var(--t1);
   white-space: nowrap;
+}
+
+/* Each view keeps its header in place while the content scrolls. */
+body.popup-mode {
+  height: 580px;
+}
+body.window-mode {
+  height: 100dvh;
+  margin-inline: auto;
+}
+body:is(.popup-mode, .window-mode) {
+  width: 400px;
+  min-height: 480px;
+  overflow: hidden;
+}
+:is(.popup-mode, .window-mode) #app {
+  height: 100%;
+  min-height: 480px;
+  display: flex;
+  flex-direction: column;
+  margin-top: 0;
+  max-width: 400px;
+}
+:is(.popup-mode, .window-mode) :is(header, nav, footer) {
+  flex-shrink: 0;
+}
+:is(.popup-mode, .window-mode) main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+:is(.popup-mode, .window-mode) main > section {
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+:is(.popup-mode, .window-mode) main > section:has(.account-list) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+:is(.popup-mode, .window-mode) .account-list {
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1;
+  padding: 3px;
+  margin: -3px;
+}
+:is(.popup-mode, .window-mode)
+  :is(.account-tools, .search-row, .backup-notice, .notice) {
+  flex-shrink: 0;
+}
+
+header {
+  padding: 8px 16px;
+}
+nav {
+  padding: 4px 16px 8px;
+}
+.account-tools {
+  margin-bottom: 4px;
+}
+.search-row {
+  margin: 4px 0 8px;
+}
+.backup-notice {
+  padding: 0;
+  min-height: 28px;
+  gap: 4px;
+}
+.backup-notice > span {
+  flex: 1;
+}
+.backup-notice .button {
+  min-height: 28px;
+}
+footer {
+  padding: 8px 16px;
+}
+.help-link {
+  font-size: var(--t1);
+  min-height: 36px;
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.welcome {
+  width: 100%;
+  max-width: 400px;
+}
+.password-generator + .hint {
+  margin-top: 10px;
+}
+.hint {
+  line-height: 1.5;
+}
+.offline-help h3 {
+  font-size: var(--t3);
+  margin: 4px 0 0;
 }

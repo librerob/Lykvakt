@@ -4,7 +4,7 @@ I built Lykvakt because I wanted a small authenticator for Chrome that I could u
 
 The name is coined and Nordic-inspired, with the idea of watching over your keys.
 
-![Authenticator with synthetic accounts](docs/screenshots/accounts-amoled.png)
+![Authenticator popup with synthetic accounts](docs/screenshots/popup-mode.png)
 
 ## Build and test
 
@@ -22,19 +22,19 @@ npm run test:browser
 
 To load the extension, open chrome://extensions, enable **Developer mode**, choose **Load unpacked** and select `dist/`. Run `npm run package` if you want an install ZIP.
 
-CI also runs axe accessibility checks, tests switching away without locking in a browser with a visible window, and takes repeated vault-window startup measurements. The workflow runs show which checks passed.
+CI also runs axe accessibility checks, tests popup locking and window switching in headed Chromium, and measures repeated popup-document startup. The workflow runs show which checks passed.
 
 ## Using Lykvakt
 
 Click an account row to copy its current code. Codes stay hidden until you reveal them, and hide again after 30 seconds. The optional **Next** preview follows the same rules. For HOTP accounts, the counter advances only when you confirm it in **More**.
 
-Ctrl+Shift+Y opens or focuses the vault window, or Command+Shift+Y on Mac. You can change this at chrome://extensions/shortcuts. To copy with Enter, type part of an account name into search first. The confirmation tells you which account was copied.
+Ctrl+Shift+Y opens the popup, or Command+Shift+Y on Mac. Choose **Open in a window** in Settings when you want to keep Lykvakt open or select a file. You can change this at chrome://extensions/shortcuts. To copy with Enter, type part of an account name into search first. The confirmation tells you which account was copied.
 
-Save an encrypted backup somewhere outside the browser, then choose **Verify or restore a backup** in **Recovery** to test the file you saved. Creating a backup, exporting plaintext OTP links and revealing a transfer QR all ask for your master password again.
+Save an encrypted backup somewhere outside the browser, then choose **Verify or restore a backup** in **Backup** to test the file you saved. Creating a backup, exporting plaintext OTP links and revealing a transfer QR all ask for your master password again.
 
 Imports recognise supported formats and show any skipped entries before you save. The [design and recovery guide](docs/design.md) explains the formats, migration steps and compatibility limits. Steam support covers sign-in codes; it doesn't handle trade or market confirmations.
 
-The vault stays unlocked while its window is open. In Settings, you can choose an inactivity timer; closing the window or quitting Chrome locks it. Password length is your choice, with a long, unique passphrase recommended. The app links to the [usage guide](docs/usage.md) for explanations.
+The popup locks when it closes or loses focus. An explicit window stays open while you switch apps and defaults to a five-minute inactivity timer. Settings offers other timers and **When this window closes**. File and QR-image selection happens in that window, which asks for its own unlock; pasting import text works in the popup. Password length is your choice, with a long, unique passphrase recommended. Help & documentation includes the essential instructions offline, with an optional [full usage guide](docs/usage.md). Import, export and backups live together in **Backup**. See the [window and other screenshots](docs/screenshots.md).
 
 ## Under the hood
 

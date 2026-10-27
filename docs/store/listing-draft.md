@@ -2,11 +2,11 @@
 
 Lykvakt is a small offline authenticator for Chrome. Generate TOTP and counter-based HOTP codes, with Steam support, and keep your accounts in an encrypted vault on your device.
 
-Lykvakt opens in its own window and stays unlocked while you switch tabs. Choose an inactivity timer in Settings or lock it manually. Closing the vault window locks it.
+Open Lykvakt from the toolbar popup for quick codes. For file imports or more time, open its separate window. The popup locks when you leave it; the window has a five-minute inactivity timer by default, with other choices in Settings.
 
 Codes start hidden. Click an account to copy its current code, or reveal it when you need to read it. Search, favorites, groups and keyboard controls help you find accounts quickly.
 
-Import accounts from setup links, QR images you choose or compatible export files. Review what will be added or skipped before saving. You can also export your accounts as OTP links or a transfer QR after confirming your master password.
+In Backup, import accounts from setup links, QR images you choose or compatible export files. Review what will be added or skipped before saving. You can also export your accounts as OTP links or a transfer QR after confirming your master password.
 
 Save an encrypted backup with a separate passphrase, then open the saved file to test restoration without replacing your accounts.
 

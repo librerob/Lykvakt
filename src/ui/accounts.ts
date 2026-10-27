@@ -16,6 +16,7 @@ export function createAccounts(ctx: AppContext) {
   let search = "",
     favorites = false;
   let list: HTMLElement | undefined;
+  let searchRow: HTMLElement | undefined;
   let searchControl: HTMLInputElement | undefined;
   let matchingIds: string[] = [];
   let displayEpoch = 0;
@@ -84,6 +85,7 @@ export function createAccounts(ctx: AppContext) {
     searchControl = undefined;
     search = "";
     list = undefined;
+    searchRow = undefined;
   }
 
   function clearSearch(): boolean {
@@ -111,22 +113,15 @@ export function createAccounts(ctx: AppContext) {
   }
   function firstRunTip(): HTMLElement | null {
     if (!ctx.state.firstRunTip) return null;
-    const tip = el(
-      "aside",
-      { class: "notice stack", "aria-label": "Getting started" },
-      el("p", {}, "Keep your password. Save and test a backup."),
-
-      button(
-        "Got it",
-        () => {
-          ctx.state.firstRunTip = false;
-          savePreference("firstRunTips", "false");
-          tip.remove();
-        },
-        "button tonal",
-      ),
+    return button(
+      "Got it",
+      () => {
+        ctx.state.firstRunTip = false;
+        savePreference("firstRunTips", "false");
+        drawAccounts();
+      },
+      "button text",
     );
-    return tip;
   }
   function codesView(): HTMLElement {
     if (!loadedEnrollment) {
@@ -177,7 +172,7 @@ export function createAccounts(ctx: AppContext) {
     list = el("div", { class: "account-list" });
     backupNotice = el(
       "aside",
-      { class: "notice backup-notice" },
+      { class: "backup-notice", "aria-label": "Backup reminder" },
       el("span", {}, "Backup not verified."),
       button(
         "Review backup",
@@ -189,7 +184,19 @@ export function createAccounts(ctx: AppContext) {
         "button text",
       ),
     );
+    const notice = backupNotice;
+    const dismiss = button(
+      "×",
+      () => {
+        ctx.state.backupDismissed = true;
+        notice.hidden = true;
+      },
+      "button text",
+    );
+    dismiss.setAttribute("aria-label", "Dismiss backup reminder");
+    backupNotice.append(dismiss);
     backupNotice.hidden = true;
+    searchRow = el("div", { class: "search-row" }, searchInput, filter);
     const section = el(
       "section",
       { class: "content" },
@@ -198,11 +205,18 @@ export function createAccounts(ctx: AppContext) {
         "div",
         { class: "account-tools" },
         add,
-        button("Import accounts", () => importAccounts(), "button text"),
+        button(
+          "Import",
+          () => {
+            ctx.state.view = "backups";
+            clear();
+            ctx.render();
+          },
+          "button text",
+        ),
       ),
-      firstRunTip(),
       backupNotice,
-      el("div", { class: "search-row" }, searchInput, filter),
+      searchRow,
       list,
     );
     drawAccounts();
@@ -211,17 +225,29 @@ export function createAccounts(ctx: AppContext) {
 
   function drawAccounts(): void {
     if (!list || !session.unlocked) return;
+    const data = session.accounts();
+    if (!data.accounts.length) {
+      search = "";
+      favorites = false;
+      if (searchControl) searchControl.value = "";
+    }
     maskAll();
     const notice = backupNotice,
       epoch = ++backupEpoch;
     if (notice)
       void run(async () => {
         const needed = await needsBackup(session.accounts());
-        if (epoch === backupEpoch && session.unlocked) notice.hidden = !needed;
+        if (epoch === backupEpoch && session.unlocked)
+          notice.hidden =
+            !needed ||
+            !!ctx.state.backupDismissed ||
+            !session.accounts().accounts.length;
       });
-    const accounts = session
-      .accounts()
-      .accounts.filter(
+    if (searchRow) searchRow.hidden = !session.accounts().accounts.length;
+    if (searchControl)
+      searchControl.hidden = !session.accounts().accounts.length;
+    const accounts = data.accounts
+      .filter(
         (a) =>
           (!favorites || a.favorite) &&
           `${a.issuer} ${a.label} ${a.group}`
@@ -394,7 +420,12 @@ export function createAccounts(ctx: AppContext) {
       list.append(
         el(
           "div",
-          { class: "empty" },
+          {
+            class: "empty",
+            ...(!search && !favorites && ctx.state.firstRunTip
+              ? { role: "complementary", "aria-label": "Getting started" }
+              : {}),
+          },
           el("div", { class: "empty-symbol", "aria-hidden": "true" }, "＋"),
           el(
             "h2",
@@ -406,8 +437,9 @@ export function createAccounts(ctx: AppContext) {
             { class: "muted" },
             search || favorites
               ? "Try a different search or filter."
-              : "Add a setup key or import a QR image. Your secrets stay encrypted on this device.",
+              : "Add a setup key or import your accounts in Backup. Keep your password and test a backup.",
           ),
+          !search && !favorites ? firstRunTip() : null,
         ),
       );
     void run(tick);
@@ -491,5 +523,5 @@ export function createAccounts(ctx: AppContext) {
     );
   }
 
-  return { codesView, tick, clear, mask, clearSearch, preview };
+  return { codesView, tick, clear, mask, clearSearch, preview, importAccounts };
 }

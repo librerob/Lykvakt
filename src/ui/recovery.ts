@@ -1,4 +1,5 @@
 import { transferReview } from "./transfer";
+import { fileChoice } from "./file-choice";
 import { backupCompatibilityMessage, busyCopy } from "../help";
 import { savePreference } from "../preferences";
 import { withGenerator } from "./passphrase";
@@ -19,6 +20,7 @@ export function createRecovery(
     skipped?: import("../import").SkippedEntry[],
     signal?: AbortSignal,
   ) => Promise<void>,
+  importAccounts?: () => void | Promise<void>,
 ) {
   const { session, state, run, announce, modal, closeDialog, render } = ctx;
 
@@ -62,7 +64,20 @@ export function createRecovery(
     return el(
       "section",
       { class: "content stack" },
-      el("h1", {}, "Backups & recovery"),
+      el("h1", {}, "Backup"),
+      importAccounts
+        ? el(
+            "div",
+            { class: "settings-section stack" },
+            el("h2", {}, "Import accounts"),
+            el(
+              "p",
+              {},
+              "Add accounts from setup links, QR images or compatible export files.",
+            ),
+            button("Import accounts", importAccounts, "button tonal"),
+          )
+        : null,
       el(
         "p",
         { class: "muted" },
@@ -226,6 +241,10 @@ export function createRecovery(
   }
 
   function backupVerify(): void {
+    if (ctx.isPopup) {
+      modal("Choose a backup file", fileChoice(ctx));
+      return;
+    }
     const file = input("file", "Encrypted backup file", "file"),
       password = input("password", "Backup passphrase", "password");
     file.control.accept = ".json";
@@ -321,6 +340,10 @@ export function createRecovery(
   }
 
   function recoverySetup(): void {
+    if (ctx.isPopup) {
+      modal("Choose a backup file", fileChoice(ctx));
+      return;
+    }
     const file = input("file", "Encrypted backup file", "file"),
       backup = input("backup", "Backup passphrase", "password"),
       password = input("password", "New master password", "password"),

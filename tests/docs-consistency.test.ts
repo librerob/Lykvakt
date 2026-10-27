@@ -5,6 +5,7 @@ const read = (path: string) =>
 it("keeps the exact permission set and reserved shortcut without background or page access", () => {
   const m = JSON.parse(read("public/manifest.json"));
   expect(m.permissions).toEqual(["clipboardWrite"]);
+  expect(m.action.default_popup).toBe("index.html");
   for (const key of [
     "background",
     "host_permissions",

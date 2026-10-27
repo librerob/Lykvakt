@@ -70,6 +70,7 @@ export function context(session: Session): AppContext {
     session,
     state: { exists: true, view: "settings" },
     isExtension: false,
+    isPopup: false,
     isVisible: () => true,
     run: async (action) => {
       await action();
