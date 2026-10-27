@@ -2019,7 +2019,7 @@ try {
     },
   );
   await check(
-    "popup pastes imports, hands file selection to a locked window, and locks on hide",
+    "popup pastes imports and hands file selection to an independently locked window",
     async () => {
       const isolated = await launch(
         await mkdtemp(join(tmpdir(), "lykvakt-popup-")),
@@ -2134,18 +2134,7 @@ try {
         await expect(
           vault.getByRole("button", { name: "Open in a window", exact: true }),
         ).toHaveCount(0);
-        await popup.evaluate(async () => {
-          const current = await chrome.windows.getCurrent();
-          await chrome.tabs.create({
-            windowId: current.id,
-            url: "about:blank",
-            active: true,
-          });
-        });
-        await popup.bringToFront();
-        await expect(
-          popup.getByRole("heading", { name: "Welcome back." }),
-        ).toBeVisible();
+        await expect(popup.locator("body")).toHaveClass("popup-mode");
         await vault.bringToFront();
         await vault
           .getByRole("button", { name: "Authenticator", exact: true })
@@ -2170,6 +2159,7 @@ try {
       await click("Settings");
       const timeout = page.getByLabel("Auto-lock", { exact: true });
       await expect(timeout).toHaveValue("300000");
+      await screenshot("settings");
       await timeout.selectOption("60000");
       await page.clock.fastForward(61_000);
       await expect(
@@ -2181,7 +2171,6 @@ try {
         "60000",
       );
       await page.getByLabel("Auto-lock", { exact: true }).selectOption("0");
-      await screenshot("settings");
       await page.clock.fastForward(3_700_000);
       await expect(
         page.getByRole("button", { name: "Lock", exact: true }),

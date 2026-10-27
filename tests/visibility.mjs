@@ -70,6 +70,9 @@ try {
   await popup.evaluate(async () => {
     await chrome.tabs.create({ url: "about:blank", active: true });
   });
+  await expect
+    .poll(() => popup.evaluate(() => document.visibilityState))
+    .toBe("hidden");
   await popup.bringToFront();
   await expect(
     popup.getByRole("heading", { name: "Welcome back." }),
