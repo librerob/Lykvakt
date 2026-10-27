@@ -15,7 +15,11 @@ assert(
     "wasm-unsafe-eval",
   ),
 );
-for (const path of ["index.html", ...Object.values(manifest.icons)])
+for (const path of [
+  "index.html",
+  manifest.action.default_popup,
+  ...Object.values(manifest.icons),
+])
   assert((await stat("dist/" + path)).isFile());
 const engines = [];
 async function scan(dir) {

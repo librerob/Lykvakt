@@ -20,7 +20,7 @@ export class Session {
   private writing = false;
   private lastActivity = 0;
   private lastActivityWall = 0;
-  timeout = 300_000;
+  timeout = 0;
   onlock = () => {};
   get unlocked(): boolean {
     return !!this.key;
@@ -40,6 +40,7 @@ export class Session {
   check(): void {
     if (
       this.key &&
+      this.timeout > 0 &&
       (performance.now() - this.lastActivity >= this.timeout ||
         Date.now() - this.lastActivityWall >= this.timeout)
     )

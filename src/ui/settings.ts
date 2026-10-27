@@ -1,7 +1,8 @@
 import { withGenerator } from "./passphrase";
-import { button, el, input, select, form, submit, helpBlock } from "../dom";
+import { button, el, input, select, form, submit } from "../dom";
 import { preferenceEnabled, savePreference } from "../preferences";
 import { busyCopy } from "../help";
+import { AUTO_LOCK_OPTIONS } from "../lock-policy";
 import { rotatePassword } from "../crypto";
 import { dialogOperation, type AppContext } from "./context";
 export function createSettings(ctx: AppContext) {
@@ -20,13 +21,8 @@ export function createSettings(ctx: AppContext) {
     });
     const timeout = select(
       "timeout",
-      "Lock after inactivity",
-      {
-        "60000": "1 minute",
-        "300000": "5 minutes",
-        "900000": "15 minutes",
-        "1800000": "30 minutes",
-      },
+      "Auto-lock",
+      AUTO_LOCK_OPTIONS,
       String(session.timeout),
     );
     timeout.control.addEventListener("change", () => {
@@ -43,18 +39,17 @@ export function createSettings(ctx: AppContext) {
         el("h2", {}, "Make it yours"),
         showCodes.wrapper,
         nextCode.wrapper,
-        helpBlock("nextCode"),
       ),
       el(
         "div",
         { class: "settings-section stack" },
         el("h2", {}, "Vault security"),
         timeout.wrapper,
-        helpBlock("timeout"),
+
         el(
           "p",
           { class: "hint" },
-          "Also locks as soon as you hide or close this page. Keep your password handy.",
+          "Switching away keeps this window unlocked. Closing it or quitting Chrome locks it.",
         ),
         button(
           "Change master password",
@@ -67,12 +62,11 @@ export function createSettings(ctx: AppContext) {
         { class: "settings-section stack" },
         el("h2", {}, "Keyboard shortcut"),
         el("p", {}, "Ctrl+Shift+Y · Command+Shift+Y on Mac"),
-        helpBlock("shortcut"),
+
         isExtension
           ? button(
               "Change shortcut",
               () => {
-                session.lock();
                 void chrome.tabs.create({
                   url: "chrome://extensions/shortcuts",
                 });
@@ -87,12 +81,12 @@ export function createSettings(ctx: AppContext) {
         el(
           "strong",
           {},
-          `Development preview · ${isExtension ? chrome.runtime.getManifest().version : "development"}`,
+          `Lykvakt · ${isExtension ? chrome.runtime.getManifest().version : "development"}`,
         ),
         el(
           "p",
           {},
-          "No independent audit. TOTP can be phished, and malware on this computer can read unlocked codes. Your device clock must be correct.",
+          "Your device clock must be correct. Keep an independent backup; there is no password reset.",
         ),
       ),
     );
@@ -142,7 +136,7 @@ export function createSettings(ctx: AppContext) {
             );
           }),
         current.wrapper,
-        helpBlock("password"),
+
         withGenerator(next),
         confirm.wrapper,
         submit("Change password"),

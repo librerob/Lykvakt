@@ -1,11 +1,11 @@
-name: Validate preview
+name: Validate
 on:
   push:
   pull_request:
   workflow_dispatch:
     inputs:
       prepare_release:
-        description: Prepare an unaudited draft prerelease after validation
+        description: Prepare a draft prerelease after validation
         type: boolean
         default: false
         required: true
@@ -52,7 +52,7 @@ jobs:
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
-          name: synthetic-preview-validation
+          name: synthetic-validation
           path: |
             artifacts/screenshots/
             artifacts/axe-*.json
@@ -76,7 +76,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
-          name: synthetic-preview-validation
+          name: synthetic-validation
           path: release-assets
       - name: Prepare the draft without replacing a published release
         env:
@@ -90,5 +90,5 @@ jobs:
             gh release edit "$tag" --target "$GITHUB_SHA" --notes-file release-notes.md --prerelease --draft
             gh release upload "$tag" release-assets/*.zip release-assets/*.sha256 --clobber
           else
-            gh release create "$tag" release-assets/*.zip release-assets/*.sha256 --target "$GITHUB_SHA" --title "Lykvakt $version - unaudited preview" --notes-file release-notes.md --prerelease --draft
+            gh release create "$tag" release-assets/*.zip release-assets/*.sha256 --target "$GITHUB_SHA" --title "Lykvakt $version" --notes-file release-notes.md --prerelease --draft
           fi

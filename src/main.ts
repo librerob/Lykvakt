@@ -2,10 +2,11 @@ import { DialogLifetime } from "./dialog";
 import { dialogOperation } from "./ui/context";
 import { OldFormatError } from "./format";
 import "./style.css";
-import { button, el, helpBlock, technicalDetails } from "./dom";
+import { button, el, technicalDetails, documentationLink } from "./dom";
 import { friendlyError } from "./help";
 import { focusVault, installEscape } from "./keyboard";
 import { preferenceEnabled, readPreference } from "./preferences";
+import { autoLockTimeout } from "./lock-policy";
 import { Session } from "./session";
 import { load, isRecoveryOffer, isOldVault } from "./storage";
 import { createAccounts } from "./ui/accounts";
@@ -24,11 +25,8 @@ let dialog: HTMLDialogElement | undefined;
 const dialogLifetime = new DialogLifetime();
 let status: HTMLElement;
 const isExtension = !!globalThis.chrome?.runtime?.id;
-const fullWindow = new URL(location.href).searchParams.has("window");
 const storedTimeout = Number(readPreference("timeout"));
-session.timeout = [60_000, 300_000, 900_000, 1_800_000].includes(storedTimeout)
-  ? storedTimeout
-  : 300_000;
+session.timeout = autoLockTimeout(storedTimeout);
 async function run(action: () => void | Promise<void>): Promise<void> {
   const originDialog = dialog;
   try {
@@ -43,9 +41,7 @@ async function run(action: () => void | Promise<void>): Promise<void> {
     const message = friendlyError(error);
     announce(message.message, true, message.technical);
     if (error instanceof OldFormatError)
-      (dialog?.querySelector(".dialog-status") ?? status).append(
-        helpBlock("oldFormat"),
-      );
+      (dialog?.querySelector(".dialog-status") ?? status).append();
   }
 }
 
@@ -139,7 +135,7 @@ const ctx: AppContext = {
   session,
   state,
   isExtension,
-  fullWindow,
+  isVisible: () => !document.hidden,
   run,
   announce,
   modal,
@@ -152,14 +148,7 @@ const accounts = createAccounts(ctx);
 const recovery = createRecovery(ctx, accounts.preview);
 const settings = createSettings(ctx);
 const welcome = createWelcome(ctx, recovery.recoverySetup);
-installEscape(
-  document,
-  accounts.clearSearch,
-  () => {
-    if (isExtension && !fullWindow) window.close();
-  },
-  () => !!dialog,
-);
+installEscape(document, accounts.clearSearch, () => !!dialog);
 
 session.onlock = () => {
   accounts.clear();
@@ -167,19 +156,22 @@ session.onlock = () => {
 
   render();
 };
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) session.lock();
-});
-window.addEventListener("pagehide", () => session.lock());
-if (isExtension) {
-  void chrome.tabs.getCurrent().then((current) => {
-    if (current?.id === undefined) return;
-    chrome.tabs.onActivated.addListener((active) => {
-      if (active.windowId === current.windowId && active.tabId !== current.id)
-        session.lock();
-    });
-  });
+function refreshWindow(): void {
+  if (!session.unlocked) return;
+  try {
+    session.check();
+    if (state.view === "codes" && !document.hidden) void run(accounts.tick);
+  } catch {
+    // Expiry already rendered the locked view.
+  }
 }
+window.addEventListener("focus", refreshWindow);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) accounts.mask();
+  else refreshWindow();
+});
+window.addEventListener("blur", accounts.mask);
+window.addEventListener("pagehide", () => session.lock());
 
 for (const event of ["pointerdown", "keydown"])
   document.addEventListener(
@@ -200,7 +192,7 @@ setInterval(() => {
   if (session.unlocked) {
     try {
       session.check();
-      if (state.view === "codes") void run(accounts.tick);
+      if (state.view === "codes" && !document.hidden) void run(accounts.tick);
     } catch {
       /* Expired session. */
     }
@@ -212,27 +204,9 @@ function render(): void {
     "div",
     { class: "wordmark" },
     el("img", { src: "icons/32.png", width: "32", height: "32", alt: "" }),
-    el(
-      "div",
-      {},
-      el("strong", {}, "Lykvakt"),
-      el("span", { class: "preview" }, "DEVELOPMENT PREVIEW"),
-    ),
+    el("div", {}, el("strong", {}, "Lykvakt")),
   );
-  const tools = el("div", { class: "header-actions" });
-  if (!fullWindow && isExtension)
-    tools.append(
-      button(
-        "Open window",
-        () => {
-          session.lock();
-          void chrome.tabs.create({
-            url: chrome.runtime.getURL("index.html?window"),
-          });
-        },
-        "button text",
-      ),
-    );
+  const tools = el("div", { class: "header-actions" }, documentationLink());
   if (session.unlocked)
     tools.append(button("Lock", () => session.lock(), "button tonal"));
   const header = el("header", {}, title, tools);
@@ -279,8 +253,12 @@ function render(): void {
     el(
       "footer",
       {},
-      el("span", { class: "local-dot" }),
-      "Local vault · No account · No telemetry",
+      el(
+        "span",
+        { class: "local-footer" },
+        el("span", { class: "local-dot" }),
+        "Local vault · No account · No telemetry",
+      ),
     ),
   );
   if (!dialog) focusVault(root, session.unlocked, state.view);

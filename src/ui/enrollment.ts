@@ -9,7 +9,6 @@ import {
   submit,
   download,
   readText,
-  helpBlock,
 } from "../dom";
 import { codeFor } from "../otp";
 import { validateAccount, type Account } from "../model";
@@ -47,14 +46,21 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
       {
         totp: "TOTP · time based",
         hotp: "HOTP · counter based",
-        steam: "Steam · sign-in codes",
+        steam: "Steam support",
       },
       "totp",
     );
     const period = input("period", "Period in seconds", "number", "30"),
       counter = input("counter", "HOTP counter", "text", "0");
+    const steamHint = el(
+      "p",
+      { class: "hint" },
+      "Steam support provides sign-in codes only. Trade and market confirmations are not supported.",
+    );
+    steamHint.hidden = true;
     const steamSettings = () => {
       const steam = type.control.value === "steam";
+      steamHint.hidden = !steam;
       for (const field of [algorithm, digits, period, counter])
         field.wrapper.hidden = steam;
     };
@@ -88,8 +94,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           { class: "muted" },
           "Enter the setup key supplied by the service.",
         ),
-        helpBlock("account"),
-        helpBlock("steam"),
+
         issuer.wrapper,
         label.wrapper,
         secret.wrapper,
@@ -101,6 +106,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
             "div",
             { class: "stack" },
             type.wrapper,
+            steamHint,
             algorithm.wrapper,
             digits.wrapper,
             period.wrapper,
@@ -306,7 +312,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
             }
           }),
         sourcePassword.wrapper,
-        helpBlock("import"),
+
         el(
           "label",
           { class: "field" },
@@ -320,8 +326,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           { class: "hint" },
           "All parsing happens on this device. For Google Authenticator, choose Transfer accounts → Export accounts on your phone, then select images of every transfer QR together. Aegis and 2FAS password-protected exports can be opened locally. The file password is used only for this import. Invalid entries are listed for review before saving valid accounts. Incomplete batches and conflicting imports save nothing.",
         ),
-        helpBlock("moving"),
-        helpBlock("steam"),
+
         submit("Preview import"),
       ),
     );

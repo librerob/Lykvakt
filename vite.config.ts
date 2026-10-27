@@ -9,6 +9,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         app: resolve("index.html"),
+        launcher: resolve("launcher.html"),
       },
       output: {
         entryFileNames: "[name].js",

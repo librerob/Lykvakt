@@ -117,7 +117,7 @@ it("erasure requires the second UI confirmation and removes both records only th
   const view = createWelcome(ctx, () => {}).locked() as unknown as TestElement;
   expect(view.textContent).toContain(oldFormatMessage);
   expect(view.querySelector("input")).toBeNull();
-  expect(view.querySelector('[data-help="oldFormat"]')).not.toBeNull();
+  expect(view.querySelector('[data-help="oldFormat"]')).toBeNull();
   expect(await record("active")).toEqual(old);
   view
     .querySelectorAll("button")

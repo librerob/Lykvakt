@@ -32,9 +32,18 @@ try {
   });
   await page.bringToFront();
   await expect(
+    page.getByLabel("Search accounts", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Welcome back." }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Lock", exact: true }).click();
+  await expect(
     page.getByRole("heading", { name: "Welcome back." }),
   ).toBeVisible();
-  console.log("PASS actual headed Chromium tab activation locks the vault");
+  console.log(
+    "PASS headed Chromium switching keeps the vault unlocked; explicit Lock still locks it",
+  );
 } finally {
   await context.close();
 }

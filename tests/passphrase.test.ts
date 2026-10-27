@@ -2,7 +2,7 @@ import { expect, it, afterEach, vi } from "vitest";
 import { createHash } from "node:crypto";
 import words from "../src/eff-wordlist.json";
 import { generatePassphrase } from "../src/passphrase";
-import { requireStrongPassword } from "../src/crypto";
+import { requirePassword } from "../src/crypto";
 afterEach(() => vi.restoreAllMocks());
 it("pins all 7776 original EFF entries, including the four hyphenated words", () => {
   expect(words).toHaveLength(7776);
@@ -60,7 +60,7 @@ it("chooses seven distinct valid words with the expected lengths and a strong ou
   expect(phrase.length).toBe(
     selected.reduce((sum, word) => sum + word.length, 6),
   );
-  expect(() => requireStrongPassword(phrase)).not.toThrow();
+  expect(() => requirePassword(phrase)).not.toThrow();
 });
 it("uses the browser CSPRNG and produces strong passphrases without Math.random", () => {
   vi.spyOn(Math, "random").mockImplementation(() => {
@@ -70,7 +70,7 @@ it("uses the browser CSPRNG and produces strong passphrases without Math.random"
     const phrase = generatePassphrase();
     expect(phrase.length).toBeGreaterThanOrEqual(27);
     expect(phrase.length).toBeLessThanOrEqual(69);
-    expect(() => requireStrongPassword(phrase)).not.toThrow();
+    expect(() => requirePassword(phrase)).not.toThrow();
     const pieces = phrase.split("-");
     const selected: string[] = [];
     for (let j = 0; j < pieces.length; j++) {

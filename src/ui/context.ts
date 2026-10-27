@@ -10,7 +10,7 @@ export interface AppContext {
   session: Session;
   state: AppState;
   isExtension: boolean;
-  fullWindow: boolean;
+  isVisible: () => boolean;
   run: (action: () => void | Promise<void>) => Promise<void>;
   announce: (message: string, error?: boolean) => void;
   modal: (title: string, content: Node) => void;

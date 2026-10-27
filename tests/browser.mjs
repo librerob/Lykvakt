@@ -48,10 +48,20 @@ async function click(name) {
     return;
   }
   await page.getByRole("button", { name, exact: true }).click();
+  if (name === "Lock")
+    await expect(
+      page.getByLabel("Master password", { exact: true }),
+    ).toBeVisible();
 }
 async function unlock() {
-  await page.getByLabel("Master password", { exact: true }).fill(password);
-  await click("Unlock vault");
+  if (
+    await page
+      .getByRole("button", { name: "Unlock vault", exact: true })
+      .count()
+  ) {
+    await page.getByLabel("Master password", { exact: true }).fill(password);
+    await click("Unlock vault");
+  }
   await expect(
     page.getByLabel("Search accounts", { exact: true }),
   ).toBeVisible();
@@ -68,7 +78,6 @@ async function openMore(row) {
   if ((await details.getAttribute("open")) === null)
     await details.locator("summary").click();
 }
-const openedHelpTopics = new Set();
 async function plainPrimaryUI() {
   const text = await page.evaluate(() => {
     const body = document.body.cloneNode(true);
@@ -79,8 +88,8 @@ async function plainPrimaryUI() {
     /\b(?:Argon2id|PBKDF2|KDF|AES|GCM|AAD|envelope|nonce|iterations|WASM)\b/i,
   );
 }
-async function keyboardHelp(scope = page, leaveOpen = false) {
-  const blocks = scope.locator("details[data-help], details[data-technical]");
+async function keyboardDetails(scope = page, leaveOpen = false) {
+  const blocks = scope.locator("details[data-technical]");
   const opened = [];
   for (let i = 0; i < (await blocks.count()); i++) {
     const block = blocks.nth(i);
@@ -95,8 +104,6 @@ async function keyboardHelp(scope = page, leaveOpen = false) {
     await page.keyboard.press("Enter");
     await expect(block).toHaveAttribute("open", "");
     await expect(block.locator(":scope > p").first()).toBeVisible();
-    const topic = await block.getAttribute("data-help");
-    if (topic) openedHelpTopics.add(topic);
     opened.push(block);
   }
   await plainPrimaryUI();
@@ -106,6 +113,21 @@ async function keyboardHelp(scope = page, leaveOpen = false) {
       await page.keyboard.press("Enter");
       await expect(block).not.toHaveAttribute("open", "");
     }
+}
+async function documentationHelp() {
+  const link = page.getByRole("link", {
+    name: "Help & documentation",
+    exact: true,
+  });
+  await expect(link).toHaveCount(1);
+  await expect(link).toHaveAttribute(
+    "href",
+    "https://github.com/librerob/lykvakt/blob/main/docs/usage.md",
+  );
+  await expect(link).toHaveAttribute("target", "_blank");
+  await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  await link.focus();
+  await expect(link).toBeFocused();
 }
 async function helpAxe(name) {
   const results = await new AxeBuilder({ page })
@@ -134,7 +156,20 @@ try {
     await screenshot("setup");
   });
   await check(
-    "the suggested popup command is assigned without a Chrome shortcut collision",
+    "setup uses the Lykvakt name without preview branding",
+    async () => {
+      const manifest = await page.evaluate(() => chrome.runtime.getManifest());
+      expect(manifest.name).toBe("Lykvakt");
+      expect(manifest.version).toBe("0.5.1");
+      expect(manifest.version_name).toBeUndefined();
+      await expect(page).toHaveTitle("Lykvakt");
+      await expect(page.locator("body")).not.toContainText(
+        /development preview|test accounts only|unaudited/i,
+      );
+    },
+  );
+  await check(
+    "the suggested vault shortcut is assigned without a Chrome shortcut collision",
     async () => {
       const commands = await page.evaluate(() => chrome.commands.getAll());
       expect(
@@ -144,12 +179,12 @@ try {
     },
   );
   await check(
-    "setup focuses the password and opens plain-language help by keyboard",
+    "setup focuses the password and offers one keyboard-accessible documentation link",
     async () => {
       await expect(
         page.getByLabel("Create a master password", { exact: true }),
       ).toBeFocused();
-      await keyboardHelp();
+      await documentationHelp();
     },
   );
   await check(
@@ -188,7 +223,7 @@ try {
       await expect(
         page.getByLabel("Search accounts", { exact: true }),
       ).toBeFocused();
-      await keyboardHelp();
+      await keyboardDetails();
       await click("Got it");
       await expect(tips).toHaveCount(0);
       await page.reload();
@@ -843,6 +878,7 @@ try {
       await context.close();
       context = await launch();
       page = await context.newPage();
+      await page.clock.install();
       await page.goto(base);
       await expect(
         page.getByRole("heading", { name: "Welcome back." }),
@@ -902,6 +938,7 @@ try {
     const recoveredProfile = await mkdtemp(join(tmpdir(), "otp-recovery-"));
     context = await launch(recoveredProfile);
     page = await context.newPage();
+    await page.clock.install();
     page.on("pageerror", (error) => errors.push(error.message));
     context.on("request", (request) => {
       if (/^https?:/.test(request.url())) network.push(request.url());
@@ -1054,12 +1091,12 @@ try {
     },
   );
   await check(
-    "settings, backup and export help work by keyboard with expanded axe checks",
+    "settings, backup and export remain keyboard accessible with axe checks",
     async () => {
       await click("Settings");
-      await keyboardHelp(page, true);
+      await keyboardDetails(page, true);
       await helpAxe("settings");
-      await keyboardHelp();
+      await keyboardDetails();
       await click("Recovery");
       await expect(
         page.getByText(
@@ -1067,22 +1104,22 @@ try {
           { exact: true },
         ),
       ).toBeVisible();
-      await keyboardHelp(page, true);
+      await keyboardDetails(page, true);
       await helpAxe("recovery");
-      await keyboardHelp();
+      await keyboardDetails();
       for (const name of [
         "Create encrypted backup",
         "Verify or restore a backup",
         "Export plaintext OTP links…",
       ]) {
         await click(name);
-        await keyboardHelp(page.getByRole("dialog"));
+        await keyboardDetails(page.getByRole("dialog"));
         await click("Close");
       }
       await click("Authenticator");
       for (const name of ["+ Add account", "Import accounts"]) {
         await click(name);
-        await keyboardHelp(page.getByRole("dialog"));
+        await keyboardDetails(page.getByRole("dialog"));
         await click("Close");
       }
       await openMore(page.locator(".account").first());
@@ -1092,7 +1129,7 @@ try {
         .getByRole("button", { name: "Edit", exact: true })
         .click();
       await click("Show transfer QR…");
-      await keyboardHelp(page.getByRole("dialog"));
+      await keyboardDetails(page.getByRole("dialog"));
       await click("Close");
     },
   );
@@ -1149,7 +1186,7 @@ try {
         "Authentication failed",
       );
       await expect(page.locator(".account")).toHaveCount(0);
-      await keyboardHelp();
+      await keyboardDetails();
       await page.getByLabel("Master password", { exact: true }).fill(password);
       await click("Unlock older copy");
       await expect(page.locator(".account")).toHaveCount(3);
@@ -1262,7 +1299,7 @@ try {
           page.getByLabel("Master password", { exact: true }),
         ).toHaveCount(0);
         expect(await records()).toEqual(expected);
-        await keyboardHelp();
+        await keyboardDetails();
         await helpAxe("old-format");
         await screenshot("old-format");
         await click("Erase the old vault and start fresh");
@@ -1311,7 +1348,7 @@ try {
         await expect(
           page.getByLabel("Backup passphrase", { exact: true }),
         ).toHaveValue("");
-        await keyboardHelp(page.getByRole("dialog"));
+        await keyboardDetails(page.getByRole("dialog"));
         expect(await records()).toEqual(before);
         await click("Close");
       } finally {
@@ -1389,7 +1426,7 @@ try {
         await expect(page.getByRole("status")).toContainText(
           "couldn't recognise",
         );
-        await keyboardHelp(page.getByRole("dialog"), true);
+        await keyboardDetails(page.getByRole("dialog"), true);
         await helpAxe("import-help");
         await screenshot("import-help");
         await click("Close");
@@ -1896,30 +1933,125 @@ try {
       }
     },
   );
-  await check("every help topic was opened with the keyboard", async () => {
-    for (const topic of [
-      "account",
-      "import",
-      "password",
-      "backup",
-      "verify",
-      "export",
-      "nextCode",
-      "shortcut",
-      "olderCopy",
-      "timeout",
-      "preview",
-      "oldFormat",
-      "tipsPassword",
-      "tipsBackup",
-      "tipsVerify",
-    ])
-      expect(
-        openedHelpTopics.has(topic),
-        "Missing keyboard help: " + topic,
-      ).toBe(true);
-    await plainPrimaryUI();
-  });
+  await check(
+    "a chosen inactivity timer locks the vault and can be disabled",
+    async () => {
+      await click("Settings");
+      const timeout = page.getByLabel("Auto-lock", { exact: true });
+      await expect(timeout).toHaveValue("0");
+      await timeout.selectOption("60000");
+      await page.clock.fastForward(61_000);
+      await expect(
+        page.getByRole("heading", { name: "Welcome back." }),
+      ).toBeVisible();
+      await unlock();
+      await click("Settings");
+      await expect(page.getByLabel("Auto-lock", { exact: true })).toHaveValue(
+        "60000",
+      );
+      await page.getByLabel("Auto-lock", { exact: true }).selectOption("0");
+      await screenshot("settings");
+      await page.clock.fastForward(3_700_000);
+      await expect(
+        page.getByRole("button", { name: "Lock", exact: true }),
+      ).toBeVisible();
+      await click("Authenticator");
+    },
+  );
+  await check(
+    "the toolbar launcher reuses its dedicated window and supports a chosen short password",
+    async () => {
+      const directory = await mkdtemp(join(tmpdir(), "lykvakt-window-"));
+      const isolated = await launch(directory);
+      const vaultUrl = base;
+      const launcherUrl = `chrome-extension://${id}/launcher.html`;
+      const open = async () => {
+        const launcher = await isolated.newPage();
+        try {
+          await launcher.goto(launcherUrl, { waitUntil: "domcontentloaded" });
+        } catch (error) {
+          if (!launcher.isClosed()) throw error;
+        }
+        await expect
+          .poll(() => isolated.pages().some((p) => p.url() === vaultUrl))
+          .toBe(true);
+        return isolated.pages().find((p) => p.url() === vaultUrl);
+      };
+      try {
+        const vault = await open();
+        await vault
+          .getByLabel("Create a master password", { exact: true })
+          .fill("x");
+        await vault
+          .getByLabel("Confirm master password", { exact: true })
+          .fill("x");
+        await vault
+          .getByRole("button", { name: "Create encrypted vault", exact: true })
+          .click();
+        await expect(
+          vault.getByLabel("Search accounts", { exact: true }),
+        ).toBeVisible();
+        const other = await isolated.newPage();
+        await other.goto("about:blank");
+        await other.bringToFront();
+        await vault.bringToFront();
+        await expect(
+          vault.getByLabel("Search accounts", { exact: true }),
+        ).toBeVisible();
+        await vault.evaluate(async () => {
+          const current = await chrome.windows.getCurrent();
+          await chrome.windows.update(current.id, { state: "minimized" });
+        });
+        await expect
+          .poll(() =>
+            vault.evaluate(
+              async () => (await chrome.windows.getCurrent()).state,
+            ),
+          )
+          .toBe("minimized");
+        await open();
+        await expect
+          .poll(() =>
+            vault.evaluate(
+              async () => (await chrome.windows.getCurrent()).state,
+            ),
+          )
+          .toBe("normal");
+        expect(
+          isolated.pages().filter((p) => p.url() === vaultUrl),
+        ).toHaveLength(1);
+        await expect(
+          vault.getByLabel("Search accounts", { exact: true }),
+        ).toBeVisible();
+        await vault.close();
+        const reopened = await open();
+        await expect(
+          reopened.getByRole("heading", { name: "Welcome back." }),
+        ).toBeVisible();
+        await reopened.getByLabel("Master password", { exact: true }).fill("x");
+        await reopened
+          .getByRole("button", { name: "Unlock vault", exact: true })
+          .click();
+        await expect(
+          reopened.getByLabel("Search accounts", { exact: true }),
+        ).toBeVisible();
+      } finally {
+        await isolated.close();
+        await page.bringToFront();
+      }
+    },
+  );
+  await check(
+    "documentation is keyboard accessible without repeated inline help",
+    async () => {
+      await documentationHelp();
+      await expect(page.locator("[data-help]")).toHaveCount(0);
+      await expect(
+        page.getByText("What does this mean?", { exact: true }),
+      ).toHaveCount(0);
+      await plainPrimaryUI();
+    },
+  );
   await check("no external requests during vault workflows", async () =>
     expect(network).toEqual([]),
   );

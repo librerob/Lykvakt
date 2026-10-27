@@ -72,14 +72,6 @@ header {
 .wordmark strong {
   font-size: var(--t3);
 }
-.wordmark span {
-  display: block;
-}
-.preview {
-  color: var(--muted);
-  font-size: var(--t1);
-  letter-spacing: 1px;
-}
 h1,
 h2,
 p {
@@ -503,11 +495,9 @@ summary {
   font-weight: 550;
 }
 details > .stack,
-details > p,
-.inline-help > .technical-details {
+details > p {
   margin-top: var(--s2);
 }
-.inline-help,
 .technical-details {
   background: var(--surface-alt);
   color: var(--text);
@@ -647,5 +637,34 @@ footer {
   padding: 0;
   overflow: hidden;
   clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+a,
+a:visited {
+  color: var(--primary);
+  text-underline-offset: 3px;
+}
+footer {
+  flex-direction: column;
+}
+.local-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.launcher {
+  padding: var(--s4);
+  display: grid;
+  gap: var(--s3);
+  min-height: 120px;
+}
+
+.documentation-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 4px;
+  font-size: var(--t1);
   white-space: nowrap;
 }

@@ -54,6 +54,11 @@ export function withGenerator(field: {
     "div",
     {},
     el("div", { class: "password-generator" }, field.wrapper, generate),
+    el(
+      "p",
+      { class: "hint" },
+      "Choose your password length. We recommend a long, unique passphrase (14+ characters).",
+    ),
     shown,
   );
 }

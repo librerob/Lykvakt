@@ -1,4 +1,4 @@
-import { button, el, svg, helpBlock } from "../dom";
+import { button, el, svg } from "../dom";
 import { bindSearch } from "../keyboard";
 import { emptySearchMessage } from "../help";
 import { preferenceEnabled, savePreference } from "../preferences";
@@ -59,10 +59,8 @@ export function createAccounts(ctx: AppContext) {
     signal?: AbortSignal,
   ) =>
     enrollment((tools) => tools.preview(accounts, skipped, undefined, signal));
-  function clear() {
+  function mask() {
     displayEpoch++;
-    backupEpoch++;
-    backupNotice = undefined;
     maskAll();
     for (const code of list?.querySelectorAll<HTMLElement>(".otp") ?? []) {
       code.textContent = masks.get(code) ?? "••• •••";
@@ -74,8 +72,14 @@ export function createAccounts(ctx: AppContext) {
       next.hidden = true;
       next.querySelector(".next-code-value")!.textContent = "";
     }
-    masks.clear();
     codeCache.clear();
+  }
+
+  function clear() {
+    mask();
+    backupEpoch++;
+    backupNotice = undefined;
+    masks.clear();
     matchingIds = [];
     searchControl = undefined;
     search = "";
@@ -111,9 +115,7 @@ export function createAccounts(ctx: AppContext) {
       "aside",
       { class: "notice stack", "aria-label": "Getting started" },
       el("p", {}, "Keep your password. Save and test a backup."),
-      helpBlock("tipsPassword"),
-      helpBlock("tipsBackup"),
-      helpBlock("tipsVerify"),
+
       button(
         "Got it",
         () => {
@@ -444,7 +446,7 @@ export function createAccounts(ctx: AppContext) {
           cached.next = await codeFor(a, now + a.period * 1000);
           if (epoch !== displayEpoch || !session.unlocked) return;
         }
-        const visible = alwaysShow() || revealed.has(a.id);
+        const visible = ctx.isVisible() && (alwaysShow() || revealed.has(a.id));
         const next = row.querySelector<HTMLElement>(".next-code");
         if (next) {
           next.hidden = !preview || !visible;
@@ -489,5 +491,5 @@ export function createAccounts(ctx: AppContext) {
     );
   }
 
-  return { codesView, tick, clear, clearSearch, preview };
+  return { codesView, tick, clear, mask, clearSearch, preview };
 }

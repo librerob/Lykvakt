@@ -1,5 +1,4 @@
 import { DialogLifetime } from "../../src/dialog";
-import { helpCopy, type HelpTopic } from "../../src/help";
 import type { AppContext } from "../../src/ui/context";
 import type { Session } from "../../src/session";
 type Action = () => void | Promise<void>;
@@ -71,7 +70,7 @@ export function context(session: Session): AppContext {
     session,
     state: { exists: true, view: "settings" },
     isExtension: false,
-    fullWindow: true,
+    isVisible: () => true,
     run: async (action) => {
       await action();
     },
@@ -122,17 +121,5 @@ export function technicalDetails(...children: unknown[]) {
     { "data-technical": "", class: "technical-details" },
     el("summary", {}, "Technical details"),
     ...children,
-  );
-}
-export function helpBlock(topic: HelpTopic, title = "What does this mean?") {
-  const copy: { text: string[]; technical?: string[] } = helpCopy[topic];
-  return el(
-    "details",
-    { "data-help": topic },
-    el("summary", {}, title),
-    ...copy.text.map((text) => el("p", {}, text)),
-    copy.technical
-      ? technicalDetails(...copy.technical.map((text) => el("p", {}, text)))
-      : null,
   );
 }
