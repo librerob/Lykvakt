@@ -878,6 +878,7 @@ try {
       await context.close();
       context = await launch();
       page = await context.newPage();
+      await page.clock.install();
       await page.goto(base);
       await expect(
         page.getByRole("heading", { name: "Welcome back." }),
@@ -937,6 +938,7 @@ try {
     const recoveredProfile = await mkdtemp(join(tmpdir(), "otp-recovery-"));
     context = await launch(recoveredProfile);
     page = await context.newPage();
+    await page.clock.install();
     page.on("pageerror", (error) => errors.push(error.message));
     context.on("request", (request) => {
       if (/^https?:/.test(request.url())) network.push(request.url());
