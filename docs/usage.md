@@ -1,14 +1,14 @@
 # Using Lykvakt
 
-Lykvakt keeps your authenticator accounts in an encrypted vault on this device. The toolbar button, Ctrl+Shift+Y, or Command+Shift+Y on Mac opens or focuses its own window.
+Lykvakt keeps your authenticator accounts in an encrypted vault on this device. The toolbar button, Ctrl+Shift+Y, or Command+Shift+Y on Mac opens a small popup.
 
 ## Opening and locking
 
-The vault window stays open when you switch to another app or browser tab. By default it stays unlocked until you lock it, close that window or quit Chrome.
+The popup locks when it closes, hides or loses focus. In Settings, choose **Open in a window** to keep Lykvakt open while you switch apps or tabs. This separate window asks for your password and defaults to a five-minute inactivity timer.
 
 In **Settings → Auto-lock**, you can choose 1, 5, 15 or 30 minutes, or 1 hour of inactivity. Choose **When this window closes** to turn off the timer. Existing timer choices are kept when you update. Use **Lock** before leaving your computer.
 
-The unlocked key exists only in that window's memory. Reloading or closing it loses the key, and reopening asks for your password. Chrome may also discard a page. No unlock key or password is saved to remember the session across a browser restart.
+Each view holds its own unlocked key in memory. Reloading or closing it loses the key, and reopening asks for your password. Chrome may also discard a page. No unlock key or password is saved to remember the session across a browser restart.
 
 Closing another Chrome window does not necessarily quit Chrome while Lykvakt's window is still open. For a timed lock, Chrome can suspend background pages; the deadline is also checked before the next operation and when you return.
 
@@ -24,7 +24,7 @@ There is no password reset or developer recovery service. Keep the password and 
 
 Use the setup key or QR image supplied when you enable two-step sign-in on a service. This is different from the short code used to sign in.
 
-Choose **Import accounts**, select a compatible export or QR image, or paste setup links. Review the accounts and every skipped entry before saving. Check the new codes before retiring your existing authenticator. The [design guide](design.md#import-contracts-and-sources) explains format support and limits.
+Open **Backup → Import accounts**. Pasting setup links or export text works in either mode. File imports, QR images and backup-file selection require the explicit window: choose **Open in a window to choose a file**, unlock there, then choose the file. Chrome can close a popup while a native file chooser is open. Review the accounts and every skipped entry before saving. Check the new codes before retiring your existing authenticator. The [design guide](design.md#import-contracts-and-sources) explains format support and limits.
 
 Steam support covers authentication codes, not trade or market confirmations. Its setup secret normally comes from a compatible export or another authenticator. Files containing it can also hold other sensitive data, so keep them private.
 
@@ -32,7 +32,7 @@ Steam support covers authentication codes, not trade or market confirmations. It
 
 Click an account row to copy the current code. The confirmation names the account. Clipboard managers and other apps may retain copied values.
 
-Codes start hidden. Reveal a code separately to read it; timed reveals hide after 30 seconds. Switching away masks revealed codes without locking the vault. **Always show codes** and the **Next** preview are optional settings. Copy always uses the current code.
+Codes start hidden. Reveal a code separately to read it; timed reveals hide after 30 seconds. Switching away masks revealed codes in the window; leaving the popup locks it. **Always show codes** and the **Next** preview are optional settings. Copy always uses the current code.
 
 Search for part of an account name and press Enter to copy the first match. An empty search copies nothing. Change the suggested shortcut at chrome://extensions/shortcuts if another app uses it.
 
@@ -40,7 +40,7 @@ HOTP accounts use a counter. Copying does not advance it. Confirm **More → Adv
 
 ## Backups
 
-In **Recovery**, create an encrypted backup with a separate passphrase. You must confirm the master password before exporting account secrets.
+In **Backup**, create an encrypted backup with a separate passphrase. You must confirm the master password before exporting account secrets.
 
 Save the file outside the browser. Then choose **Verify or restore a backup**, open the actual saved file and enter its backup passphrase. Verification tests the file and compares its accounts without replacing your active vault. A matching result does not prove that websites will accept the codes.
 
@@ -62,6 +62,6 @@ Very old preview formats need export through the working old app. See [migration
 
 A fake sign-in page can steal a code, and compromised software can read unlocked data. Check the site before entering a code. There has been no independent security audit; the [security policy](../SECURITY.md), [privacy policy](../PRIVACY.md) and [design guide](design.md) explain the limits.
 
-The extension's only permission is clipboardWrite. It has no content scripts, host permissions, background service worker or automatic account-data upload. It never reads or changes websites. The launcher only finds and focuses Lykvakt's own extension window.
+The extension's only permission is clipboardWrite. It has no content scripts, host permissions, background service worker or automatic account-data upload. It never reads or changes websites. The explicit Open in a window action only finds and focuses Lykvakt's own extension window.
 
-The vault and code generation work offline. This documentation link opens GitHub in a browser tab when you choose it, and needs an internet connection.
+The vault and code generation work offline. Essential help is bundled in the app and works offline. The optional full-guide link opens GitHub in a browser tab and needs an internet connection.

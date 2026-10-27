@@ -2,11 +2,12 @@ import { DialogLifetime } from "./dialog";
 import { dialogOperation } from "./ui/context";
 import { OldFormatError } from "./format";
 import "./style.css";
-import { button, el, technicalDetails, documentationLink } from "./dom";
+import { button, el, technicalDetails } from "./dom";
+import { offlineHelp } from "./ui/offline-help";
 import { friendlyError } from "./help";
 import { focusVault, installEscape } from "./keyboard";
-import { preferenceEnabled, readPreference } from "./preferences";
-import { autoLockTimeout } from "./lock-policy";
+import { preferenceEnabled } from "./preferences";
+import { preferredAutoLockTimeout } from "./lock-policy";
 import { isPopupMode, installViewLock } from "./view-mode";
 import { Session } from "./session";
 import { load, isRecoveryOffer, isOldVault } from "./storage";
@@ -28,8 +29,7 @@ let status: HTMLElement;
 const isExtension = !!globalThis.chrome?.runtime?.id;
 const isPopup = isPopupMode(location.search);
 document.body.classList.add(isPopup ? "popup-mode" : "window-mode");
-const storedTimeout = Number(readPreference("timeout") ?? NaN);
-session.timeout = autoLockTimeout(storedTimeout);
+session.timeout = preferredAutoLockTimeout();
 async function run(action: () => void | Promise<void>): Promise<void> {
   const originDialog = dialog;
   try {
@@ -149,12 +149,13 @@ const ctx: AppContext = {
   confirmAction,
 };
 const accounts = createAccounts(ctx);
-const recovery = createRecovery(ctx, accounts.preview);
+const recovery = createRecovery(ctx, accounts.preview, accounts.importAccounts);
 const settings = createSettings(ctx);
 const welcome = createWelcome(ctx, recovery.recoverySetup);
 installEscape(document, accounts.clearSearch, () => !!dialog);
 
 session.onlock = () => {
+  state.backupDismissed = false;
   accounts.clear();
   closeDialog();
 
@@ -211,7 +212,15 @@ function render(): void {
     el("img", { src: "icons/32.png", width: "32", height: "32", alt: "" }),
     el("div", {}, el("strong", {}, "Lykvakt")),
   );
-  const tools = el("div", { class: "header-actions" }, documentationLink());
+  const tools = el(
+    "div",
+    { class: "header-actions" },
+    button(
+      "Help & documentation",
+      () => modal("Help & documentation", offlineHelp(isPopup)),
+      "button text help-link",
+    ),
+  );
   if (session.unlocked)
     tools.append(button("Lock", () => session.lock(), "button tonal"));
   const header = el("header", {}, title, tools);
@@ -226,7 +235,7 @@ function render(): void {
     const nav = el("nav", { "aria-label": "Vault" });
     for (const [key, title] of [
       ["codes", "Authenticator"],
-      ["backups", "Recovery"],
+      ["backups", "Backup"],
       ["settings", "Settings"],
     ] as const) {
       const tab = button(

@@ -1,5 +1,6 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { createAccounts } from "../src/ui/accounts";
+import { createRecovery } from "../src/ui/recovery";
 import * as enrollmentModule from "../src/ui/enrollment";
 import { emptyVault } from "../src/model";
 import type { Session } from "../src/session";
@@ -40,9 +41,13 @@ function setup() {
   };
   accounts = createAccounts(ctx);
   const view = accounts.codesView() as unknown as TestElement;
+  const backup = createRecovery(
+    ctx,
+    async () => {},
+    accounts.importAccounts,
+  ).backupsView() as unknown as TestElement;
   const click = (name: string) =>
-    view
-      .querySelectorAll("button")
+    [...view.querySelectorAll("button"), ...backup.querySelectorAll("button")]
       .find((b) => b.textContent === name)!
       .click();
   return {

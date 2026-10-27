@@ -20,6 +20,7 @@ export function createRecovery(
     skipped?: import("../import").SkippedEntry[],
     signal?: AbortSignal,
   ) => Promise<void>,
+  importAccounts?: () => void | Promise<void>,
 ) {
   const { session, state, run, announce, modal, closeDialog, render } = ctx;
 
@@ -63,7 +64,20 @@ export function createRecovery(
     return el(
       "section",
       { class: "content stack" },
-      el("h1", {}, "Backups & recovery"),
+      el("h1", {}, "Backup"),
+      importAccounts
+        ? el(
+            "div",
+            { class: "settings-section stack" },
+            el("h2", {}, "Import accounts"),
+            el(
+              "p",
+              {},
+              "Add accounts from setup links, QR images or compatible export files.",
+            ),
+            button("Import accounts", importAccounts, "button tonal"),
+          )
+        : null,
       el(
         "p",
         { class: "muted" },

@@ -47,6 +47,11 @@ async function click(name) {
     await page.locator(".row-copy").click({ position: { x: 12, y: 12 } });
     return;
   }
+  if (
+    name === "Import accounts" &&
+    !(await page.getByRole("button", { name, exact: true }).count())
+  )
+    await page.getByRole("button", { name: "Backup", exact: true }).click();
   await page.getByRole("button", { name, exact: true }).click();
   if (name === "Lock")
     await expect(
@@ -63,8 +68,19 @@ async function unlock() {
     await click("Unlock vault");
   }
   await expect(
-    page.getByLabel("Search accounts", { exact: true }),
+    page.getByRole("button", { name: "+ Add account", exact: true }),
   ).toBeVisible();
+}
+async function openImportOn(target) {
+  if (
+    !(await target
+      .getByRole("button", { name: "Import accounts", exact: true })
+      .count())
+  )
+    await target.getByRole("button", { name: "Backup", exact: true }).click();
+  await target
+    .getByRole("button", { name: "Import accounts", exact: true })
+    .click();
 }
 async function importURI(value) {
   await click("Import accounts");
@@ -115,8 +131,14 @@ async function keyboardDetails(scope = page, leaveOpen = false) {
     }
 }
 async function documentationHelp() {
+  await page
+    .getByRole("button", { name: "Help & documentation", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "These tips work offline.",
+  );
   const link = page.getByRole("link", {
-    name: "Help & documentation",
+    name: "Full documentation on GitHub",
     exact: true,
   });
   await expect(link).toHaveCount(1);
@@ -128,6 +150,8 @@ async function documentationHelp() {
   await expect(link).toHaveAttribute("rel", "noopener noreferrer");
   await link.focus();
   await expect(link).toBeFocused();
+  await helpAxe("offline-help");
+  await click("Close");
 }
 async function helpAxe(name) {
   const results = await new AxeBuilder({ page })
@@ -141,11 +165,18 @@ async function helpAxe(name) {
   expect(results.violations).toEqual([]);
 }
 async function screenshot(name) {
+  const old = page.viewportSize();
+  const popup = await page
+    .locator("body")
+    .evaluate((n) => n.classList.contains("popup-mode"));
+  await page.setViewportSize({ width: 400, height: popup ? 580 : 700 });
   await page.screenshot({
     path: `artifacts/screenshots/${name}.png`,
-    fullPage: true,
+    fullPage: false,
   });
+  if (old) await page.setViewportSize(old);
 }
+
 try {
   await page.clock.install();
   await page.goto(base);
@@ -184,6 +215,11 @@ try {
       await expect(
         page.getByLabel("Create a master password", { exact: true }),
       ).toBeFocused();
+      const generator = await page.locator(".password-generator").boundingBox();
+      const hint = await page
+        .locator(".password-generator + .hint")
+        .boundingBox();
+      expect(hint.y - generator.y - generator.height).toBeGreaterThanOrEqual(8);
       await documentationHelp();
     },
   );
@@ -220,8 +256,16 @@ try {
     async () => {
       const tips = page.getByRole("complementary", { name: "Getting started" });
       await expect(tips).toBeVisible();
+      await expect(page.locator(".empty")).toHaveCount(1);
       await expect(
         page.getByLabel("Search accounts", { exact: true }),
+      ).toBeHidden();
+      await expect(
+        page.getByRole("button", { name: "☆ Favorites", exact: true }),
+      ).toBeHidden();
+      await expect(page.locator(".backup-notice")).toBeHidden();
+      await expect(
+        page.getByRole("button", { name: "+ Add account", exact: true }),
       ).toBeFocused();
       await keyboardDetails();
       await click("Got it");
@@ -233,7 +277,7 @@ try {
       await unlock();
       await expect(tips).toHaveCount(0);
       await expect(
-        page.getByLabel("Search accounts", { exact: true }),
+        page.getByRole("button", { name: "+ Add account", exact: true }),
       ).toBeFocused();
     },
   );
@@ -390,7 +434,7 @@ try {
     },
   );
   await check(
-    "unverified accounts show a non-blocking Recovery reminder",
+    "unverified accounts show a non-blocking Backup reminder",
     async () => {
       await expect(page.locator(".backup-notice")).toContainText(
         "Backup not verified.",
@@ -398,9 +442,27 @@ try {
       await expect(page.locator(".backup-notice")).toBeVisible();
       await click("Review backup");
       await expect(
-        page.getByRole("heading", { name: "Backups & recovery", exact: true }),
+        page.getByRole("heading", { name: "Backup", exact: true }),
       ).toBeVisible();
       await click("Authenticator");
+    },
+  );
+  await check(
+    "the slim backup reminder can be dismissed until lock",
+    async () => {
+      expect(
+        (await page.locator(".backup-notice").boundingBox()).height,
+      ).toBeLessThanOrEqual(32);
+      await page
+        .getByRole("button", { name: "Dismiss backup reminder", exact: true })
+        .click();
+      await expect(page.locator(".backup-notice")).toBeHidden();
+      await click("Settings");
+      await click("Authenticator");
+      await expect(page.locator(".backup-notice")).toBeHidden();
+      await click("Lock");
+      await unlock();
+      await expect(page.locator(".backup-notice")).toBeVisible();
     },
   );
   await check("independent TOTP reference", async () => {
@@ -565,7 +627,7 @@ try {
   await check(
     "portable bulk export includes precise OTP settings",
     async () => {
-      await click("Recovery");
+      await click("Backup");
       await click("Export plaintext OTP links…");
       const deniedDownloads = [];
       const recordDenied = (download) => deniedDownloads.push(download);
@@ -673,7 +735,7 @@ try {
       ).toHaveValue("");
       await click("Close");
       await expect(page.getByRole("dialog")).toHaveCount(0);
-      await click("Recovery");
+      await click("Backup");
       await click("Create encrypted backup");
       await click("Generate");
       await expect(
@@ -691,7 +753,7 @@ try {
   await check(
     "encrypted backup creation requires the current master password",
     async () => {
-      await click("Recovery");
+      await click("Backup");
       await click("Create encrypted backup");
       await page
         .getByLabel("Master password", { exact: true })
@@ -722,7 +784,7 @@ try {
   );
   let backupPath;
   await check("encrypted backup download", async () => {
-    await page.getByRole("button", { name: "Recovery", exact: true }).click();
+    await page.getByRole("button", { name: "Backup", exact: true }).click();
     await click("Create encrypted backup");
     await page.getByLabel("Master password", { exact: true }).fill(password);
     await page
@@ -828,7 +890,7 @@ try {
         page.getByRole("button", { name: original, exact: true }),
       ).toBeVisible();
       await expect(page.locator(".backup-notice")).toBeHidden();
-      await click("Recovery");
+      await click("Backup");
     },
   );
   await check("tampered backup refused", async () => {
@@ -1097,7 +1159,7 @@ try {
       await keyboardDetails(page, true);
       await helpAxe("settings");
       await keyboardDetails();
-      await click("Recovery");
+      await click("Backup");
       await expect(
         page.getByText(
           "Backups made with this version need this version or newer to restore.",
@@ -1329,7 +1391,7 @@ try {
           page.getByLabel("Search accounts", { exact: true }),
         ).toBeVisible({ timeout: 60000 });
         const before = await records();
-        await click("Recovery");
+        await click("Backup");
         await click("Verify or restore a backup");
         await page
           .getByLabel("Encrypted backup file", { exact: true })
@@ -1657,17 +1719,8 @@ try {
                   .locator("h2")
                   .evaluate((node) => getComputedStyle(node).textOverflow),
               ).toBe("ellipsis");
-              await long.screenshot({
-                path: "artifacts/screenshots/long-name.png",
-              });
-              await rows
-                .filter({
-                  has: page.getByRole("heading", {
-                    name: "Steam",
-                    exact: true,
-                  }),
-                })
-                .screenshot({ path: "artifacts/screenshots/steam-row.png" });
+              await screenshot("long-name");
+              await screenshot("steam-row");
             }
           }
         }
@@ -1774,7 +1827,7 @@ try {
               .getByLabel("Master password", { exact: true })
               .fill(password);
           } else {
-            await click("Recovery");
+            await click("Backup");
             await click(
               kind === "backup"
                 ? "Create encrypted backup"
@@ -1892,7 +1945,7 @@ try {
         await page.getByLabel("Setup key", { exact: true }).fill(secret);
         await click("Preview account");
         await click("Import 1 account(s)");
-        await click("Recovery");
+        await click("Backup");
         await click("Export plaintext OTP links…");
         await expect(page.getByRole("dialog")).toContainText(
           "Your saved names will stay unchanged",
@@ -1953,22 +2006,58 @@ try {
           .getByRole("button", { name: "Create encrypted vault", exact: true })
           .click();
         await popup
-          .getByRole("button", { name: "Import accounts", exact: true })
+          .getByRole("button", { name: "Backup", exact: true })
           .click();
+        await popup
+          .getByRole("button", {
+            name: "Verify or restore a backup",
+            exact: true,
+          })
+          .click();
+        await expect(
+          popup.getByRole("button", {
+            name: "Open in a window to choose a file",
+            exact: true,
+          }),
+        ).toBeVisible();
+        await expect(popup.locator('input[type="file"]')).toHaveCount(0);
+        await popup.getByRole("button", { name: "Close", exact: true }).click();
+        await openImportOn(popup);
         await expect(popup.locator('input[type="file"]')).toHaveCount(0);
         await expect(
           popup.getByText(
             "Chrome can close this small popup while you pick a file. The window will ask for your password.",
           ),
         ).toBeVisible();
-        await popup.getByLabel("OTP URIs or export text").fill(uri);
+        const links = Array.from(
+          { length: 12 },
+          (_, i) =>
+            `otpauth://totp/Example${i}:synthetic?secret=JBSWY3DPEHPK3PX${String.fromCharCode(65 + i)}&issuer=Example${i}`,
+        ).join("\n");
+        await popup.getByLabel("OTP URIs or export text").fill(links);
         await popup
           .getByRole("button", { name: "Preview import", exact: true })
           .click();
         await popup
-          .getByRole("button", { name: "Import 1 account(s)", exact: true })
+          .getByRole("button", { name: "Import 12 account(s)", exact: true })
           .click();
-        await expect(popup.locator(".account")).toHaveCount(1);
+        await expect(popup.locator(".account")).toHaveCount(12);
+        const headerY = (await popup.locator("header").boundingBox()).y;
+        await popup.locator(".account-list").evaluate((n) => {
+          n.scrollTop = n.scrollHeight;
+        });
+        expect(
+          await popup.locator(".account-list").evaluate((n) => n.scrollTop),
+        ).toBeGreaterThan(0);
+        expect((await popup.locator("header").boundingBox()).y).toBe(headerY);
+        const last = popup.locator(".account").last();
+        await last.locator("summary").click();
+        await last.getByRole("button", { name: "Edit", exact: true }).click();
+        await expect(popup.getByRole("dialog")).toContainText("Edit account");
+        await popup.getByRole("button", { name: "Close", exact: true }).click();
+        await popup.locator(".account-list").evaluate((n) => {
+          n.scrollTop = 0;
+        });
         await popup.screenshot({
           path: "artifacts/screenshots/popup-mode.png",
         });
@@ -1981,9 +2070,7 @@ try {
           JSON.stringify(popupAxe.violations, null, 2),
         );
         expect(popupAxe.violations).toEqual([]);
-        await popup
-          .getByRole("button", { name: "Import accounts", exact: true })
-          .click();
+        await openImportOn(popup);
         await popup
           .getByRole("button", {
             name: "Open in a window to choose a file",
@@ -2002,7 +2089,7 @@ try {
         await vault
           .getByRole("button", { name: "Unlock vault", exact: true })
           .click();
-        await expect(vault.locator(".account")).toHaveCount(1);
+        await expect(vault.locator(".account")).toHaveCount(12);
         await vault.screenshot({
           path: "artifacts/screenshots/window-mode.png",
         });
@@ -2021,9 +2108,7 @@ try {
         await vault
           .getByRole("button", { name: "Authenticator", exact: true })
           .click();
-        await vault
-          .getByRole("button", { name: "Import accounts", exact: true })
-          .click();
+        await openImportOn(vault);
         await expect(vault.locator('input[type="file"]')).toHaveCount(2);
         await expect(
           vault.getByRole("button", {
@@ -2120,14 +2205,14 @@ try {
           .getByRole("button", { name: "Unlock vault", exact: true })
           .click();
         await expect(
-          vault.getByLabel("Search accounts", { exact: true }),
+          vault.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible();
         const other = await isolated.newPage();
         await other.goto("about:blank");
         await other.bringToFront();
         await vault.bringToFront();
         await expect(
-          vault.getByLabel("Search accounts", { exact: true }),
+          vault.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible();
         await vault.evaluate(async () => {
           const current = await chrome.windows.getCurrent();
@@ -2152,7 +2237,7 @@ try {
           isolated.pages().filter((p) => p.url() === vaultUrl),
         ).toHaveLength(1);
         await expect(
-          vault.getByLabel("Search accounts", { exact: true }),
+          vault.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible();
         await vault.close();
         const reopened = await open();
@@ -2164,7 +2249,7 @@ try {
           .getByRole("button", { name: "Unlock vault", exact: true })
           .click();
         await expect(
-          reopened.getByLabel("Search accounts", { exact: true }),
+          reopened.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible();
       } finally {
         await isolated.close();
@@ -2175,7 +2260,12 @@ try {
   await check(
     "documentation is keyboard accessible without repeated inline help",
     async () => {
-      await documentationHelp();
+      await context.setOffline(true);
+      try {
+        await documentationHelp();
+      } finally {
+        await context.setOffline(false);
+      }
       await expect(page.locator("[data-help]")).toHaveCount(0);
       await expect(
         page.getByText("What does this mean?", { exact: true }),

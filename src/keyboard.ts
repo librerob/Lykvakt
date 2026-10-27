@@ -25,10 +25,12 @@ export function focusVault(
   unlocked: boolean,
   view: string,
 ): void {
+  const search = root.querySelector<HTMLInputElement>('input[name="search"]');
   const target = !unlocked
     ? root.querySelector<HTMLInputElement>('input[type="password"]')
     : view === "codes"
-      ? root.querySelector<HTMLInputElement>('input[name="search"]')
+      ? ((search?.hidden ? null : search) ??
+        root.querySelector<HTMLButtonElement>(".account-tools button"))
       : null;
   target?.focus({ preventScroll: true });
 }

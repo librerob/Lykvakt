@@ -27,6 +27,21 @@ try {
     .getByRole("button", { name: "Create encrypted vault", exact: true })
     .click();
   await expect(page.getByText("A fresh start.")).toBeVisible();
+  await page.getByRole("button", { name: "Backup", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Import accounts", exact: true })
+    .click();
+  await page
+    .getByLabel("OTP URIs or export text")
+    .fill(
+      "otpauth://totp/Visibility:synthetic?secret=JBSWY3DPEHPK3PXP&issuer=Visibility",
+    );
+  await page
+    .getByRole("button", { name: "Preview import", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Import 1 account(s)", exact: true })
+    .click();
   await page.evaluate(async () => {
     await chrome.tabs.create({ url: "about:blank", active: true });
   });

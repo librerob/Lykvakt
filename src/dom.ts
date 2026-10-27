@@ -135,6 +135,6 @@ export function documentationLink(): HTMLAnchorElement {
       rel: "noopener noreferrer",
       class: "documentation-link",
     },
-    "Help & documentation",
+    "Full documentation on GitHub",
   );
 }

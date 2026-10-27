@@ -2,6 +2,7 @@ import type { Session } from "../session";
 export interface AppState {
   exists: boolean;
   firstRunTip?: boolean;
+  backupDismissed?: boolean;
   oldVault?: import("../storage").OldVaultOffer;
   recovery?: import("../storage").RecoveryOffer;
   view: "codes" | "backups" | "settings";

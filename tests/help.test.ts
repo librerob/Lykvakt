@@ -23,7 +23,7 @@ afterEach(() => {
 it("the documentation link is a native, isolated link to the GitHub guide", () => {
   const link = documentationLink() as unknown as TestElement;
   expect(link.tagName).toBe("A");
-  expect(link.textContent).toBe("Help & documentation");
+  expect(link.textContent).toBe("Full documentation on GitHub");
   expect(link.getAttribute("href")).toBe(DOCUMENTATION_URL);
   expect(link.getAttribute("target")).toBe("_blank");
   expect(link.getAttribute("rel")).toBe("noopener noreferrer");
@@ -113,7 +113,7 @@ it("technical error details stay separate from the friendly next step", () => {
   expect(node.textContent).toContain(error.message);
 });
 
-it("Recovery shows a plain-language version note beside Save an encrypted backup", () => {
+it("Backup shows a plain-language version note beside Save an encrypted backup", () => {
   const session = { accounts: () => emptyVault() } as unknown as Session;
   const view = createRecovery(
     context(session),
