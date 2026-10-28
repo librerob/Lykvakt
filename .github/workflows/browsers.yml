@@ -21,9 +21,9 @@ jobs:
       - run: microsoft-edge --version
       - run: npm run build:edge
       - run: npx vitest run tests/large-base64.test.ts --maxWorkers=2
-      - run: xvfb-run -a node tests/popup.mjs
+      - run: dbus-run-session -- xvfb-run -a node tests/popup.mjs
       - run: npm run test:browser
-      - run: xvfb-run -a node tests/visibility.mjs
+      - run: dbus-run-session -- xvfb-run -a node tests/visibility.mjs
       - run: npm run package:edge
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()

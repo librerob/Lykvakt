@@ -129,6 +129,9 @@ async function start() {
   await wait(
     "document.querySelector('#app')?.getAttribute('aria-busy') === 'false'",
   );
+  await evaluate(
+    "(()=>{window.__lykvaktSenders=[];browser.runtime.onMessage.addListener((m,s)=>{if(m?.type==='lykvakt-session'&&m.action==='begin')window.__lykvaktSenders.push({id:s.id,url:s.url,origin:s.origin,documentId:s.documentId,frameId:s.frameId,hasTab:!!s.tab});return false;});})()",
+  );
 }
 async function evaluate(expression) {
   const result = await system(
@@ -192,9 +195,17 @@ async function check(name, action) {
 }
 async function openPopup() {
   await system(
-    "const w=[...Services.wm.getEnumerator('navigator:browser')].find(w=>w.toolbar.visible);const CustomizableUI=w.CustomizableUI;CustomizableUI.addWidgetToArea(arguments[0],CustomizableUI.AREA_NAVBAR);w.focus();const node=w.document.getElementById(arguments[0]).querySelector('.unified-extensions-item-action-button');if(!node)throw Error('Firefox action button not found');const r=node.getBoundingClientRect();if(!r.width||!r.height)throw Error('Firefox action button is hidden');const x=r.x+r.width/2,y=r.y+r.height/2;w.windowUtils.sendMouseEvent('mousedown',x,y,0,1,0);w.windowUtils.sendMouseEvent('mouseup',x,y,0,1,0);",
+    "const w=[...Services.wm.getEnumerator('navigator:browser')].find(w=>w.toolbar.visible);const CustomizableUI=w.CustomizableUI;CustomizableUI.addWidgetToArea(arguments[0],CustomizableUI.AREA_NAVBAR);w.focus();",
     [widget],
   );
+  const element = await command("/element", {
+    using: "css selector",
+    value: "#" + widget + " .unified-extensions-item-action-button",
+  });
+  const elementId =
+    element["element-6066-11e4-a52e-4f735466cecf"] ?? Object.values(element)[0];
+  assert.equal(typeof elementId, "string");
+  await command("/element/" + encodeURIComponent(elementId) + "/click");
   popup = true;
   await wait(
     "document.querySelector('#app')?.getAttribute('aria-busy') === 'false'",
@@ -499,6 +510,12 @@ try {
     checks + " Firefox checks passed in " + capabilities.browserVersion,
   );
 } catch (error) {
+  const wasPopup = popup;
+  popup = false;
+  const senders = session
+    ? await evaluate("window.__lykvaktSenders").catch((e) => String(e))
+    : undefined;
+  popup = wasPopup;
   await writeFile(
     "artifacts/firefox-failure.json",
     JSON.stringify(
@@ -506,6 +523,7 @@ try {
         error: error.stack,
         checks,
         popup,
+        senders,
         browser: capabilities?.browserVersion,
         log,
         status: session
