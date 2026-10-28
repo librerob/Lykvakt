@@ -1,0 +1,67 @@
+name: Other browsers
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  edge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      EXTENSION_DIST: dist-edge
+      CHROMIUM_PATH: /usr/bin/microsoft-edge
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: microsoft-edge --version
+      - run: npm run build:edge
+      - run: xvfb-run -a node tests/popup.mjs
+      - run: npm run test:browser
+      - run: xvfb-run -a node tests/visibility.mjs
+      - run: npm run package:edge
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: edge-validation
+          path: |
+            artifacts/screenshots/
+            artifacts/axe-*.json
+            artifacts/browser-results.json
+            artifacts/real-popup*.json
+            artifacts/browser-failure.txt
+            artifacts/*-edge.zip
+            artifacts/*-edge.zip.sha256
+          retention-days: 14
+  firefox:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: firefox --version && geckodriver --version
+      - run: npm run build:firefox
+      - run: npm run package:firefox
+      - run: xvfb-run -a node tests/firefox.mjs
+      - run: node scripts/source-package.mjs
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: firefox-validation
+          path: |
+            artifacts/screenshots/firefox-*.png
+            artifacts/axe-firefox-*.json
+            artifacts/firefox-*.json
+            artifacts/*-firefox.zip
+            artifacts/*-firefox.zip.sha256
+            artifacts/*-source.zip
+            artifacts/*-source.zip.sha256
+          retention-days: 14

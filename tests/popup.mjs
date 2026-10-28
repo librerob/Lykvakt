@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-const extension = resolve("dist");
+const extension = resolve(process.env.EXTENSION_DIST || "dist");
 const profile = await mkdtemp(join(tmpdir(), "otp-real-popup-"));
 // Attach without Playwright's forced-focus defaults so Chrome can hide tabs.
 const chromeProcess = spawn(

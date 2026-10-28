@@ -3,5 +3,7 @@ public/directory.json
 public/licenses/
 LICENSE
 dist/
+dist-edge/
+dist-firefox/
 node_modules/
 artifacts/

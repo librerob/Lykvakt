@@ -1,6 +1,6 @@
 {
   "name": "otp-vault",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
   "type": "module",
   "license": "GPL-3.0-or-later",
@@ -13,7 +13,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "package": "node scripts/package.mjs",
-    "bench": "node scripts/bench.mjs"
+    "bench": "node scripts/bench.mjs",
+    "build:edge": "tsc --noEmit && vite build --mode edge && node scripts/check-package.mjs edge",
+    "build:firefox": "tsc --noEmit && vite build --mode firefox && node scripts/check-package.mjs firefox",
+    "build:all": "npm run build && npm run build:edge && npm run build:firefox",
+    "package:edge": "node scripts/package.mjs edge",
+    "package:firefox": "node scripts/package.mjs firefox"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.4 — 28 October 2026
+
+- Build Chrome, Edge and Firefox packages from the same source. Firefox uses an event page, native browser APIs and its own store manifest.
+- Authenticate the browser-issued extension origin separately from the add-on ID. Firefox 153 or newer is required to keep document-ID checks.
+- Keep the same vault format, encryption, three permissions and memory-only session policy. Open each browser's own shortcut settings.
+- Add real Firefox and Edge validation alongside the existing Chrome checks.
+
 ## 0.5.3 — 28 October 2026
 
 - Fix vault creation and unlocking from the actual Chrome toolbar popup. Resolve missing popup sender metadata through Chrome's live context registry, with the existing tab and frame checks retained.

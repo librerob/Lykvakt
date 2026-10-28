@@ -1,6 +1,6 @@
 # Using Lykvakt
 
-Lykvakt keeps your authenticator accounts in an encrypted vault on this device. The toolbar button, Ctrl+Shift+Y, or Command+Shift+Y on Mac opens a small popup.
+Lykvakt keeps your authenticator accounts in an encrypted vault on this device. The toolbar button, Ctrl+Shift+Y, or Command+Shift+Y on Mac opens a small popup. Edge uses Ctrl+Shift+7 (Command+Shift+7 on Mac). Firefox on Linux also uses Ctrl+Shift+7.
 
 ## Opening and locking
 

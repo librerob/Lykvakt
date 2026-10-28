@@ -8,7 +8,7 @@ The name is coined and Nordic-inspired, with the idea of watching over your keys
 
 ## Build and test
 
-You'll need Node 24 and Chrome 120 or newer. Lykvakt hasn't been released on the Chrome Web Store.
+You'll need Node 24. There are builds for Chrome 120+, Edge 120+ and Firefox 153+ on desktop. They share the same source and encrypted backup format. See the [browser build and store guide](docs/browsers.md) for build commands, local installation and store packages. Store approval is separate from a passing build.
 
 ```sh
 npm ci --ignore-scripts
@@ -20,7 +20,7 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-To load the extension, open chrome://extensions, enable **Developer mode**, choose **Load unpacked** and select `dist/`. Run `npm run package` if you want an install ZIP.
+To load the Chrome extension, open chrome://extensions, enable **Developer mode**, choose **Load unpacked** and select `dist/`. Run `npm run package` if you want an install ZIP. Edge uses `npm run build:edge` and `npm run package:edge`; Firefox uses `npm run build:firefox` and `npm run package:firefox`.
 
 CI also runs axe accessibility checks, tests timed sessions, shared locking and window switching in headed Chromium, and measures repeated popup-document startup. The workflow runs show which checks passed.
 
@@ -28,7 +28,7 @@ CI also runs axe accessibility checks, tests timed sessions, shared locking and 
 
 Click an account row to copy its current code. Codes stay hidden until you reveal them, and hide again after 30 seconds. The optional **Next** preview follows the same rules. For HOTP accounts, the counter advances only when you confirm it in **More**.
 
-Ctrl+Shift+Y opens the popup, or Command+Shift+Y on Mac. Choose **Open in a window** in Settings when you want to keep Lykvakt open or select a file. You can change this at chrome://extensions/shortcuts. To copy with Enter, type part of an account name into search first. The confirmation tells you which account was copied.
+Ctrl+Shift+Y opens the popup, or Command+Shift+Y on Mac. Edge uses Ctrl+Shift+7 (Command+Shift+7 on Mac), and Firefox on Linux uses Ctrl+Shift+7, to avoid browser shortcuts. Choose **Open in a window** in Settings when you want to keep Lykvakt open or select a file. Change it through **Change shortcut** in Settings, which opens your browser's shortcut manager. To copy with Enter, type part of an account name into search first. The confirmation tells you which account was copied.
 
 Save an encrypted backup somewhere outside the browser, then choose **Verify or restore a backup** in **Backup** to test the file you saved. Creating a backup, exporting plaintext OTP links and revealing a transfer QR all ask for your master password again.
 
@@ -46,6 +46,6 @@ TOTP codes can be phished, and a compromised device can read unlocked secrets. T
 
 ## Why I keep it small
 
-I want bugs to have as little browser access as possible. Lykvakt uses three permissions: `clipboardWrite` for copying codes, `storage` for temporary unlock sessions, and `alarms` for expiry. A small background service worker manages that session. There are no content scripts, host permissions or external-message entry points. It never reads or changes web pages.
+I want bugs to have as little browser access as possible. Lykvakt uses three permissions: `clipboardWrite` for copying codes, `storage` for temporary unlock sessions, and `alarms` for expiry. A small background service worker manages that session in Chrome and Edge; Firefox uses an event page. There are no content scripts, host permissions or external-message entry points. It never reads or changes web pages.
 
 All runtime code ships with the extension. A strict CSP blocks remote scripts and external connections, and the build checks those restrictions. There is no WebAssembly, server, telemetry, advertising or subscription. Accounts and imports stay on your device, and optional tools load only when needed. The design guide and [privacy policy](PRIVACY.md) explain what is stored and where.

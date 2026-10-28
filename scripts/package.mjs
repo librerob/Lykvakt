@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import { zipSync, strToU8 } from "fflate";
 import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
+const target = process.argv[2] || "chrome";
+assert(
+  ["chrome", "edge", "firefox"].includes(target),
+  "Unknown browser target.",
+);
+const directory = target === "chrome" ? "dist" : "dist-" + target;
 const files = {};
 const removed = new Set([
   "directory.json",
@@ -28,14 +34,23 @@ async function collect(dir, relative = "") {
     }
   }
 }
-await collect("dist");
+await collect(directory);
 files["LICENSE"] = [
   strToU8(await readFile("LICENSE", "utf8")),
   { mtime: new Date("2026-01-01T00:00:00Z") },
 ];
 await mkdir("artifacts", { recursive: true });
 const { version } = JSON.parse(await readFile("package.json", "utf8"));
-const path = `artifacts/lykvakt-${version}-chrome.zip`;
+const manifest = JSON.parse(
+  await readFile(directory + "/manifest.json", "utf8"),
+);
+assert.equal(manifest.version, version, "Rebuild before packaging.");
+assert.equal(
+  !!manifest.browser_specific_settings,
+  target === "firefox",
+  "Wrong browser manifest.",
+);
+const path = `artifacts/lykvakt-${version}-${target}.zip`;
 const zip = zipSync(files, { level: 9 });
 await writeFile(path, zip);
 await writeFile(
