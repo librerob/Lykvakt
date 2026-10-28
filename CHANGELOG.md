@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.3 — 28 October 2026
+
+- Fix vault creation and unlocking from the actual Chrome toolbar popup. Resolve missing popup sender metadata through Chrome's live context registry, with the existing tab and frame checks retained.
+- Test the real toolbar popup in headed Chrome, including setup, reopening, drafts, saving, shared Lock and password changes.
+
 ## 0.5.2 — 28 October 2026
 
 - Keep a timed unlock session across popup closures, with a five-minute default and shared Lock. Small unfinished account-entry forms resume during the session.

@@ -28,6 +28,7 @@ jobs:
       - run: npm run build
       - run: npm audit --audit-level=moderate
       - run: npx playwright install --with-deps chromium
+      - run: xvfb-run -a node tests/popup.mjs
       - run: npm run test:browser
       - run: xvfb-run -a node tests/visibility.mjs
       - run: npm run bench
@@ -57,6 +58,7 @@ jobs:
             artifacts/screenshots/
             artifacts/axe-*.json
             artifacts/browser-results.json
+            artifacts/real-popup*.json
             artifacts/browser-failure.txt
             artifacts/bench*.json
             artifacts/metrics-*.json
