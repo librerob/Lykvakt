@@ -4,7 +4,7 @@ Lykvakt keeps your authenticator accounts in an encrypted vault on this device. 
 
 ## Opening and locking
 
-Closing or switching away from the popup keeps your unlock session available. You can copy a setup key from a website, reopen Lykvakt and continue the Add account form. Small pasted-import drafts are remembered too; file selections and authentication passwords are not.
+Closing or switching away from the popup keeps your unlock session available. You can copy a setup key from a website, reopen Lykvakt and continue the Add account form. Small OTP setup-link drafts are remembered too. Other pasted export text stays only in the open form; file selections and authentication passwords are not remembered.
 
 In **Settings → Auto-lock**, choose 1, 5, 15 or 30 minutes, or 1 hour of inactivity. The default is five minutes. The old When this window closes preference becomes five minutes on this update; select the browser-restart choice explicitly if you want no inactivity timer. **When the browser restarts** turns off the inactivity timer. **Lock** ends the session in every view; use it before leaving your computer.
 

@@ -1,4 +1,4 @@
-import type { EnrollmentDraft } from "../session-cache";
+import { validateDraft, type EnrollmentDraft } from "../session-cache";
 import type { AppContext } from "./context";
 export function enrollmentDraft(
   ctx: AppContext,
@@ -6,7 +6,15 @@ export function enrollmentDraft(
   mode: EnrollmentDraft["mode"],
 ): HTMLFormElement {
   if (!ctx.isExtension) return node;
-  const saved = ctx.session.draft();
+  let saved = ctx.session.draft();
+  if (saved?.mode === mode) {
+    try {
+      saved = validateDraft(saved);
+    } catch {
+      saved = undefined;
+      ctx.session.rememberDraft();
+    }
+  }
   if (saved?.mode === mode) {
     for (const control of node.querySelectorAll<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -38,16 +46,14 @@ export function enrollmentDraft(
         continue;
       fields[control.name] = control.value;
     }
-    // Large pasted archives still work; only small entry drafts are remembered.
-    if (
-      Object.values(fields).some(
-        (value) => value.length > (mode === "import" ? 64_000 : 4096),
-      )
-    ) {
+    let draft: EnrollmentDraft;
+    try {
+      draft = validateDraft({ mode, fields });
+    } catch {
       ctx.session.rememberDraft();
       return;
     }
-    ctx.session.rememberDraft({ mode, fields });
+    ctx.session.rememberDraft(draft);
   };
   void Promise.resolve().then(() => {
     if (node.isConnected) remember();

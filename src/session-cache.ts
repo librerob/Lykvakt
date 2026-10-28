@@ -37,6 +37,18 @@ export function validateDraft(value: unknown): EnrollmentDraft {
       text.length > (name === "payload" ? 64_000 : 4096)
     )
       throw new Error("Invalid draft.");
+  if (
+    d.mode === "import" &&
+    !(d.fields.payload ?? "").split(/[\r\n]/).every((line) => {
+      const text = line.trim();
+      return (
+        !text ||
+        text.startsWith("otpauth:") ||
+        text.startsWith("otpauth-migration:")
+      );
+    })
+  )
+    throw new Error("Only OTP setup links can be remembered.");
   return structuredClone(d);
 }
 export interface CachedUnlock {

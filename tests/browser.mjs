@@ -2576,6 +2576,61 @@ try {
       }),
   );
   await check(
+    "pasted export archives import normally but never survive popup closure as shared drafts",
+    () =>
+      sharedProfile(async ({ reopen }) => {
+        const text = JSON.stringify({
+          encrypted: false,
+          items: [
+            {
+              type: 1,
+              name: "Draft audit",
+              login: {
+                totp: "JBSWY3DPEHPK3PXP",
+                password: "SYNTHETIC_UNRELATED_PASSWORD",
+              },
+            },
+          ],
+        });
+        await click("Import accounts");
+        await page.getByLabel("OTP URIs or export text").fill(text);
+        await expect(page.getByLabel("OTP URIs or export text")).toHaveValue(
+          text,
+        );
+        await expect
+          .poll(() =>
+            page.evaluate(
+              async () =>
+                (await chrome.storage.session.get("unlockSession"))
+                  .unlockSession?.unlock?.draft,
+            ),
+          )
+          .toBeUndefined();
+        await page.close();
+        page = await reopen();
+        await expect(
+          page.getByRole("button", { name: "Lock", exact: true }),
+        ).toBeVisible();
+        await expect(page.getByRole("dialog")).toHaveCount(0);
+        await click("Import accounts");
+        await expect(page.getByLabel("OTP URIs or export text")).toHaveValue(
+          "",
+        );
+        await page.getByLabel("OTP URIs or export text").fill(text);
+        await click("Preview import");
+        await expect(page.getByRole("dialog")).toContainText(
+          "1 new account(s)",
+        );
+        await click("Import 1 account(s)");
+        await expect(page.locator(".account")).toHaveCount(1);
+        expect(
+          await page.evaluate(async () =>
+            JSON.stringify(await chrome.storage.session.get(null)),
+          ),
+        ).not.toContain("SYNTHETIC_UNRELATED_PASSWORD");
+      }),
+  );
+  await check(
     "manual Lock and an overdue deadline block every view without relying on an alarm",
     () =>
       sharedProfile(async ({ reopen }) => {

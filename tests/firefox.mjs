@@ -314,6 +314,56 @@ try {
     );
     await click("Close");
   });
+  await check(
+    "pasted exports are usable but never cached or restored as drafts",
+    async () => {
+      const text = JSON.stringify({
+        encrypted: false,
+        items: [
+          {
+            type: 1,
+            name: "Firefox export",
+            login: { totp: secret, password: "SYNTHETIC_UNRELATED_PASSWORD" },
+          },
+        ],
+      });
+      await click("Backup");
+      await click("Import accounts");
+      await fill("textarea[name=payload]", text);
+      await wait(
+        "!(await browser.storage.session.get('unlockSession')).unlockSession?.unlock?.draft",
+      );
+      assert.equal(
+        await evaluate(
+          "document.querySelector('textarea[name=payload]').value",
+        ),
+        text,
+      );
+      await closePopup();
+      await openPopup();
+      assert.equal(await evaluate("document.querySelector('dialog')"), null);
+      await click("Backup");
+      await click("Import accounts");
+      assert.equal(
+        await evaluate(
+          "document.querySelector('textarea[name=payload]').value",
+        ),
+        "",
+      );
+      await fill("textarea[name=payload]", text);
+      await click("Preview import");
+      await wait(
+        "document.querySelector('dialog')?.textContent.includes('1 new account(s)')",
+      );
+      await click("Close");
+      assert.equal(
+        await evaluate(
+          "JSON.stringify(await browser.storage.session.get(null)).includes('SYNTHETIC_UNRELATED_PASSWORD')",
+        ),
+        false,
+      );
+    },
+  );
   await check("paste import, save and correct TOTP", async () => {
     await click("Backup");
     await click("Import accounts");

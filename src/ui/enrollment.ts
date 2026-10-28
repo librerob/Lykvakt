@@ -318,6 +318,11 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
               sourcePassword.control.value = "";
             }
           }),
+        el(
+          "p",
+          { class: "hint" },
+          "OTP setup link drafts can resume during this unlock session. Other pasted export text stays only in this form and is not remembered when you close it.",
+        ),
         sourcePassword.wrapper,
 
         el(
