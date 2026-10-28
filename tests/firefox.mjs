@@ -192,7 +192,7 @@ async function check(name, action) {
 }
 async function openPopup() {
   await system(
-    "const w=[...Services.wm.getEnumerator('navigator:browser')].find(w=>w.toolbar.visible);const CustomizableUI=w.CustomizableUI;CustomizableUI.addWidgetToArea(arguments[0],CustomizableUI.AREA_NAVBAR);w.focus();w.document.getElementById(arguments[0]).click();",
+    "const w=[...Services.wm.getEnumerator('navigator:browser')].find(w=>w.toolbar.visible);const CustomizableUI=w.CustomizableUI;CustomizableUI.addWidgetToArea(arguments[0],CustomizableUI.AREA_NAVBAR);w.focus();const node=w.document.getElementById(arguments[0]).querySelector('.unified-extensions-item-action-button');if(!node)throw Error('Firefox action button not found');const r=node.getBoundingClientRect();if(!r.width||!r.height)throw Error('Firefox action button is hidden');const x=r.x+r.width/2,y=r.y+r.height/2;w.windowUtils.sendMouseEvent('mousedown',x,y,0,1,0);w.windowUtils.sendMouseEvent('mouseup',x,y,0,1,0);",
     [widget],
   );
   popup = true;
@@ -508,6 +508,16 @@ try {
         popup,
         browser: capabilities?.browserVersion,
         log,
+        status: session
+          ? await evaluate(
+              "[...document.querySelectorAll('.status')].map(n=>n.textContent)",
+            ).catch((e) => String(e))
+          : undefined,
+        views: session
+          ? await system(
+              "return [...Services.wm.getEnumerator('navigator:browser')].map(w=>({browsers:[...w.document.querySelectorAll('browser')].map(b=>({id:b.id,view:b.getAttribute('webextension-view-type'),url:b.currentURI?.spec})),panels:[...w.document.querySelectorAll('panel')].filter(p=>p.state==='open').map(p=>p.id)}));",
+            ).catch((e) => String(e))
+          : undefined,
       },
       null,
       2,
