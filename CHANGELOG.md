@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.2 — 28 October 2026
 
 - Keep a timed unlock session across popup closures, with a five-minute default and shared Lock. Small unfinished account-entry forms resume during the session.
 - Add a local background session worker and the storage/alarms permissions; website access and network access remain disabled. Password changes revoke the shared session.

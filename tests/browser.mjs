@@ -254,7 +254,7 @@ try {
     async () => {
       const manifest = await page.evaluate(() => chrome.runtime.getManifest());
       expect(manifest.name).toBe("Lykvakt");
-      expect(manifest.version).toBe("0.5.1");
+      expect(manifest.version).toBe("0.5.2");
       expect(manifest.version_name).toBeUndefined();
       await expect(page).toHaveTitle("Lykvakt");
       await expect(page.locator("body")).not.toContainText(
