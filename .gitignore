@@ -1,5 +1,7 @@
 node_modules/
 dist/
+dist-edge/
+dist-firefox/
 coverage/
 artifacts/
 *.zip

@@ -1,5 +1,6 @@
 import { unbase64, type Envelope } from "./crypto";
 import { autoLockTimeout } from "./lock-policy";
+import { extensionOrigin } from "./extension-origin";
 import {
   envelopeBinding,
   validateDraft,
@@ -226,6 +227,7 @@ export class SessionBroker {
 export function trustedSessionSender(
   sender: chrome.runtime.MessageSender,
   id: string,
+  root = "chrome-extension://" + id + "/",
 ): boolean {
   if (
     sender.id !== id ||
@@ -235,9 +237,12 @@ export function trustedSessionSender(
     return false;
   try {
     const u = new URL(sender.url ?? "");
+    const origin = extensionOrigin(root);
     return (
-      u.protocol === "chrome-extension:" &&
-      u.hostname === id &&
+      !!origin &&
+      u.protocol + "//" + u.host === origin &&
+      !u.username &&
+      !u.password &&
       u.pathname === "/index.html"
     );
   } catch {

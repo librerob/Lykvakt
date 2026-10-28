@@ -665,6 +665,7 @@ footer {
 
 /* Each view keeps its header in place while the content scrolls. */
 body.popup-mode {
+  min-width: 400px;
   height: 580px;
 }
 body.window-mode {

@@ -1,10 +1,11 @@
+import { debuggingEndpoint } from "./chromium-endpoint.mjs";
 import { extensionId } from "./extension-id.mjs";
 import { chromium, expect } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-const extension = resolve("dist");
+const extension = resolve(process.env.EXTENSION_DIST || "dist");
 const profile = await mkdtemp(join(tmpdir(), "otp-real-popup-"));
 // Attach without Playwright's forced-focus defaults so Chrome can hide tabs.
 const chromeProcess = spawn(
@@ -26,32 +27,7 @@ const chromeProcess = spawn(
   ],
   { stdio: ["ignore", "ignore", "pipe"], windowsHide: true },
 );
-const started = new Promise((resolve, reject) => {
-  let output = "";
-  const timeout = setTimeout(
-    () =>
-      reject(new Error("Chrome did not expose its test endpoint. " + output)),
-    30_000,
-  );
-  chromeProcess.once("error", (error) => {
-    clearTimeout(timeout);
-    reject(error);
-  });
-  chromeProcess.once("exit", (code) => {
-    clearTimeout(timeout);
-    reject(new Error("Chrome exited: " + code + " " + output));
-  });
-  chromeProcess.stderr.on("data", (chunk) => {
-    output = (output + chunk.toString()).slice(-32_000);
-    const endpoint = output.match(
-      /DevTools listening on (ws:\/\/[^\r\n]+)[\r\n]/,
-    )?.[1];
-    if (endpoint) {
-      clearTimeout(timeout);
-      resolve(endpoint);
-    }
-  });
-});
+const started = debuggingEndpoint(chromeProcess, profile);
 
 class PopupDriver {
   constructor(socket) {
@@ -230,6 +206,7 @@ try {
     await view.wait(
       "document.querySelector('#app')?.getAttribute('aria-busy') === 'false'",
     );
+    await view.wait("window.innerWidth === 400");
     const contexts = await worker.evaluate(() =>
       chrome.runtime.getContexts({ contextTypes: ["POPUP"] }),
     );

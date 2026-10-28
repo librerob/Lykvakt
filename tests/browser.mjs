@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 import { createHmac } from "node:crypto";
 import QRCode from "qrcode";
 
-const extension = resolve("dist");
+const extension = resolve(process.env.EXTENSION_DIST || "dist");
 const profile = await mkdtemp(join(tmpdir(), "otp-vault-test-"));
 await mkdir("artifacts/screenshots", { recursive: true });
 const executablePath = process.env.CHROMIUM_PATH || undefined;
@@ -254,7 +254,7 @@ try {
     async () => {
       const manifest = await page.evaluate(() => chrome.runtime.getManifest());
       expect(manifest.name).toBe("Lykvakt");
-      expect(manifest.version).toBe("0.5.3");
+      expect(manifest.version).toBe("0.5.4");
       expect(manifest.version_name).toBeUndefined();
       await expect(page).toHaveTitle("Lykvakt");
       await expect(page.locator("body")).not.toContainText(
@@ -263,13 +263,17 @@ try {
     },
   );
   await check(
-    "the suggested vault shortcut is assigned without a Chrome shortcut collision",
+    "the suggested vault shortcut is assigned without a browser shortcut collision",
     async () => {
       const commands = await page.evaluate(() => chrome.commands.getAll());
       expect(
         commands.find((command) => command.name === "_execute_action")
           ?.shortcut,
-      ).toBe("Ctrl+Shift+Y");
+      ).toBe(
+        process.env.EXTENSION_DIST === "dist-edge"
+          ? "Ctrl+Shift+7"
+          : "Ctrl+Shift+Y",
+      );
     },
   );
   await check(
@@ -2205,7 +2209,7 @@ try {
         await expect(popup.locator('input[type="file"]')).toHaveCount(0);
         await expect(
           popup.getByText(
-            "Chrome can close this small popup while you pick a file. The window uses your current unlock session.",
+            "Your browser can close this small popup while you pick a file. The window uses your current unlock session.",
           ),
         ).toBeVisible();
         const links = Array.from(

@@ -4,6 +4,7 @@ import { preferenceEnabled, savePreference } from "../preferences";
 import { busyCopy } from "../help";
 import { AUTO_LOCK_OPTIONS } from "../lock-policy";
 import { openVault } from "../launch";
+import { shortcutSettingsURL } from "../shortcut-settings";
 import { rotatePassword } from "../crypto";
 import { dialogOperation, type AppContext } from "./context";
 export function createSettings(ctx: AppContext) {
@@ -20,6 +21,10 @@ export function createSettings(ctx: AppContext) {
     showCodes.control.addEventListener("change", () => {
       savePreference("alwaysShowCodes", String(showCodes.control.checked));
     });
+    const keys = isExtension
+      ? chrome.runtime.getManifest().commands?._execute_action?.suggested_key
+      : undefined;
+    const seven = typeof keys === "object" && keys.default === "Ctrl+Shift+7";
     const timeout = select(
       "timeout",
       "Auto-lock",
@@ -53,7 +58,7 @@ export function createSettings(ctx: AppContext) {
         el(
           "p",
           { class: "hint" },
-          "Stay unlocked across popup and window closures until this timer expires. The default is 5 minutes of inactivity. Lock ends the session in every view; restarting Chrome asks for your password again.",
+          "Stay unlocked across popup and window closures until this timer expires. The default is 5 minutes of inactivity. Lock ends the session in every view; restarting your browser asks for your password again.",
         ),
         ctx.isPopup
           ? button("Open in a window", () => run(openVault), "button text")
@@ -68,17 +73,34 @@ export function createSettings(ctx: AppContext) {
         "div",
         { class: "settings-section stack" },
         el("h2", {}, "Keyboard shortcut"),
-        el("p", {}, "Ctrl+Shift+Y · Command+Shift+Y on Mac"),
+        el(
+          "p",
+          {},
+          seven
+            ? "Ctrl+Shift+7 · Command+Shift+7 on Mac"
+            : "Ctrl+Shift+Y · Command+Shift+Y on Mac",
+        ),
 
         isExtension
           ? button(
               "Change shortcut",
               () => {
                 void chrome.tabs.create({
-                  url: "chrome://extensions/shortcuts",
+                  url: shortcutSettingsURL(
+                    chrome.runtime.getURL(""),
+                    navigator.userAgent,
+                  ),
                 });
               },
               "button tonal",
+            )
+          : null,
+        isExtension &&
+          "browser_specific_settings" in chrome.runtime.getManifest()
+          ? el(
+              "p",
+              { class: "hint" },
+              "Firefox on Linux uses Ctrl+Shift+7. In the add-ons manager, open the gear menu and choose Manage Extension Shortcuts.",
             )
           : null,
       ),
