@@ -61,3 +61,7 @@ TOTP codes can be phished, and a compromised device can read unlocked secrets. T
 I want bugs to have as little browser access as possible. Lykvakt uses three permissions: `clipboardWrite` for copying codes, `storage` for temporary unlock sessions, and `alarms` for expiry. A small background service worker manages that session in Chrome and Edge; Firefox uses an event page. There are no content scripts, host permissions or external-message entry points. It never reads or changes web pages.
 
 All runtime code ships with the extension. A strict CSP blocks remote scripts and external connections, and the build checks those restrictions. There is no WebAssembly, server, telemetry, advertising or subscription. Accounts and imports stay on your device, and optional tools load only when needed. The design guide and [privacy policy](PRIVACY.md) explain what is stored and where.
+
+## License
+
+GPL-3.0-or-later. See [LICENSE](LICENSE).

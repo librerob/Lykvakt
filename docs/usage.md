@@ -22,7 +22,7 @@ There is no password reset or developer recovery service. Keep the password and 
 
 Use the setup key or QR image supplied when you enable two-step sign-in on a service. This is different from the short code used to sign in.
 
-Open **Backup → Import accounts**. Pasting setup links or export text works in either mode. File imports, QR images and backup-file selection require the explicit window: choose **Open in a window to choose a file**, unlock there, then choose the file. Chrome can close a popup while a native file chooser is open. Review the accounts and every skipped entry before saving. Check the new codes before retiring your existing authenticator. The [design guide](design.md#import-contracts-and-sources) explains format support and limits.
+Open **Backup → Import accounts**. Pasting setup links or export text works in either mode. File imports, QR images and backup-file selection require the explicit window: choose **Open in a window to choose a file**, then select the file. The window asks for your password only if the shared session has ended. Browsers can close a popup while a native file chooser is open. Review the accounts and every skipped entry before saving. Check the new codes before retiring your existing authenticator. The [design guide](design.md#import-contracts-and-sources) explains format support and limits.
 
 Steam support covers authentication codes, not trade or market confirmations. Its setup secret normally comes from a compatible export or another authenticator. Files containing it can also hold other sensitive data, so keep them private.
 
@@ -32,7 +32,7 @@ Click an account row to copy the current code. The confirmation names the accoun
 
 Codes start hidden. Reveal a code separately to read it; timed reveals hide after 30 seconds. Switching away masks revealed codes; closing a view drops its local key references while the timed session remains available. **Always show codes** and the **Next** preview are optional settings. Copy always uses the current code.
 
-Search for part of an account name and press Enter to copy the first match. An empty search copies nothing. Change the suggested shortcut at chrome://extensions/shortcuts if another app uses it.
+Search for part of an account name and press Enter to copy the first match. An empty search copies nothing. Use **Settings → Change shortcut** if another app uses it. This opens the shortcut controls for your browser; in Firefox, open the gear menu in the add-ons manager and choose **Manage Extension Shortcuts**.
 
 HOTP accounts use a counter. Copying does not advance it. Confirm **More → Advance counter** only after the service consumes that code. Do not reuse a counter value you already submitted.
 

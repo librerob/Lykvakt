@@ -30,7 +30,7 @@ The required validate check waits for Chrome and the reusable Other browsers wor
 
 Workflow results are the source of truth for which browser versions passed. Store submission and approval are separate from a passing build.
 
-For Edge Add-ons, use the common description in [the listing draft](store/listing-draft.md), replacing Chrome with Microsoft Edge. For Firefox Add-ons, replace it with Firefox. Use the matching browser's screenshots, the same privacy-policy URL and a ZIP from the same commit. Include the complete source and reproducible build instructions when Mozilla requests them.
+Use the common description in [the listing draft](store/listing-draft.md) for Chrome Web Store, Edge Add-ons and Firefox Add-ons. Use the matching browser's screenshots, the same privacy-policy URL and a ZIP from the same commit. Include the complete source and reproducible build instructions when Mozilla requests them.
 
 The Firefox manifest declares no collection because accounts, imports, session keys and backups stay local. Each store still needs its own developer account, listing, review and approval.
 

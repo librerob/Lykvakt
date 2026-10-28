@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.5 — 28 October 2026
+
+- Reject session replies received after expiry and subtract delivery time from local deadlines.
+- Preserve successful clock observations across background restarts so backwards changes fail closed.
+- Remember manual account entries and OTP-link drafts, without retaining whole pasted export archives or unrelated credentials.
+- Explain that account deletion can leave a recent encrypted recovery copy until it is replaced.
+- Require Chrome, Edge and Firefox validation before merges and draft releases. Verify all browser packages and the matching source ZIP before attaching them, with commit and checksums in the notes.
+- Update browser-specific installation, shortcut and privacy documentation.
+
 ## 0.5.4 — 28 October 2026
 
 - Build Chrome, Edge and Firefox packages from the same source. Firefox uses an event page, native browser APIs and its own store manifest.

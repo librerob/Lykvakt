@@ -4,7 +4,7 @@ Lykvakt processes your accounts and the files you select on your device. There i
 
 ## Browser access and copying
 
-The permission set is exactly ["clipboardWrite", "storage", "alarms"]. Clipboard access is write-only and used when you choose to copy a code. Storage and alarms support the timed unlock session. There are no host or optional permissions or content scripts. The background worker handles only local session state and expiry; it makes no network requests.
+The permission set is exactly ["clipboardWrite", "storage", "alarms"]. Clipboard access is write-only and used when you choose to copy a code. Storage and alarms support the timed unlock session. There are no host or optional permissions or content scripts. Background code handles only local session state and expiry; it makes no network requests.
 
 Lykvakt never reads the clipboard. Clipboard history, clipboard managers and other apps may keep copies of codes you copy.
 
