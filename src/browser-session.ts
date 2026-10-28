@@ -40,7 +40,10 @@ export class BrowserSession implements SessionCache {
       action === "lock" || action === "draft"
         ? send()
         : this.pending.then(send);
-    this.pending = work.catch(() => {});
+    this.pending = work.then(
+      () => undefined,
+      () => undefined,
+    );
     return work;
   }
   async begin(): Promise<string> {

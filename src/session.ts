@@ -26,6 +26,7 @@ export class Session {
   private generation = 0;
   private cancellation = new AbortController();
   private writing = false;
+  private pendingWrite: Promise<void> = Promise.resolve();
   private lastActivity = 0;
   private lastActivityWall = 0;
   private shared?: Omit<CachedUnlock, "key">;
@@ -37,6 +38,7 @@ export class Session {
   timeout = 0;
   onlock = () => {};
   constructor(private readonly cache?: SessionCache) {
+    if (cache) this.timeout = 300_000;
     if (cache)
       cache.onstate = (state) => {
         if (!this.lease) return;
@@ -144,6 +146,13 @@ export class Session {
       throw new Error("Unlock the vault to continue.");
   }
   async validate(): Promise<void> {
+    const epoch = this.generation;
+    await this.pendingWrite;
+    if (epoch !== this.generation)
+      throw new Error("Action cancelled by locking.");
+    await this.verify();
+  }
+  private async verify(): Promise<void> {
     this.check();
     if (this.cache && this.lease) {
       const epoch = this.generation;
@@ -229,7 +238,11 @@ export class Session {
     let raw: Uint8Array<ArrayBuffer> | undefined;
     try {
       signal.throwIfAborted();
-      if (this.cache) this.lease = await this.cache.begin();
+      if (this.cache) {
+        const lease = await this.cache.begin();
+        if (epoch !== this.generation) throw new Error("Unlock cancelled.");
+        this.lease = lease;
+      }
       const result = await createEnvelope(
         password,
         data,
@@ -357,6 +370,10 @@ export class Session {
     operation?.throwIfAborted();
     if (this.writing) throw new Error("A save is already in progress.");
     this.writing = true;
+    let finish!: () => void;
+    this.pendingWrite = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
     const epoch = this.generation,
       signal = operation
         ? AbortSignal.any([this.cancellation.signal, operation])
@@ -364,7 +381,7 @@ export class Session {
       previous = this.envelope!;
     let saved = false;
     try {
-      await this.validate();
+      await this.verify();
       const active = this.recovery?.active as Partial<Envelope> | undefined;
       const activeRevision =
         Number.isSafeInteger(active?.revision) &&
@@ -382,7 +399,7 @@ export class Session {
         nextKey ?? this.key!,
         validated,
       );
-      await this.validate();
+      await this.verify();
       signal.throwIfAborted();
       if (epoch !== this.generation)
         throw new Error("Save cancelled by locking.");
@@ -405,15 +422,17 @@ export class Session {
       this.envelope = next;
       this.data = validated;
       if (this.cache && this.lease) {
+        const lease = this.lease;
         try {
-          const value = await this.cache.update(this.lease, previous, next);
+          const value = await this.cache.update(lease, previous, next);
           if (epoch !== this.generation)
             throw new Error("Save cancelled by locking.");
           this.accept(value);
         } catch (error) {
-          const lease = this.lease;
-          this.detach();
-          if (lease) await this.cache.clear(lease);
+          if (epoch === this.generation) {
+            this.detach();
+            await this.cache.clear(lease);
+          }
           throw new Error("Your vault was saved. Unlock again to continue.", {
             cause: error,
           });
@@ -431,6 +450,7 @@ export class Session {
       throw error;
     } finally {
       this.writing = false;
+      finish();
     }
   }
 }

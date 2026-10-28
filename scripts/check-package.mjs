@@ -56,7 +56,7 @@ async function scan(dir) {
         "Forbidden compiled runtime: " + path,
       );
       assert(
-        !/\beval\s*\(|new Function\s*\(|https?:\/\/[^\s"']+\.js\b|chrome\.storage\.sync/.test(
+        !/\beval\s*\(|new Function\s*\(|https?:\/\/[^\s"']+\.js\b|chrome\.storage\.(?:local|sync)/.test(
           code,
         ),
         "Forbidden runtime behavior: " + path,

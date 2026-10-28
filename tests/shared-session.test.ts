@@ -250,3 +250,81 @@ it("a cache-update failure reports the committed save accurately and revokes oth
   expect(((await storage.load()) as Envelope).revision).toBe(1);
   expect((state as SessionState).unlock).toBeUndefined();
 }, 60_000);
+
+it("view validation waits for an in-flight encrypted commit and cache refresh instead of locking it", async () => {
+  const c = cache("one"),
+    first = new Session(c);
+  first.timeout = 300_000;
+  await first.setup(password);
+  const update = c.update,
+    verify = vi.spyOn(c, "verify");
+  let entered!: () => void, release!: () => void;
+  const started = new Promise<void>((r) => {
+    entered = r;
+  });
+  const gate = new Promise<void>((r) => {
+    release = r;
+  });
+  c.update = async (...args) => {
+    entered();
+    await gate;
+    return update(...args);
+  };
+  const saving = first.save(first.accounts());
+  await started;
+  verify.mockClear();
+  const action = first.validate();
+  try {
+    expect(verify).not.toHaveBeenCalled();
+    expect(first.unlocked).toBe(true);
+  } finally {
+    release();
+    await Promise.allSettled([saving, action]);
+  }
+  await saving;
+  await action;
+  expect(verify).toHaveBeenCalledOnce();
+  expect(first.unlocked).toBe(true);
+  expect(first.current().revision).toBe(1);
+}, 60_000);
+
+it("a blocked old-view action and late save failure cannot cancel a newer password unlock", async () => {
+  const c = cache("one"),
+    first = new Session(c);
+  first.timeout = 300_000;
+  await first.setup(password);
+  const update = c.update;
+  let entered!: () => void, release!: () => void;
+  const started = new Promise<void>((r) => {
+    entered = r;
+  });
+  const gate = new Promise<void>((r) => {
+    release = r;
+  });
+  c.update = async (...args) => {
+    entered();
+    await gate;
+    return update(...args);
+  };
+  const saving = first.save(first.accounts());
+  const savedError = expect(saving).rejects.toThrow("Your vault was saved");
+  await started;
+  const action = first.validate(),
+    cancelled = expect(action).rejects.toThrow("cancelled");
+  first.lock();
+  await first.unlock(password);
+  const freshEpoch = (state as SessionState).epoch;
+  release();
+  await savedError;
+  await cancelled;
+  expect(first.unlocked).toBe(true);
+  expect((state as SessionState).epoch).toBe(freshEpoch);
+  expect((state as SessionState).unlock).toBeDefined();
+}, 60_000);
+
+it("shared sessions use five minutes even when a caller has no UI preferences", async () => {
+  const first = new Session(cache("one"));
+  await first.setup(password);
+  expect((state as SessionState).unlock!.timeout).toBe(300_000);
+  expect((state as SessionState).unlock!.expires).toBe(now + 300_000);
+}, 60_000);

@@ -17,6 +17,7 @@ export function enrollmentDraft(
       }
   }
   const remember = () => {
+    if (node.isConnected === false) return;
     if (
       mode === "import" &&
       [...node.querySelectorAll<HTMLInputElement>('input[type="file"]')].some(

@@ -19,7 +19,10 @@ export class SessionBroker {
   constructor(private readonly io: BrokerIO) {}
   request(message: unknown, source: string): Promise<unknown> {
     const work = this.queue.then(() => this.handle(message, source));
-    this.queue = work.catch(() => {});
+    this.queue = work.then(
+      () => undefined,
+      () => undefined,
+    );
     return work;
   }
   private async clear(source: string): Promise<SessionState> {
