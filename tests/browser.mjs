@@ -2652,6 +2652,7 @@ try {
           .getByLabel("Confirm new master password", { exact: true })
           .fill("new synthetic password");
         await click("Change password");
+        await expect(page.getByRole("dialog")).toHaveCount(0);
         await expect(page.getByRole("status")).toContainText(
           "Master password changed",
         );
