@@ -123,7 +123,7 @@ async function start() {
   assert.match(root, /^moz-extension:\/\//);
   await system(
     "const w=Services.wm.getMostRecentWindow('navigator:browser');w.gBrowser.selectedBrowser.loadURI(Services.io.newURI(arguments[0]),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});",
-    [root + "index.html?window"],
+    [root + "index.html?window&test-bootstrap"],
   );
   popup = false;
   await wait(
@@ -139,7 +139,7 @@ async function evaluate(expression) {
       ";if(!b?.browsingContext?.currentWindowGlobal)throw Error('Extension view not ready');" +
       "return b.browsingContext.currentWindowGlobal.getActor('MarionetteCommands').executeScript(arguments[0],[],{async:true,timeout:60000,newSandbox:true});",
     [
-      "const done=arguments[arguments.length-1];const browser=window.wrappedJSObject.browser;Promise.resolve().then(async()=>(" +
+      "const done=arguments[arguments.length-1];const browser=window.browser;Promise.resolve().then(async()=>(" +
         expression +
         ")).then(value=>done(JSON.stringify({value})),error=>done(JSON.stringify({failure:String(error)})));",
     ],
@@ -192,7 +192,7 @@ async function check(name, action) {
 }
 async function openPopup() {
   await system(
-    "const w=Services.wm.getMostRecentWindow('navigator:browser');const {CustomizableUI}=ChromeUtils.importESModule('resource:///modules/CustomizableUI.sys.mjs');CustomizableUI.addWidgetToArea(arguments[0],CustomizableUI.AREA_NAVBAR);w.focus();w.document.getElementById(arguments[0]).click();",
+    "const w=[...Services.wm.getEnumerator('navigator:browser')].find(w=>w.toolbar.visible);const {CustomizableUI}=ChromeUtils.importESModule('resource:///modules/CustomizableUI.sys.mjs');CustomizableUI.addWidgetToArea(arguments[0],CustomizableUI.AREA_NAVBAR);w.focus();w.document.getElementById(arguments[0]).click();",
     [widget],
   );
   popup = true;
@@ -202,9 +202,15 @@ async function openPopup() {
   const contexts = await evaluate(
     "browser.runtime.getContexts({contextTypes:['POPUP']})",
   );
-  assert(
-    contexts.some((c) => c.documentUrl === root + "index.html" && c.documentId),
+  const live = contexts.find(
+    (c) => c.documentUrl === root + "index.html" && c.documentId,
   );
+  assert(live);
+  const reply = await evaluate(
+    "browser.runtime.sendMessage({type:'lykvakt-session',action:'begin'})",
+  );
+  assert.equal(reply.ok, true);
+  assert.equal(reply.source, live.documentId);
 }
 async function closePopup() {
   await system(

@@ -20,6 +20,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: microsoft-edge --version
       - run: npm run build:edge
+      - run: npx vitest run tests/large-base64.test.ts --maxWorkers=2
       - run: xvfb-run -a node tests/popup.mjs
       - run: npm run test:browser
       - run: xvfb-run -a node tests/visibility.mjs
