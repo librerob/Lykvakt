@@ -26,7 +26,7 @@ Both implementations use memory-only storage.session and alarms. Firefox restric
 
 ## Validation and upload
 
-The Chrome workflow keeps the existing unit, browser, axe and native-popup checks. The Other browsers workflow runs the same Chromium suite in Microsoft Edge and separate Firefox checks through Mozilla's geckodriver. The Firefox harness uses a fresh synthetic profile and privileged browser-UI automation only in the test process; none of that access ships in the extension.
+The required validate check waits for Chrome and the reusable Other browsers workflow, so Edge or Firefox failures block merging and release preparation. Chrome keeps the existing unit, browser, axe and native-popup checks. Other browsers runs the same Chromium suite in Microsoft Edge and separate Firefox checks through Mozilla's geckodriver. Draft releases collect all three browser ZIPs and the matching Firefox source ZIP, verify their checksums, versions and source commit, and record the hashes in the notes. The Firefox harness uses a fresh synthetic profile and privileged browser-UI automation only in the test process; none of that access ships in the extension.
 
 Workflow results are the source of truth for which browser versions passed. Store submission and approval are separate from a passing build.
 
