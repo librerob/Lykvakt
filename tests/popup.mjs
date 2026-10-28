@@ -53,19 +53,148 @@ const started = new Promise((resolve, reject) => {
   });
 });
 
-let browser, popup, bootstrap, worker;
-const password = "synthetic actual popup password";
-const nextPassword = "new synthetic actual popup password";
-const senders = [];
+class PopupDriver {
+  constructor(socket) {
+    this.socket = socket;
+    this.next = 0;
+    this.pending = new Map();
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(String(event.data));
+      const entry = this.pending.get(message.id);
+      if (!entry) return;
+      this.pending.delete(message.id);
+      clearTimeout(entry.timer);
+      if (message.error) entry.reject(new Error(message.error.message));
+      else entry.resolve(message.result);
+    });
+  }
+  static async connect(endpoint) {
+    const socket = new WebSocket(endpoint);
+    await new Promise((resolve, reject) => {
+      socket.addEventListener("open", resolve, { once: true });
+      socket.addEventListener(
+        "error",
+        () => reject(new Error("Popup CDP connection failed")),
+        { once: true },
+      );
+    });
+    return new PopupDriver(socket);
+  }
+  send(method, params = {}, sessionId) {
+    const id = ++this.next;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error("Popup CDP timeout: " + method));
+      }, 10_000);
+      this.pending.set(id, { resolve, reject, timer });
+      this.socket.send(JSON.stringify({ id, method, params, sessionId }));
+    });
+  }
+}
+class NativePopup {
+  constructor(driver, targetId, sessionId) {
+    this.driver = driver;
+    this.targetId = targetId;
+    this.sessionId = sessionId;
+    this.closed = false;
+  }
+  async evaluate(expression) {
+    const result = await this.driver.send(
+      "Runtime.evaluate",
+      { expression, returnByValue: true, awaitPromise: true },
+      this.sessionId,
+    );
+    if (result.exceptionDetails) throw new Error(result.exceptionDetails.text);
+    return result.result.value;
+  }
+  async wait(expression) {
+    await expect.poll(() => this.evaluate(expression)).toBe(true);
+  }
+  async fill(selector, value) {
+    await this.wait(
+      "Boolean(document.querySelector(" + JSON.stringify(selector) + "))",
+    );
+    await this.evaluate(
+      "(() => {const input=document.querySelector(" +
+        JSON.stringify(selector) +
+        "); input.value=" +
+        JSON.stringify(value) +
+        ";input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));})()",
+    );
+  }
+  async click(text) {
+    const find =
+      "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===" +
+      JSON.stringify(text) +
+      " && !b.disabled)";
+    await this.wait("Boolean(" + find + ")");
+    await this.evaluate("(" + find + ").click()");
+  }
+  async count(selector, count) {
+    await expect
+      .poll(() =>
+        this.evaluate(
+          "document.querySelectorAll(" + JSON.stringify(selector) + ").length",
+        ),
+      )
+      .toBe(count);
+  }
+  async value(selector, value) {
+    await expect
+      .poll(() =>
+        this.evaluate(
+          "document.querySelector(" + JSON.stringify(selector) + ")?.value",
+        ),
+      )
+      .toBe(value);
+  }
+  async status(text) {
+    await this.wait(
+      "[...document.querySelectorAll('.status')].some(n=>n.textContent.includes(" +
+        JSON.stringify(text) +
+        "))",
+    );
+  }
+  async screenshot(path) {
+    const result = await this.driver.send(
+      "Page.captureScreenshot",
+      { format: "png" },
+      this.sessionId,
+    );
+    await writeFile(path, Buffer.from(result.data, "base64"));
+  }
+  async close() {
+    await this.driver.send("Target.closeTarget", { targetId: this.targetId });
+    this.closed = true;
+    await expect
+      .poll(
+        async () =>
+          !(await this.driver.send("Target.getTargets")).targetInfos.some(
+            (t) => t.targetId === this.targetId,
+          ),
+      )
+      .toBe(true);
+  }
+}
+let browser, popup, bootstrap, worker, driver;
+const password = "synthetic actual popup password",
+  nextPassword = "new synthetic actual popup password",
+  senders = [];
 try {
-  browser = await chromium.connectOverCDP(await started, { noDefaults: true });
-  const context = browser.contexts()[0];
-  const id = await extensionId(context);
+  const endpoint = await started;
+  browser = await chromium.connectOverCDP(endpoint, { noDefaults: true });
+  driver = await PopupDriver.connect(endpoint);
+  const context = browser.contexts()[0],
+    id = await extensionId(context);
   bootstrap = await context.newPage();
   await bootstrap.goto("chrome-extension://" + id + "/index.html?window");
+  const workerUrl = "chrome-extension://" + id + "/background.js";
   worker =
-    context.serviceWorkers().find((w) => w.url().endsWith("/background.js")) ||
-    (await context.waitForEvent("serviceworker"));
+    context.serviceWorkers().find((w) => w.url() === workerUrl) ||
+    (await context.waitForEvent("serviceworker", {
+      predicate: (w) => w.url() === workerUrl,
+    }));
   await worker.evaluate(() => {
     globalThis.__realPopupSenders = [];
     chrome.runtime.onMessage.addListener((message, sender) => {
@@ -83,11 +212,24 @@ try {
   const popupUrl = "chrome-extension://" + id + "/index.html";
   const open = async () => {
     await bootstrap.bringToFront();
-    const created = context.waitForEvent("page");
     await bootstrap.evaluate(() => chrome.action.openPopup());
-    const view = await created;
-    await view.waitForURL(popupUrl);
-    await expect(view.locator("#app")).toHaveAttribute("aria-busy", "false");
+    let target;
+    await expect
+      .poll(async () => {
+        target = (await driver.send("Target.getTargets")).targetInfos.find(
+          (t) => t.type === "page" && t.url === popupUrl,
+        );
+        return Boolean(target);
+      })
+      .toBe(true);
+    const attached = await driver.send("Target.attachToTarget", {
+      targetId: target.targetId,
+      flatten: true,
+    });
+    const view = new NativePopup(driver, target.targetId, attached.sessionId);
+    await view.wait(
+      "document.querySelector('#app')?.getAttribute('aria-busy') === 'false'",
+    );
     const contexts = await worker.evaluate(() =>
       chrome.runtime.getContexts({ contextTypes: ["POPUP"] }),
     );
@@ -95,27 +237,19 @@ try {
     return view;
   };
   popup = await open();
-  await popup
-    .getByLabel("Create a master password", { exact: true })
-    .fill(password);
-  await popup
-    .getByLabel("Confirm master password", { exact: true })
-    .fill(password);
-  await popup
-    .getByRole("button", { name: "Create encrypted vault", exact: true })
-    .click();
-  await expect(
-    popup.getByRole("button", { name: "+ Add account", exact: true }),
-  ).toBeVisible();
+  await popup.fill("input[name=password]", password);
+  await popup.fill("input[name=confirmation]", password);
+  await popup.click("Create encrypted vault");
+  await popup.wait(
+    "[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='+ Add account')",
+  );
   senders.push(...(await worker.evaluate(() => globalThis.__realPopupSenders)));
   expect(senders.length).toBeGreaterThan(0);
   expect(senders.every((s) => s.url === popupUrl && !s.hasTab)).toBe(true);
   console.log("Real toolbar sender metadata: " + JSON.stringify(senders));
-  await popup
-    .getByRole("button", { name: "+ Add account", exact: true })
-    .click();
-  await popup.getByLabel("Service name", { exact: true }).fill("Actual popup");
-  await popup.getByLabel("Setup key", { exact: true }).fill("JBSWY3DPEHPK3PXP");
+  await popup.click("+ Add account");
+  await popup.fill("input[name=issuer]", "Actual popup");
+  await popup.fill("input[name=secret]", "JBSWY3DPEHPK3PXP");
   await expect
     .poll(() =>
       worker.evaluate(
@@ -127,46 +261,33 @@ try {
     .toBe("JBSWY3DPEHPK3PXP");
   await popup.close();
   popup = await open();
-  await expect(popup.getByRole("dialog")).toContainText("Add account");
-  await expect(popup.getByLabel("Service name", { exact: true })).toHaveValue(
-    "Actual popup",
+  await popup.wait(
+    "document.querySelector('dialog[open]')?.textContent.includes('Add account') === true",
   );
-  await expect(
-    popup.getByLabel("Master password", { exact: true }),
-  ).toHaveCount(0);
-  await popup.getByRole("button", { name: "Close", exact: true }).click();
-  await popup.getByRole("button", { name: "Backup", exact: true }).click();
-  await popup
-    .getByRole("button", { name: "Import accounts", exact: true })
-    .click();
-  await popup
-    .getByLabel("OTP URIs or export text")
-    .fill(
-      "otpauth://totp/Popup:synthetic?secret=JBSWY3DPEHPK3PXP&issuer=Popup",
-    );
-  await popup
-    .getByRole("button", { name: "Preview import", exact: true })
-    .click();
-  await popup
-    .getByRole("button", { name: "Import 1 account(s)", exact: true })
-    .click();
-  await expect(popup.getByRole("dialog")).toHaveCount(0);
-  await expect(popup.locator(".account")).toHaveCount(1);
+  await popup.value("input[name=issuer]", "Actual popup");
+  await popup.count("input[name=password]", 0);
+  await popup.click("Close");
+  await popup.click("Backup");
+  await popup.click("Import accounts");
+  await popup.fill(
+    "textarea[name=payload]",
+    "otpauth://totp/Popup:synthetic?secret=JBSWY3DPEHPK3PXP&issuer=Popup",
+  );
+  await popup.click("Preview import");
+  await popup.click("Import 1 account(s)");
+  await popup.count("dialog", 0);
+  await popup.count(".account", 1);
   await mkdir("artifacts/screenshots", { recursive: true });
-  await popup.screenshot({
-    path: "artifacts/screenshots/actual-toolbar-popup.png",
-  });
+  await popup.screenshot("artifacts/screenshots/actual-toolbar-popup.png");
   await popup.close();
   await bootstrap.reload();
   await expect(
     bootstrap.getByRole("button", { name: "Lock", exact: true }),
   ).toBeVisible();
   popup = await open();
-  await expect(popup.locator(".account")).toHaveCount(1);
-  await popup.getByRole("button", { name: "Lock", exact: true }).click();
-  await expect(
-    popup.getByLabel("Master password", { exact: true }),
-  ).toBeVisible();
+  await popup.count(".account", 1);
+  await popup.click("Lock");
+  await popup.wait("Boolean(document.querySelector('input[name=password]'))");
   await expect(
     bootstrap.getByLabel("Master password", { exact: true }),
   ).toBeVisible();
@@ -182,70 +303,40 @@ try {
     .toBe(false);
   await popup.close();
   popup = await open();
-  await popup
-    .getByLabel("Master password", { exact: true })
-    .fill("wrong synthetic password");
-  await popup
-    .getByRole("button", { name: "Unlock vault", exact: true })
-    .click();
-  await expect(popup.getByRole("status")).toContainText(
-    "Authentication failed",
+  await popup.fill("input[name=password]", "wrong synthetic password");
+  await popup.click("Unlock vault");
+  await popup.status("Authentication failed");
+  await popup.value("input[name=password]", "");
+  await popup.fill("input[name=password]", password);
+  await popup.click("Unlock vault");
+  await popup.count(".account", 1);
+  await popup.click("Settings");
+  await popup.click("Change master password");
+  await popup.fill("input[name=current]", password);
+  await popup.fill("input[name=next]", nextPassword);
+  await popup.fill("input[name=confirm]", nextPassword);
+  await popup.click("Change password");
+  await popup.count("dialog", 0);
+  await popup.status("Master password changed");
+  await popup.wait(
+    "[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Lock')",
   );
-  await expect(
-    popup.getByLabel("Master password", { exact: true }),
-  ).toHaveValue("");
-  await popup.getByLabel("Master password", { exact: true }).fill(password);
-  await popup
-    .getByRole("button", { name: "Unlock vault", exact: true })
-    .click();
-  await expect(popup.locator(".account")).toHaveCount(1);
-  await popup.getByRole("button", { name: "Settings", exact: true }).click();
-  await popup
-    .getByRole("button", { name: "Change master password", exact: true })
-    .click();
-  await popup
-    .getByLabel("Current master password", { exact: true })
-    .fill(password);
-  await popup
-    .getByLabel("New master password", { exact: true })
-    .fill(nextPassword);
-  await popup
-    .getByLabel("Confirm new master password", { exact: true })
-    .fill(nextPassword);
-  await popup
-    .getByRole("button", { name: "Change password", exact: true })
-    .click();
-  await expect(popup.getByRole("dialog")).toHaveCount(0);
-  await expect(popup.getByRole("status")).toContainText(
-    "Master password changed",
-  );
-  await expect(
-    popup.getByRole("button", { name: "Lock", exact: true }),
-  ).toBeVisible();
   await popup.close();
   popup = await open();
-  await expect(
-    popup.getByLabel("Master password", { exact: true }),
-  ).toBeVisible();
-  await popup.getByLabel("Master password", { exact: true }).fill(password);
-  await popup
-    .getByRole("button", { name: "Unlock vault", exact: true })
-    .click();
-  await expect(popup.getByRole("status")).toContainText(
-    "Authentication failed",
-  );
-  await popup.getByLabel("Master password", { exact: true }).fill(nextPassword);
-  await popup
-    .getByRole("button", { name: "Unlock vault", exact: true })
-    .click();
-  await expect(popup.locator(".account")).toHaveCount(1);
+  await popup.wait("Boolean(document.querySelector('input[name=password]'))");
+  await popup.fill("input[name=password]", password);
+  await popup.click("Unlock vault");
+  await popup.status("Authentication failed");
+  await popup.fill("input[name=password]", nextPassword);
+  await popup.click("Unlock vault");
+  await popup.count(".account", 1);
   await writeFile(
     "artifacts/real-popup-results.json",
     JSON.stringify(
       {
         passed: true,
         browser: browser.version(),
-        source: "chrome.action.openPopup / POPUP context",
+        source: "chrome.action.openPopup / native POPUP context via CDP",
         senders,
       },
       null,
@@ -263,13 +354,10 @@ try {
         .catch(() => [])),
     );
   await mkdir("artifacts/screenshots", { recursive: true });
-  if (popup && !popup.isClosed())
+  if (popup && !popup.closed)
     await popup
-      .screenshot({ path: "artifacts/screenshots/actual-popup-failure.png" })
+      .screenshot("artifacts/screenshots/actual-popup-failure.png")
       .catch(() => {});
-  const driver = browser
-    ? await browser.newBrowserCDPSession().catch(() => undefined)
-    : undefined;
   const targets = await driver
     ?.send("Target.getTargets")
     .catch(() => undefined);
@@ -279,11 +367,8 @@ try {
       {
         error: String(error),
         body:
-          popup && !popup.isClosed()
-            ? await popup
-                .locator("body")
-                .innerText()
-                .catch(() => "")
+          popup && !popup.closed
+            ? await popup.evaluate("document.body.innerText").catch(() => "")
             : "",
         targets,
         senders,
@@ -294,6 +379,7 @@ try {
   );
   throw error;
 } finally {
+  driver?.socket.close();
   if (browser) {
     const client = await browser.newBrowserCDPSession().catch(() => undefined);
     await client?.send("Browser.close").catch(() => {});
