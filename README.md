@@ -1,6 +1,8 @@
 # Lykvakt
 
-I built Lykvakt because I wanted a small authenticator for Chrome that I could use every day without giving it access to the websites I visit. It keeps your authenticator accounts in an encrypted vault on your device, with TOTP, HOTP and Steam support. I use it myself and plan to keep using and maintaining it for the long term.
+I built Lykvakt because I wanted a small authenticator I could use every day without giving it access to the websites I visit. It keeps your authenticator accounts in an encrypted vault on your device, with TOTP, HOTP and Steam support. I use it myself and plan to keep using and maintaining it for the long term.
+
+Lykvakt runs in **Chrome, Microsoft Edge and Firefox on desktop**. All three builds come from this repository and use the same encrypted backup format. Each browser keeps its own vault; use an encrypted backup to move your accounts between them.
 
 The name is coined and Nordic-inspired, with the idea of watching over your keys.
 
@@ -8,7 +10,15 @@ The name is coined and Nordic-inspired, with the idea of watching over your keys
 
 ## Build and test
 
-You'll need Node 24. There are builds for Chrome 120+, Edge 120+ and Firefox 153+ on desktop. They share the same source and encrypted backup format. See the [browser build and store guide](docs/browsers.md) for build commands, local installation and store packages. Store approval is separate from a passing build.
+You'll need Node 24. Choose the build for your browser:
+
+| Browser           | Minimum version | Build                   | Output          | Upload ZIP                |
+| ----------------- | --------------- | ----------------------- | --------------- | ------------------------- |
+| Chrome            | 120             | `npm run build`         | `dist/`         | `npm run package`         |
+| Microsoft Edge    | 120             | `npm run build:edge`    | `dist-edge/`    | `npm run package:edge`    |
+| Firefox (desktop) | 153             | `npm run build:firefox` | `dist-firefox/` | `npm run package:firefox` |
+
+Run `npm run build:all` to build all three. Packages are written to `artifacts/`. See the [browser build and store guide](docs/browsers.md) for the differences between targets. A build does not imply store approval.
 
 ```sh
 npm ci --ignore-scripts
@@ -20,9 +30,11 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-To load the Chrome extension, open chrome://extensions, enable **Developer mode**, choose **Load unpacked** and select `dist/`. Run `npm run package` if you want an install ZIP. Edge uses `npm run build:edge` and `npm run package:edge`; Firefox uses `npm run build:firefox` and `npm run package:firefox`.
+To test in Chrome or Edge, open chrome://extensions or edge://extensions, enable **Developer mode**, choose **Load unpacked** and select `dist/` or `dist-edge/` respectively.
 
-CI also runs axe accessibility checks, tests timed sessions, shared locking and window switching in headed Chromium, and measures repeated popup-document startup. The workflow runs show which checks passed.
+For Firefox, open about:debugging, choose **This Firefox → Load Temporary Add-on** and select `dist-firefox/manifest.json`. Temporary add-ons are removed when Firefox closes. Permanent installation requires Mozilla signing; the Firefox ZIP is the package to submit for that review.
+
+CI runs browser checks in Chrome, Edge and Firefox, including native popup reopening and shared locking. It also runs axe accessibility checks, headed Chromium session tests and repeated popup-document startup measurements. The workflow runs show the exact browser versions and checks that passed.
 
 ## Using Lykvakt
 
