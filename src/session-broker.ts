@@ -74,6 +74,7 @@ export class SessionBroker {
         u = stored.unlock;
       if (now < u.checkedAt || (u.expires > 0 && now >= u.expires))
         return this.clear(source);
+      u.checkedAt = now;
     }
     return stored;
   }
@@ -84,6 +85,7 @@ export class SessionBroker {
   }
   private async require(
     state: SessionState,
+    source: string,
     epoch?: unknown,
   ): Promise<CachedUnlock> {
     const u = state.unlock;
@@ -96,7 +98,9 @@ export class SessionBroker {
       (u.expires > 0 && now >= u.expires)
     )
       throw failed();
-    return { ...u, checkedAt: now };
+    const unlock = { ...u, checkedAt: now };
+    await this.io.write({ ...state, source, unlock });
+    return unlock;
   }
   private async handle(input: unknown, source: string): Promise<unknown> {
     if (!input || typeof input !== "object") throw failed();
@@ -124,7 +128,7 @@ export class SessionBroker {
     try {
       if (m.action === "resume") {
         if (!state.unlock) return undefined;
-        return await this.require(state);
+        return await this.require(state, source);
       }
       if (m.action === "remember") {
         const active = await this.binding();
@@ -169,7 +173,8 @@ export class SessionBroker {
         )
           throw failed();
         const now = this.io.now();
-        if (now < u.touched || (u.expires && now >= u.expires)) throw failed();
+        if (now < u.checkedAt || (u.expires && now >= u.expires))
+          throw failed();
         const unlock = {
           ...u,
           binding: active.binding,
@@ -183,10 +188,13 @@ export class SessionBroker {
       const u =
         m.action === "touch" || m.action === "draft"
           ? state.unlock
-          : await this.require(state, m.epoch);
+          : await this.require(state, source, m.epoch);
       if (!u) throw failed();
       if (m.action === "draft") {
-        const unlock = { ...u, checkedAt: this.io.now() };
+        const now = this.io.now();
+        if (now < u.checkedAt || (u.expires > 0 && now >= u.expires))
+          throw failed();
+        const unlock = { ...u, checkedAt: now };
         if (m.value === undefined) delete unlock.draft;
         else unlock.draft = validateDraft(m.value);
         await this.io.write({ ...state, source, unlock });
@@ -203,7 +211,7 @@ export class SessionBroker {
         )
           throw failed();
         const now = this.io.now();
-        if (now < u.touched || (u.expires > 0 && now >= u.expires))
+        if (now < u.checkedAt || (u.expires > 0 && now >= u.expires))
           throw failed();
         const unlock = {
           ...u,
