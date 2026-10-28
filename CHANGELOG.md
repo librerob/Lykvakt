@@ -6,6 +6,7 @@
 - Authenticate the browser-issued extension origin separately from the add-on ID. Firefox 153 or newer is required to keep document-ID checks.
 - Keep the same vault format, encryption, three permissions and memory-only session policy. Open each browser's own shortcut settings.
 - Add real Firefox and Edge validation alongside the existing Chrome checks.
+- Keep native toolbar popups at the intended 400 px width across browsers.
 
 ## 0.5.3 — 28 October 2026
 

@@ -142,7 +142,7 @@ function viewSelection() {
       start +
       "const b=windows.flatMap(w=>[...w.document.querySelectorAll('browser[webextension-view-type=popup]')]).find(b=>b.currentURI?.spec===" +
       base +
-      "+'index.html');const w=b?.ownerGlobal;"
+      "+'index.html');const w=b?.ownerDocument.defaultView;"
     );
   return (
     start +
@@ -150,7 +150,7 @@ function viewSelection() {
     base +
     "+'index.html?window')??all.find(b=>b.currentURI?.spec===" +
     base +
-    "+'index.html?window&test-bootstrap');const w=b?.ownerGlobal;"
+    "+'index.html?window&test-bootstrap');const w=b?.ownerDocument.defaultView;"
   );
 }
 async function evaluate(expression) {
@@ -227,6 +227,7 @@ async function openPopup() {
   await wait(
     "document.querySelector('#app')?.getAttribute('aria-busy') === 'false'",
   );
+  await wait("window.innerWidth === 400");
   const contexts = await evaluate(
     "browser.runtime.getContexts({contextTypes:['POPUP']})",
   );
