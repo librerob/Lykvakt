@@ -2,12 +2,16 @@ import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 const read = (path: string) =>
   readFileSync(new URL("../" + path, import.meta.url), "utf8");
-it("keeps the exact permission set and reserved shortcut without background or page access", () => {
+it("keeps the exact permission set and reserved shortcut with a local session worker and without page access", () => {
   const m = JSON.parse(read("public/manifest.json"));
-  expect(m.permissions).toEqual(["clipboardWrite"]);
+  expect(m.permissions).toEqual(["clipboardWrite", "storage", "alarms"]);
+  expect(m.background).toEqual({
+    service_worker: "background.js",
+    type: "module",
+  });
+  expect(m.externally_connectable).toBeUndefined();
   expect(m.action.default_popup).toBe("index.html");
   for (const key of [
-    "background",
     "host_permissions",
     "optional_permissions",
     "optional_host_permissions",

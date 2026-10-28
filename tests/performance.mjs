@@ -96,6 +96,7 @@ try {
   await setup
     .getByRole("button", { name: "Import 1 account(s)", exact: true })
     .click();
+  await setup.getByRole("button", { name: "Lock", exact: true }).click();
   await setup.close();
   const samples = [];
   for (let i = 0; i < 18; i++) {
@@ -129,6 +130,8 @@ try {
       }
       samples.push(sample);
     }
+    if (await page.getByRole("button", { name: "Lock", exact: true }).count())
+      await page.getByRole("button", { name: "Lock", exact: true }).click();
     await page.close();
   }
   const summary = (key) => {

@@ -154,3 +154,10 @@ it("setup and settings omit preview branding and repeated inline help", () => {
   expect(settings.querySelectorAll("[data-help]")).toHaveLength(0);
   expect(settings.textContent).toContain("there is no password reset");
 });
+
+it.each([
+  "Your session ended. Unlock the vault again.",
+  "Your vault was saved. Unlock again to continue.",
+])("shows accurate session status in plain language: %s", (message) => {
+  expect(friendlyError(new Error(message)).message).toBe(message);
+});

@@ -25,6 +25,11 @@ export function friendlyError(error: unknown): {
     };
   if (error instanceof Error && error.name === "UnrecognizedImportError")
     return { message: error.message, technical: "Unrecognised import format." };
+  if (
+    error instanceof Error &&
+    /^(Your session ended\.|Your vault was saved\.)/.test(error.message)
+  )
+    return { message: error.message, technical: error.name };
   const original =
     error instanceof Error ? error.name + ": " + error.message : String(error);
   if (error instanceof OldFormatError)

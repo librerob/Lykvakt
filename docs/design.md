@@ -19,9 +19,9 @@ Choosing **Erase the old vault and start fresh** asks for a second confirmation.
 
 ## Small, offline architecture
 
-Each popup or explicit window holds its own Session, DOM and keys. The toolbar button and Ctrl+Shift+Y open a 400 px popup. It locks on hide, loss of focus or close. Use Open in a window for a separate 440 x 700 window (height is clamped to the available screen). File imports, QR images and backup-file selection are available only in that window; pasted links and text work in the popup. The window asks for its own unlock; no key is passed between views.
+The toolbar button and Ctrl+Shift+Y open a 400 px popup. Open in a window creates or focuses a separate 440 x 700 window, clamped to the available screen. Closing a view cancels its local work and drops its key references; it does not revoke the timed browser session. File imports, QR images and backup-file selection use the separate window; pasted links and text work in either view.
 
-The manifest permissions are exactly ["clipboardWrite"]. There are no host or optional permissions, background scripts or service workers, content scripts, developer backend, advertising, subscriptions or telemetry. There is no externally_connectable setting or external-message handler. The extension never reads or changes web page content. Copying requires an explicit click, or a non-empty search followed by Enter. The confirmation names the account. Clipboard history and other apps may retain the copied value.
+The manifest permissions are exactly ["clipboardWrite", "storage", "alarms"]. A module service worker manages only the local unlock session and expiry. There are no host or optional permissions, content scripts, developer backend, advertising, subscriptions or telemetry. There is no externally_connectable setting or external-message handler. The extension never reads or changes web page content. Copying requires an explicit click, or a non-empty search followed by Enter. Clipboard history and other apps may retain copied values.
 
 Ctrl+Shift+Y is the suggested popup shortcut, or Command+Shift+Y on Mac. You can change it at chrome://extensions/shortcuts. Keyboard-layout shortcuts, the operating system and other extensions may still conflict with it. Outside a dialog, Escape clears search without closing the vault window. In a dialog, Escape closes it and cancels its pending work.
 
@@ -51,7 +51,7 @@ Existing vaults in the current format still open. Older builds reject Steam reco
 
 ## Derivation and locking
 
-A popup locks when it closes, hides or loses focus. A separate window keeps its key in memory when you switch away and defaults to a five-minute inactivity limit. Settings offers 1, 5, 15 and 30 minutes, 1 hour, and When this window closes. Existing valid choices are retained. Closing or reloading either view clears its key; no unlocked session is persisted or shared between views. A background page may be suspended, so the deadline is also checked before operations and when focus returns.
+The shared session defaults to five minutes of inactivity. Settings offers 1, 5, 15 and 30 minutes, 1 hour, and When the browser restarts. The previous no-timer window preference is reset to five minutes unless the browser-session choice has been explicitly confirmed; timed choices are retained. Popup/window closure clears local references but retains temporary session memory. Hiding a view masks revealed codes. Lock revokes every view and pending unlock lease; expiry is checked before resuming, before actions and saves, and on return. A delayed alarm cannot make an expired session usable.
 
 A bundled module Web Worker handles one password derivation at a time. It derives the password key, imports it immediately and returns only a nonextractable CryptoKey. Node tests and benchmarks explicitly inject the real yielding engine. The extension ships that engine only in its worker. If the worker is missing or fails to start, the app shows an error rather than deriving on the main thread.
 
@@ -60,6 +60,20 @@ Locking aborts pending work, terminates the worker and changes the Session epoch
 JavaScript strings, library internals, browser-managed copies, garbage collection and OS paging mean that complete zeroization cannot be guaranteed. Nonextractable keys also cannot protect an unlocked page from hostile code.
 
 Use a long, unique password. Argon2's memory requirement makes offline guessing more expensive, but the time it takes to unlock on your device doesn't tell you an attacker's GPU cost.
+
+### Temporary unlock session
+
+Chrome storage.session contains one session record, restricted explicitly to TRUSTED_CONTEXTS. It holds a random revocation epoch, the Base64-encoded 32-byte vault key, a SHA-256 fingerprint of the complete encrypted envelope, its ID/revision, the inactivity policy and deadline. The master password is not retained. Restored keys are imported as nonextractable AES-KW keys; the cached bytes remain sensitive even though those CryptoKey objects are nonextractable. Temporary raw byte copies are cleared in finally blocks; encoded strings and browser-managed copies cannot be reliably zeroed.
+
+Only messages from this extension's own top-level index.html documents are accepted, checking the sender ID, URL, document ID and frame ID. No external-message listener, content script or host permission is added. The broker serializes requests. A changed epoch prevents a late password derivation or cache update from resurrecting a revoked session. A different encrypted-record fingerprint refuses automatic resume; corruption recovery always requires confirmation and the password.
+
+Chrome can terminate the service worker while idle. The session record survives worker termination; no keep-alive loop is used. The worker recreates an expiry alarm from the stored deadline without extending it. Deadlines are also checked directly because alarms can be delayed during sleep. Open views use wall and monotonic deadlines derived from the broker's remaining lifetime; observing the same expiry cannot extend it. Detectable backward clock changes fail closed. This is an application timeout, not a defense against a hostile operating system or arbitrary clock manipulation.
+
+Manual Lock and expiry remove the cached key and drafts. Chrome clears storage.session on browser restart and extension reload, disable or update. If Chrome cannot confirm an explicit revocation, the extension reloads to clear its session. Ordinary saves update the fingerprint after the revision-checked commit and invalidate stale views. Password rotation revokes the shared session before committing; the current view can continue with its new nonextractable key, but a newly opened view requires the new password. Failed rotations also leave the shared session revoked. Encrypted vault/backup formats and password costs are unchanged.
+
+Only the Add account fields and a pasted-import textarea can be remembered as an unfinished draft. File contents, file selections, password fields used for authentication and exported plaintext are excluded. Draft fields are allowlisted and bounded (4,096 characters per manual field; 64,000 for pasted import text). Larger pasted imports still work but are not remembered. Closing/cancelling a form or saving its accounts clears the draft.
+
+Research checked against Chrome's [session-storage API](https://developer.chrome.com/docs/extensions/reference/api/storage#session), [service-worker lifecycle](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle), [alarms](https://developer.chrome.com/docs/extensions/reference/api/alarms) and [extension security guidance](https://developer.chrome.com/docs/extensions/develop/security-privacy/stay-secure), October 2026. Browser session storage is memory-backed; that does not guarantee absence from OS paging, crash dumps or a compromised browser.
 
 ## Saving, conflicts and older revisions
 

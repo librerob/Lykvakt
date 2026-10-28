@@ -22,7 +22,7 @@ npm run test:browser
 
 To load the extension, open chrome://extensions, enable **Developer mode**, choose **Load unpacked** and select `dist/`. Run `npm run package` if you want an install ZIP.
 
-CI also runs axe accessibility checks, tests popup locking and window switching in headed Chromium, and measures repeated popup-document startup. The workflow runs show which checks passed.
+CI also runs axe accessibility checks, tests timed sessions, shared locking and window switching in headed Chromium, and measures repeated popup-document startup. The workflow runs show which checks passed.
 
 ## Using Lykvakt
 
@@ -34,7 +34,7 @@ Save an encrypted backup somewhere outside the browser, then choose **Verify or 
 
 Imports recognise supported formats and show any skipped entries before you save. The [design and recovery guide](docs/design.md) explains the formats, migration steps and compatibility limits. Steam support covers sign-in codes; it doesn't handle trade or market confirmations.
 
-The popup locks when it closes or loses focus. An explicit window stays open while you switch apps and defaults to a five-minute inactivity timer. Settings offers other timers and **When this window closes**. File and QR-image selection happens in that window, which asks for its own unlock; pasting import text works in the popup. Password length is your choice, with a long, unique passphrase recommended. Help & documentation includes the essential instructions offline, with an optional [full usage guide](docs/usage.md). Import, export and backups live together in **Backup**. See the [window and other screenshots](docs/screenshots.md).
+You can close the popup, copy something from a website and reopen Lykvakt without entering your password again. The shared unlock session expires after five minutes of inactivity by default. Settings offers other timers and **When the browser restarts**. **Lock** ends the session in every open view. Small unfinished Add account and pasted-import forms are remembered only during that session; passwords are never remembered. File and QR-image selection still uses the separate window. Password length is your choice, with a long, unique passphrase recommended. Help & documentation works offline, with an optional [full usage guide](docs/usage.md). Import, export and backups live together in **Backup**.
 
 ## Under the hood
 
@@ -46,6 +46,6 @@ TOTP codes can be phished, and a compromised device can read unlocked secrets. T
 
 ## Why I keep it small
 
-I want bugs to have as little browser access as possible. Lykvakt has exactly one permission, `clipboardWrite`. It has no content scripts, host permissions, background script, service worker or external-message entry point. It never reads or changes web pages.
+I want bugs to have as little browser access as possible. Lykvakt uses three permissions: `clipboardWrite` for copying codes, `storage` for temporary unlock sessions, and `alarms` for expiry. A small background service worker manages that session. There are no content scripts, host permissions or external-message entry points. It never reads or changes web pages.
 
 All runtime code ships with the extension. A strict CSP blocks remote scripts and external connections, and the build checks those restrictions. There is no WebAssembly, server, telemetry, advertising or subscription. Accounts and imports stay on your device, and optional tools load only when needed. The design guide and [privacy policy](PRIVACY.md) explain what is stored and where.

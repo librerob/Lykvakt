@@ -27,5 +27,5 @@ it("ships no network API or WebAssembly runtime and keeps exactly the existing d
   const manifest = JSON.parse(
     readFileSync(new URL("../public/manifest.json", import.meta.url), "utf8"),
   );
-  expect(manifest.permissions).toEqual(["clipboardWrite"]);
+  expect(manifest.permissions).toEqual(["clipboardWrite", "storage", "alarms"]);
 });

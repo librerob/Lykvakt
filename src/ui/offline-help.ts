@@ -13,8 +13,8 @@ export function offlineHelp(isPopup: boolean): HTMLElement {
       "p",
       {},
       isPopup
-        ? "This small popup locks when it closes or loses focus. In Settings, choose Open in a window to keep Lykvakt open while you work."
-        : "This window locks after 5 minutes of inactivity by default. Settings lets you change the timer or keep it unlocked until this window closes.",
+        ? "You can close this popup and reopen it without entering your password again until the session expires. The default is 5 minutes of inactivity. Lock ends the session in every view."
+        : "This window shares the timed unlock session with the popup. Settings lets you change the timer; Lock ends the session in every view.",
     ),
     el("h3", {}, "Your codes"),
     el(
@@ -26,7 +26,7 @@ export function offlineHelp(isPopup: boolean): HTMLElement {
     el(
       "p",
       {},
-      "Backup contains Import accounts, export and encrypted backups. Paste setup links or export text here. Choose Open in a window to choose a file for export-file imports, QR images or backup restoration; the window asks for your password.",
+      "Backup contains Import accounts, export and encrypted backups. Paste setup links or export text here. Choose Open in a window to choose a file for export-file imports, QR images or backup restoration; the window uses your current unlock session.",
     ),
     el("h3", {}, "Keep a way back in"),
     el(

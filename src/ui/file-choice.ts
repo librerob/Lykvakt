@@ -17,7 +17,7 @@ export function fileChoice(
     el(
       "p",
       { class: "hint" },
-      "Chrome can close this small popup while you pick a file. The window will ask for your password.",
+      "Chrome can close this small popup while you pick a file. The window uses your current unlock session.",
     ),
   );
 }

@@ -1,3 +1,4 @@
+import { enrollmentDraft } from "./enrollment-draft";
 import { transferReview } from "./transfer";
 import { fileChoice } from "./file-choice";
 import { authenticateAction } from "./reauth";
@@ -25,6 +26,8 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     ctx;
 
   function addAccount(): void {
+    const draftForm: typeof form = (...args) =>
+      enrollmentDraft(ctx, form(...args), "add");
     const issuer = input("issuer", "Service name"),
       label = input("label", "Account identifier"),
       secret = input("secret", "Setup key", "password");
@@ -69,7 +72,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     const group = input("group", "Group (optional)");
     modal(
       "Add account",
-      form(
+      draftForm(
         async (data) =>
           run(async () => {
             const account = validateAccount({
@@ -221,6 +224,8 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
   }
 
   function importAccounts(): void {
+    const draftForm: typeof form = (...args) =>
+      enrollmentDraft(ctx, form(...args), "import");
     const area = el("textarea", {
       name: "payload",
       rows: "4",
@@ -268,7 +273,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     );
     modal(
       "Import accounts",
-      form(
+      draftForm(
         async (data) =>
           run(async () => {
             try {
@@ -464,5 +469,10 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     );
   }
 
-  return { addAccount, preview, importAccounts, editAccount };
+  function resumeDraft(): void {
+    const saved = session.draft();
+    if (saved?.mode === "add") addAccount();
+    else if (saved?.mode === "import") importAccounts();
+  }
+  return { addAccount, preview, importAccounts, editAccount, resumeDraft };
 }

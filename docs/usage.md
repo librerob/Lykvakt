@@ -4,13 +4,11 @@ Lykvakt keeps your authenticator accounts in an encrypted vault on this device. 
 
 ## Opening and locking
 
-The popup locks when it closes, hides or loses focus. In Settings, choose **Open in a window** to keep Lykvakt open while you switch apps or tabs. This separate window asks for your password and defaults to a five-minute inactivity timer.
+Closing or switching away from the popup keeps your unlock session available. You can copy a setup key from a website, reopen Lykvakt and continue the Add account form. Small pasted-import drafts are remembered too; file selections and authentication passwords are not.
 
-In **Settings → Auto-lock**, you can choose 1, 5, 15 or 30 minutes, or 1 hour of inactivity. Choose **When this window closes** to turn off the timer. Existing timer choices are kept when you update. Use **Lock** before leaving your computer.
+In **Settings → Auto-lock**, choose 1, 5, 15 or 30 minutes, or 1 hour of inactivity. The default is five minutes. The old When this window closes preference becomes five minutes on this update; select the browser-restart choice explicitly if you want no inactivity timer. **When the browser restarts** turns off the inactivity timer. **Lock** ends the session in every view; use it before leaving your computer.
 
-Each view holds its own unlocked key in memory. Reloading or closing it loses the key, and reopening asks for your password. Chrome may also discard a page. No unlock key or password is saved to remember the session across a browser restart.
-
-Closing another Chrome window does not necessarily quit Chrome while Lykvakt's window is still open. For a timed lock, Chrome can suspend background pages; the deadline is also checked before the next operation and when you return.
+The separate window is still used for choosing files and QR images. It uses the current unlock session, so it asks for your password only if the session has ended. Chrome clears the temporary session when it restarts or the extension reloads, updates or is disabled. Closing all Chrome windows does not always quit Chrome if background apps are enabled.
 
 ## Passwords
 
@@ -32,7 +30,7 @@ Steam support covers authentication codes, not trade or market confirmations. It
 
 Click an account row to copy the current code. The confirmation names the account. Clipboard managers and other apps may retain copied values.
 
-Codes start hidden. Reveal a code separately to read it; timed reveals hide after 30 seconds. Switching away masks revealed codes in the window; leaving the popup locks it. **Always show codes** and the **Next** preview are optional settings. Copy always uses the current code.
+Codes start hidden. Reveal a code separately to read it; timed reveals hide after 30 seconds. Switching away masks revealed codes; closing a view drops its local key references while the timed session remains available. **Always show codes** and the **Next** preview are optional settings. Copy always uses the current code.
 
 Search for part of an account name and press Enter to copy the first match. An empty search copies nothing. Change the suggested shortcut at chrome://extensions/shortcuts if another app uses it.
 
@@ -62,6 +60,6 @@ Very old preview formats need export through the working old app. See [migration
 
 A fake sign-in page can steal a code, and compromised software can read unlocked data. Check the site before entering a code. There has been no independent security audit; the [security policy](../SECURITY.md), [privacy policy](../PRIVACY.md) and [design guide](design.md) explain the limits.
 
-The extension's only permission is clipboardWrite. It has no content scripts, host permissions, background service worker or automatic account-data upload. It never reads or changes websites. The explicit Open in a window action only finds and focuses Lykvakt's own extension window.
+The extension uses clipboardWrite for copying, storage for the temporary session, and alarms for expiry. Its small background worker handles local session state only. There are no content scripts, host permissions or automatic uploads. It never reads or changes websites. Open in a window only finds and focuses Lykvakt's own extension window.
 
 The vault and code generation work offline. Essential help is bundled in the app and works offline. The optional full-guide link opens GitHub in a browser tab and needs an internet connection.

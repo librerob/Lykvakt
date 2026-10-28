@@ -4,13 +4,13 @@ Lykvakt processes your accounts and the files you select on your device. There i
 
 ## Browser access and copying
 
-The permission set is exactly ["clipboardWrite"]. There are no host or optional permissions, background workers or content scripts. Copying a code requires a click, or a non-empty search followed by Enter. The confirmation names the account.
+The permission set is exactly ["clipboardWrite", "storage", "alarms"]. Clipboard access is write-only and used when you choose to copy a code. Storage and alarms support the timed unlock session. There are no host or optional permissions or content scripts. The background worker handles only local session state and expiry; it makes no network requests.
 
 Lykvakt never reads the clipboard. Clipboard history, clipboard managers and other apps may keep copies of codes you copy.
 
 ## What stays in the browser
 
-IndexedDB stores the encrypted vault and its previous revision. localStorage stores your timeout, code-visibility, Next preview and first-run-tip preferences. Keys are held only in the unlocked popup or window. The popup locks on hide or loss of focus. An explicit window defaults to five minutes of inactivity; you can choose another timer or When this window closes. Closing or reloading either view, quitting Chrome or choosing Lock clears its session. Deadlines are also checked before operations and when returning. No unlock key is transferred between views.
+IndexedDB stores the encrypted vault and its previous revision. localStorage stores your timeout and confirmation of its browser-session meaning, code-visibility, Next preview and first-run-tip preferences. Chrome storage.session holds temporary vault-unlock material, its encrypted-record fingerprint and expiry deadline, plus small unfinished Add account or pasted-import forms. This memory is shared by Lykvakt's own popup and window, allowing you to switch away and return without another password prompt. It is not written to local or sync storage by Lykvakt. The master password, backup passphrases and import-file passwords are never cached. Closing a view clears its local key and form references; the temporary shared session remains until expiry or Lock. The default is five minutes of inactivity, with other choices including When the browser restarts. Chrome clears session storage on browser restart and extension reload, disable or update. JavaScript and the browser cannot promise forensic erasure from memory or OS copies.
 
 An ordinary save keeps the previous encrypted revision in the same transaction as the new one. Changing your master password rotates the key and deletes the old copy atomically. If the current record is structurally damaged, recovery requires you to choose the older copy and enter its password. Earlier previews cannot be opened or recovered by this version. Confirmed erasure affects only local records, never external files.
 
