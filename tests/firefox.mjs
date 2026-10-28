@@ -133,12 +133,29 @@ async function start() {
     "(()=>{window.__lykvaktSenders=[];browser.runtime.onMessage.addListener((m,s)=>{if(m?.type==='lykvakt-session'&&m.action==='begin')window.__lykvaktSenders.push({id:s.id,url:s.url,origin:s.origin,documentId:s.documentId,frameId:s.frameId,hasTab:!!s.tab});return false;});})()",
   );
 }
+function viewSelection() {
+  const base = JSON.stringify(root);
+  const start =
+    "const windows=[...Services.wm.getEnumerator('navigator:browser')];";
+  if (popup)
+    return (
+      start +
+      "const b=windows.flatMap(w=>[...w.document.querySelectorAll('browser[webextension-view-type=popup]')]).find(b=>b.currentURI?.spec===" +
+      base +
+      "+'index.html');const w=b?.ownerGlobal;"
+    );
+  return (
+    start +
+    "const all=windows.flatMap(w=>[...w.gBrowser.browsers]);const b=all.find(b=>b.currentURI?.spec===" +
+    base +
+    "+'index.html?window')??all.find(b=>b.currentURI?.spec===" +
+    base +
+    "+'index.html?window&test-bootstrap');const w=b?.ownerGlobal;"
+  );
+}
 async function evaluate(expression) {
   const result = await system(
-    "const w=Services.wm.getMostRecentWindow('navigator:browser');const b=" +
-      (popup
-        ? "w.document.querySelector('browser[webextension-view-type=popup]')"
-        : "w.gBrowser.selectedBrowser") +
+    viewSelection() +
       ";if(!b?.browsingContext?.currentWindowGlobal)throw Error('Extension view not ready');" +
       "return b.browsingContext.currentWindowGlobal.getActor('MarionetteCommands').executeScript(arguments[0],[],{async:true,timeout:60000,newSandbox:true});",
     [
@@ -225,16 +242,14 @@ async function openPopup() {
 }
 async function closePopup() {
   await system(
-    "const w=Services.wm.getMostRecentWindow('navigator:browser');for(const p of w.document.querySelectorAll('panel'))if(p.state==='open' && p.querySelector('browser[webextension-view-type=popup]'))p.hidePopup();",
+    "const windows=[...Services.wm.getEnumerator('navigator:browser')];for(const w of windows)for(const p of w.document.querySelectorAll('panel'))if(p.state==='open'&&[...p.querySelectorAll('browser[webextension-view-type=popup]')].some(b=>b.currentURI?.spec===arguments[0]+'index.html'))p.hidePopup();const all=windows.flatMap(w=>[...w.gBrowser.browsers].map(b=>({w,b})));const target=all.find(t=>t.b.currentURI?.spec===arguments[0]+'index.html?window')??all.find(t=>t.b.currentURI?.spec===arguments[0]+'index.html?window&test-bootstrap');if(!target)throw Error('Vault window not found');target.w.gBrowser.selectedTab=target.w.gBrowser.getTabForBrowser(target.b);target.w.focus();target.b.focus();",
+    [root],
   );
   popup = false;
 }
 async function screenshot(name) {
   const data = await system(
-    "const w=Services.wm.getMostRecentWindow('navigator:browser');const b=" +
-      (popup
-        ? "w.document.querySelector('browser[webextension-view-type=popup]')"
-        : "w.gBrowser.selectedBrowser") +
+    viewSelection() +
       ";const bitmap=await b.browsingContext.currentWindowGlobal.drawSnapshot(null,1,'white');const c=w.document.createElementNS('http://www.w3.org/1999/xhtml','canvas');c.width=bitmap.width;c.height=bitmap.height;c.getContext('2d').drawImage(bitmap,0,0);bitmap.close();return c.toDataURL('image/png').split(',')[1];",
   );
   await writeFile(
@@ -335,6 +350,11 @@ try {
     );
     await screenshot("popup");
     await accessibility("popup");
+    await closePopup();
+    await system(viewSelection() + "b.reload();");
+    await wait("document.querySelectorAll('.account').length === 1");
+    await openPopup();
+    await wait("document.querySelectorAll('.account').length === 1");
   });
   await check("shared Lock and wrong/right password", async () => {
     await click("Lock");
