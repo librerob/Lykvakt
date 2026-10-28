@@ -1,4 +1,5 @@
-import { SessionBroker, trustedSessionSender } from "./session-broker";
+import { SessionBroker } from "./session-broker";
+import { sessionSource } from "./session-sender";
 import { SESSION_KEY, SESSION_ALARM, SESSION_MESSAGE } from "./session-cache";
 import { load, isOldVault, isRecoveryOffer } from "./storage";
 const ready = chrome.storage.session.setAccessLevel({
@@ -24,15 +25,22 @@ const broker = new SessionBroker({
   now: Date.now,
 });
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
-  if (
-    message?.type !== SESSION_MESSAGE ||
-    !trustedSessionSender(sender, chrome.runtime.id)
+  if (message?.type !== SESSION_MESSAGE) return;
+  void sessionSource(sender, chrome.runtime.id, () =>
+    chrome.runtime.getContexts({
+      contextTypes: ["POPUP"],
+      documentUrls: [sender.url!],
+    }),
   )
-    return;
-  void broker.request(message, sender.documentId!).then(
-    (value) => respond({ ok: true, source: sender.documentId, value }),
-    () => respond({ ok: false }),
-  );
+    .then(async (source) => {
+      if (!source) {
+        respond({ ok: false });
+        return;
+      }
+      const value = await broker.request(message, source);
+      respond({ ok: true, source, value });
+    })
+    .catch(() => respond({ ok: false }));
   return true;
 });
 chrome.alarms.onAlarm.addListener((alarm) => {

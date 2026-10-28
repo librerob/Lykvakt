@@ -63,6 +63,8 @@ Use a long, unique password. Argon2's memory requirement makes offline guessing 
 
 ### Temporary unlock session
 
+Chrome omits tab sender metadata for a toolbar popup. The worker checks the extension ID, exact popup URL and origin, then resolves a single matching top-level POPUP document through runtime.getContexts. Missing or ambiguous matches are rejected. Tab and window messages keep their existing document and frame checks.
+
 Chrome storage.session contains one session record, restricted explicitly to TRUSTED_CONTEXTS. It holds a random revocation epoch, the Base64-encoded 32-byte vault key, a SHA-256 fingerprint of the complete encrypted envelope, its ID/revision, the inactivity policy and deadline. The master password is not retained. Restored keys are imported as nonextractable AES-KW keys; the cached bytes remain sensitive even though those CryptoKey objects are nonextractable. Temporary raw byte copies are cleared in finally blocks; encoded strings and browser-managed copies cannot be reliably zeroed.
 
 Only messages from this extension's own top-level index.html documents are accepted, checking the sender ID, URL, document ID and frame ID. No external-message listener, content script or host permission is added. The broker serializes requests. A changed epoch prevents a late password derivation or cache update from resurrecting a revoked session. A different encrypted-record fingerprint refuses automatic resume; corruption recovery always requires confirmation and the password.
