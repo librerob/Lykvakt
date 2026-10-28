@@ -2400,8 +2400,17 @@ try {
         await expect
           .poll(() => isolated.pages().some((p) => p.url() === vaultUrl))
           .toBe(true);
+        const opened = isolated.pages().find((p) => p.url() === vaultUrl);
+        // Let the window action finish before destroying its sender.
+        await expect
+          .poll(() =>
+            opened.evaluate(
+              async () => (await chrome.windows.getCurrent()).state,
+            ),
+          )
+          .toBe("normal");
         await popup.close();
-        return isolated.pages().find((p) => p.url() === vaultUrl);
+        return opened;
       };
       try {
         const vault = await open();
