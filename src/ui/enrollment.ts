@@ -453,7 +453,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           () =>
             confirmAction(
               "Delete this account?",
-              "Make sure another authenticator or service recovery code works first. This removes the encrypted record without a trash copy. Browser storage cannot guarantee forensic erasure.",
+              "Make sure another authenticator or service recovery code works first. This removes the account from the current vault. The recent encrypted recovery copy may retain it until the next save or a master-password change. Browser storage cannot guarantee forensic erasure.",
               "Delete account",
               async (signal) => {
                 const data = session.accounts();
