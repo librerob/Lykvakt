@@ -2266,6 +2266,13 @@ try {
         ).toHaveCount(0);
 
         await expect(vault.locator(".account")).toHaveCount(12);
+        await expect(vault.getByRole("dialog")).toContainText(
+          "Import accounts",
+        );
+        await expect(vault.getByLabel("OTP URIs or export text")).toHaveValue(
+          "",
+        );
+        await vault.getByRole("button", { name: "Close", exact: true }).click();
         await vault.screenshot({
           path: "artifacts/screenshots/window-mode.png",
         });

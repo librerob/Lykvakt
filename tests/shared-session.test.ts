@@ -328,3 +328,30 @@ it("shared sessions use five minutes even when a caller has no UI preferences", 
   expect((state as SessionState).unlock!.timeout).toBe(300_000);
   expect((state as SessionState).unlock!.expires).toBe(now + 300_000);
 }, 60_000);
+
+it("a cancelled unlock cannot replace a newer unlock's lease with its delayed begin result", async () => {
+  const first = await setup();
+  first.detach();
+  const c = cache("delayed");
+  const session = new Session(c);
+  const oldLease = (state as SessionState).epoch;
+  let release!: (value: string) => void;
+  const begin = vi.spyOn(c, "begin").mockImplementationOnce(
+    () =>
+      new Promise<string>((resolve) => {
+        release = resolve;
+      }),
+  );
+  const oldUnlock = session.unlock(password);
+  const rejected = expect(oldUnlock).rejects.toThrow("Unlock cancelled.");
+  await vi.waitFor(() => expect(begin).toHaveBeenCalledTimes(1));
+  session.lock();
+  await broker.request({ action: "expire" }, "worker");
+  await session.unlock(password);
+  release(oldLease);
+  await rejected;
+  expect(session.unlocked).toBe(true);
+  await session.save(session.accounts());
+  expect(session.current().revision).toBe(1);
+  expect(await new Session(cache("reopened")).resume()).toBe(true);
+}, 60_000);

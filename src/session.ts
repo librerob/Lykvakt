@@ -292,7 +292,11 @@ export class Session {
       signal = this.cancellation.signal;
     let raw: Uint8Array<ArrayBuffer> | undefined;
     try {
-      if (this.cache) this.lease = await this.cache.begin();
+      if (this.cache) {
+        const lease = await this.cache.begin();
+        if (epoch !== this.generation) throw new Error("Unlock cancelled.");
+        this.lease = lease;
+      }
       const loaded = await storage.load();
       if (epoch !== this.generation) throw new Error("Unlock cancelled.");
       if (!loaded) throw new Error("No vault exists.");
@@ -348,6 +352,7 @@ export class Session {
         this.accept(value);
       } else if (this.cache) {
         await this.cache.clear();
+        if (epoch !== this.generation) throw new Error("Unlock cancelled.");
         this.lease = undefined;
       }
       this.recovery = recovery;
