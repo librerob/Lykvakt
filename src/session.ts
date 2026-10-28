@@ -211,7 +211,7 @@ export class Session {
       if (epoch !== this.generation) return false;
       const lease = this.lease;
       this.detach();
-      if (lease) await this.cache.clear(lease);
+      if (lease) await this.cache.clear(lease).catch(() => {});
       return false;
     } finally {
       raw?.fill(0);

@@ -17,6 +17,15 @@ export function enrollmentDraft(
       }
   }
   const remember = () => {
+    if (
+      mode === "import" &&
+      [...node.querySelectorAll<HTMLInputElement>('input[type="file"]')].some(
+        (control) => control.files?.length,
+      )
+    ) {
+      ctx.session.rememberDraft();
+      return;
+    }
     const fields: Record<string, string> = {};
     for (const control of node.querySelectorAll<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement

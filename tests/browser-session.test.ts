@@ -89,3 +89,29 @@ it("Lock bypasses a pending request instead of waiting behind saved drafts", asy
   release();
   await beginning;
 });
+
+it("dispatches the latest draft immediately rather than leaving it in a closing popup's queue", async () => {
+  let release!: () => void;
+  send.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = () =>
+          resolve({ ok: true, source: "own-document", value: "lease" });
+      }),
+  );
+  const cache = new BrowserSession(),
+    beginning = cache.begin();
+  await vi.waitFor(() => expect(send).toHaveBeenCalledOnce());
+  const draft = cache.draft("lease", {
+    mode: "add",
+    fields: { issuer: "Example" },
+  });
+  expect(send).toHaveBeenCalledTimes(2);
+  expect(send.mock.calls[1]![0]).toMatchObject({
+    action: "draft",
+    value: { mode: "add", fields: { issuer: "Example" } },
+  });
+  await draft;
+  release();
+  await beginning;
+});

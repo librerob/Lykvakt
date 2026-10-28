@@ -61,3 +61,23 @@ it("ordinary local development does not cache enrollment fields", () => {
   node.dispatchEvent(new Event("input"));
   expect(remember).not.toHaveBeenCalled();
 });
+
+it("does not cache file-derived import text even if the user edits the textarea", () => {
+  const remember = vi.fn();
+  const file = { name: "file", value: "private.json", files: [{}] };
+  const area = { name: "payload", value: "private file contents" };
+  const node = Object.assign(new EventTarget(), {
+    querySelectorAll: (selector: string) =>
+      selector === 'input[type="file"]' ? [file] : [file, area],
+  });
+  const ctx = {
+    isExtension: true,
+    session: { draft: () => undefined, rememberDraft: remember },
+  } as unknown as AppContext;
+  enrollmentDraft(ctx, node as unknown as HTMLFormElement, "import");
+  node.dispatchEvent(new Event("input"));
+  expect(remember).toHaveBeenCalledWith();
+  expect(JSON.stringify(remember.mock.calls)).not.toContain(
+    "private file contents",
+  );
+});

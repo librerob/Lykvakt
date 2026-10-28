@@ -115,6 +115,10 @@ async function importURI(value) {
   await click("Preview import");
   await expect(page.getByRole("dialog")).toContainText("Review import");
   await click("Import 1 account(s)");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "+ Add account", exact: true }),
+  ).toBeVisible();
 }
 async function openMore(row) {
   const details = row.locator(".account-more");
@@ -2484,10 +2488,10 @@ try {
             page.evaluate(
               async () =>
                 (await chrome.storage.session.get("unlockSession"))
-                  .unlockSession?.unlock?.draft?.fields?.issuer,
+                  .unlockSession?.unlock?.draft?.fields?.secret,
             ),
           )
-          .toBe("Draft example");
+          .toBe("JBSWY3DPEHPK3PXP");
         await page.close();
         page = await reopen();
         await expect(page.getByRole("dialog")).toContainText("Add account");

@@ -35,8 +35,11 @@ export class BrowserSession implements SessionCache {
       this.source = response.source;
       return response.value;
     };
-    // Revocation must not wait behind queued draft writes or activity reports.
-    const work = action === "lock" ? send() : this.pending.then(send);
+    // Dispatch revocation and the latest form snapshot before a popup can close.
+    const work =
+      action === "lock" || action === "draft"
+        ? send()
+        : this.pending.then(send);
     this.pending = work.catch(() => {});
     return work;
   }
