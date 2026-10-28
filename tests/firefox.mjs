@@ -192,7 +192,7 @@ async function check(name, action) {
 }
 async function openPopup() {
   await system(
-    "const w=[...Services.wm.getEnumerator('navigator:browser')].find(w=>w.toolbar.visible);const {CustomizableUI}=ChromeUtils.importESModule('resource:///modules/CustomizableUI.sys.mjs');CustomizableUI.addWidgetToArea(arguments[0],CustomizableUI.AREA_NAVBAR);w.focus();w.document.getElementById(arguments[0]).click();",
+    "const w=[...Services.wm.getEnumerator('navigator:browser')].find(w=>w.toolbar.visible);const CustomizableUI=w.CustomizableUI;CustomizableUI.addWidgetToArea(arguments[0],CustomizableUI.AREA_NAVBAR);w.focus();w.document.getElementById(arguments[0]).click();",
     [widget],
   );
   popup = true;
