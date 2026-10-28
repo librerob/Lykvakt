@@ -35,3 +35,20 @@ it.each([true, false])(
     expect(resume).toHaveBeenCalledTimes(2);
   },
 );
+
+it.each([true, false])(
+  "shared sessions mask on blur and detach locally on pagehide in popup=%s",
+  (mode) => {
+    const page = Object.assign(new EventTarget(), { hidden: true }),
+      view = new EventTarget();
+    const session = { lock: vi.fn(), detach: vi.fn() },
+      mask = vi.fn();
+    installViewLock(mode, session, page, view, mask, vi.fn(), true);
+    view.dispatchEvent(new Event("blur"));
+    page.dispatchEvent(new Event("visibilitychange"));
+    expect(mask).toHaveBeenCalledTimes(2);
+    expect(session.lock).not.toHaveBeenCalled();
+    view.dispatchEvent(new Event("pagehide"));
+    expect(session.detach).toHaveBeenCalledOnce();
+  },
+);

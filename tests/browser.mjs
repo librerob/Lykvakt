@@ -115,6 +115,10 @@ async function importURI(value) {
   await click("Preview import");
   await expect(page.getByRole("dialog")).toContainText("Review import");
   await click("Import 1 account(s)");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "+ Add account", exact: true }),
+  ).toBeVisible();
 }
 async function openMore(row) {
   const details = row.locator(".account-more");
@@ -202,6 +206,38 @@ async function screenshot(name) {
     fullPage: false,
   });
   if (old) await page.setViewportSize(old);
+}
+
+async function sharedProfile(action) {
+  const prior = page;
+  const isolated = await launch(
+    await mkdtemp(join(tmpdir(), "lykvakt-shared-")),
+  );
+  const reopen = async () => {
+    const view = await isolated.newPage();
+    view.on("pageerror", (error) => errors.push(error.message));
+    await view.goto(`chrome-extension://${id}/index.html`);
+    await expect(view.locator("#app")).toHaveAttribute("aria-busy", "false");
+    return view;
+  };
+  try {
+    page = await reopen();
+    await page
+      .getByLabel("Create a master password", { exact: true })
+      .fill(password);
+    await page
+      .getByLabel("Confirm master password", { exact: true })
+      .fill(password);
+    await click("Create encrypted vault");
+    await expect(
+      page.getByRole("button", { name: "Lock", exact: true }),
+    ).toBeVisible();
+    await action({ isolated, reopen });
+  } finally {
+    await isolated.close();
+    page = prior;
+    await page.bringToFront();
+  }
 }
 
 try {
@@ -297,6 +333,7 @@ try {
       await keyboardDetails();
       await click("Got it");
       await expect(tips).toHaveCount(0);
+      await click("Lock");
       await page.reload();
       await expect(
         page.getByLabel("Master password", { exact: true }),
@@ -709,9 +746,19 @@ try {
     "removed capabilities are absent from the manifest and settings",
     async () => {
       const manifest = await page.evaluate(() => chrome.runtime.getManifest());
-      expect(manifest.permissions).toEqual(["clipboardWrite"]);
+      expect(manifest.permissions).toEqual([
+        "clipboardWrite",
+        "storage",
+        "alarms",
+      ]);
       expect(manifest.optional_permissions).toBeUndefined();
-      expect(manifest.background).toBeUndefined();
+      expect(manifest.background).toEqual({
+        service_worker: "background.js",
+        type: "module",
+      });
+      expect(manifest.host_permissions).toBeUndefined();
+      expect(manifest.content_scripts).toBeUndefined();
+      expect(manifest.externally_connectable).toBeUndefined();
       await expect(
         page.getByRole("button", { name: "Fill", exact: true }),
       ).toHaveCount(0);
@@ -1002,14 +1049,20 @@ try {
     });
     expect(JSON.stringify(data)).not.toContain(secret);
     expect(JSON.stringify(data)).not.toContain("demo@example.test");
-    expect(data.permissions).toEqual(["clipboardWrite"]);
+    expect(data.permissions).toEqual(["clipboardWrite", "storage", "alarms"]);
   });
-  await check("page reload drops unlocked keys", async () => {
-    await page.reload();
-    await expect(
-      page.getByRole("heading", { name: "Welcome back." }),
-    ).toBeVisible();
-  });
+  await check(
+    "page reload restores only an unexpired shared unlock session",
+    async () => {
+      await page.reload();
+      await expect(
+        page.getByRole("button", { name: "Lock", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByLabel("Master password", { exact: true }),
+      ).toHaveCount(0);
+    },
+  );
   await check("narrow viewport has no horizontal overflow", async () => {
     await page.setViewportSize({ width: 360, height: 640 });
     expect(
@@ -2055,8 +2108,12 @@ try {
           };
         });
         for (const existing of [false, true]) {
-          if (existing) await startup.reload();
-          else await startup.goto(`chrome-extension://${id}/index.html`);
+          if (existing) {
+            await startup
+              .getByRole("button", { name: "Lock", exact: true })
+              .click();
+            await startup.reload();
+          } else await startup.goto(`chrome-extension://${id}/index.html`);
           await expect
             .poll(() =>
               startup.evaluate(() => typeof window.__releaseVaultLoad),
@@ -2109,7 +2166,7 @@ try {
     },
   );
   await check(
-    "popup pastes imports and hands file selection to an independently locked window",
+    "popup pastes imports and shares its timed session with the file-selection window",
     async () => {
       const isolated = await launch(
         await mkdtemp(join(tmpdir(), "lykvakt-popup-")),
@@ -2148,7 +2205,7 @@ try {
         await expect(popup.locator('input[type="file"]')).toHaveCount(0);
         await expect(
           popup.getByText(
-            "Chrome can close this small popup while you pick a file. The window will ask for your password.",
+            "Chrome can close this small popup while you pick a file. The window uses your current unlock session.",
           ),
         ).toBeVisible();
         const links = Array.from(
@@ -2205,13 +2262,17 @@ try {
         const vault = isolated.pages().find((p) => p.url() === base);
         await vault.setViewportSize({ width: 400, height: 700 });
         await expect(
-          vault.getByRole("heading", { name: "Welcome back." }),
-        ).toBeVisible();
-        await vault.getByLabel("Master password", { exact: true }).fill("x");
-        await vault
-          .getByRole("button", { name: "Unlock vault", exact: true })
-          .click();
+          vault.getByLabel("Master password", { exact: true }),
+        ).toHaveCount(0);
+
         await expect(vault.locator(".account")).toHaveCount(12);
+        await expect(vault.getByRole("dialog")).toContainText(
+          "Import accounts",
+        );
+        await expect(vault.getByLabel("OTP URIs or export text")).toHaveValue(
+          "",
+        );
+        await vault.getByRole("button", { name: "Close", exact: true }).click();
         await vault.screenshot({
           path: "artifacts/screenshots/window-mode.png",
         });
@@ -2251,6 +2312,15 @@ try {
       await expect(timeout).toHaveValue("300000");
       await screenshot("settings");
       await timeout.selectOption("60000");
+      await expect
+        .poll(() =>
+          page.evaluate(
+            async () =>
+              (await chrome.storage.session.get("unlockSession")).unlockSession
+                ?.unlock?.timeout,
+          ),
+        )
+        .toBe(60000);
       await page.clock.fastForward(61_000);
       await expect(
         page.getByRole("heading", { name: "Welcome back." }),
@@ -2261,6 +2331,15 @@ try {
         "60000",
       );
       await page.getByLabel("Auto-lock", { exact: true }).selectOption("0");
+      await expect
+        .poll(() =>
+          page.evaluate(
+            async () =>
+              (await chrome.storage.session.get("unlockSession")).unlockSession
+                ?.unlock?.timeout,
+          ),
+        )
+        .toBe(0);
       await page.clock.fastForward(3_700_000);
       await expect(
         page.getByRole("button", { name: "Lock", exact: true }),
@@ -2302,7 +2381,11 @@ try {
               exact: true,
             })
             .click();
-        } else {
+        } else if (
+          await popup
+            .getByRole("button", { name: "Unlock vault", exact: true })
+            .count()
+        ) {
           await popup.getByLabel("Master password", { exact: true }).fill("x");
           await popup
             .getByRole("button", { name: "Unlock vault", exact: true })
@@ -2317,18 +2400,24 @@ try {
         await expect
           .poll(() => isolated.pages().some((p) => p.url() === vaultUrl))
           .toBe(true);
+        const opened = isolated.pages().find((p) => p.url() === vaultUrl);
+        // Let the window action finish before destroying its sender.
+        await expect
+          .poll(() =>
+            opened.evaluate(
+              async () => (await chrome.windows.getCurrent()).state,
+            ),
+          )
+          .toBe("normal");
         await popup.close();
-        return isolated.pages().find((p) => p.url() === vaultUrl);
+        return opened;
       };
       try {
         const vault = await open();
         await expect(
-          vault.getByRole("heading", { name: "Welcome back." }),
-        ).toBeVisible();
-        await vault.getByLabel("Master password", { exact: true }).fill("x");
-        await vault
-          .getByRole("button", { name: "Unlock vault", exact: true })
-          .click();
+          vault.getByLabel("Master password", { exact: true }),
+        ).toHaveCount(0);
+
         await expect(
           vault.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible();
@@ -2367,12 +2456,9 @@ try {
         await vault.close();
         const reopened = await open();
         await expect(
-          reopened.getByRole("heading", { name: "Welcome back." }),
-        ).toBeVisible();
-        await reopened.getByLabel("Master password", { exact: true }).fill("x");
-        await reopened
-          .getByRole("button", { name: "Unlock vault", exact: true })
-          .click();
+          reopened.getByLabel("Master password", { exact: true }),
+        ).toHaveCount(0);
+
         await expect(
           reopened.getByRole("button", { name: "+ Add account", exact: true }),
         ).toBeVisible();
@@ -2397,6 +2483,205 @@ try {
       ).toHaveCount(0);
       await plainPrimaryUI();
     },
+  );
+
+  await check(
+    "popup closure and worker restart preserve a bounded enrollment draft without another password",
+    () =>
+      sharedProfile(async ({ isolated, reopen }) => {
+        await click("+ Add account");
+        await page
+          .getByLabel("Service name", { exact: true })
+          .fill("Draft example");
+        await page
+          .getByLabel("Account identifier", { exact: true })
+          .fill("synthetic");
+        await page
+          .getByLabel("Setup key", { exact: true })
+          .fill("JBSWY3DPEHPK3PXP");
+        await expect
+          .poll(() =>
+            page.evaluate(
+              async () =>
+                (await chrome.storage.session.get("unlockSession"))
+                  .unlockSession?.unlock?.draft?.fields?.secret,
+            ),
+          )
+          .toBe("JBSWY3DPEHPK3PXP");
+        await page.close();
+        page = await reopen();
+        await expect(page.getByRole("dialog")).toContainText("Add account");
+        await expect(
+          page.getByLabel("Service name", { exact: true }),
+        ).toHaveValue("Draft example");
+        await expect(page.getByLabel("Setup key", { exact: true })).toHaveValue(
+          "JBSWY3DPEHPK3PXP",
+        );
+        await expect(
+          page.getByLabel("Master password", { exact: true }),
+        ).toHaveCount(0);
+        expect(
+          await page.evaluate(async () => ({
+            local: await chrome.storage.local.get(null),
+            sync: await chrome.storage.sync.get(null),
+          })),
+        ).toEqual({ local: {}, sync: {} });
+        await page.close();
+        const driver = await isolated.browser().newBrowserCDPSession();
+        const worker = (
+          await driver.send("Target.getTargets")
+        ).targetInfos.find(
+          (t) =>
+            t.type === "service_worker" &&
+            t.url === `chrome-extension://${id}/background.js`,
+        );
+        expect(worker).toBeDefined();
+        expect(
+          (
+            await driver.send("Target.closeTarget", {
+              targetId: worker.targetId,
+            })
+          ).success,
+        ).toBe(true);
+        await expect
+          .poll(async () =>
+            (await driver.send("Target.getTargets")).targetInfos.some(
+              (t) => t.targetId === worker.targetId,
+            ),
+          )
+          .toBe(false);
+        page = await reopen();
+        await expect(page.getByRole("dialog")).toContainText("Add account");
+        await expect(
+          page.getByLabel("Service name", { exact: true }),
+        ).toHaveValue("Draft example");
+        await expect(
+          page.getByLabel("Master password", { exact: true }),
+        ).toHaveCount(0);
+        await click("Close");
+        await expect
+          .poll(() =>
+            page.evaluate(
+              async () =>
+                (await chrome.storage.session.get("unlockSession"))
+                  .unlockSession?.unlock?.draft,
+            ),
+          )
+          .toBeUndefined();
+        await driver.detach();
+      }),
+  );
+  await check(
+    "manual Lock and an overdue deadline block every view without relying on an alarm",
+    () =>
+      sharedProfile(async ({ reopen }) => {
+        const two = await reopen();
+        await expect(
+          two.getByRole("button", { name: "Lock", exact: true }),
+        ).toBeVisible();
+        await click("Lock");
+        await expect(
+          two.getByLabel("Master password", { exact: true }),
+        ).toBeVisible();
+        await expect
+          .poll(() =>
+            two.evaluate(async () =>
+              Boolean(
+                (await chrome.storage.session.get("unlockSession"))
+                  .unlockSession?.unlock,
+              ),
+            ),
+          )
+          .toBe(false);
+        await unlock();
+        await two.reload();
+        await expect(
+          two.getByRole("button", { name: "Lock", exact: true }),
+        ).toBeVisible();
+        await page.evaluate(async () => {
+          const { unlockSession: state } =
+            await chrome.storage.session.get("unlockSession");
+          state.unlock.touched = Date.now() - state.unlock.timeout - 1000;
+          state.unlock.checkedAt = state.unlock.touched;
+          state.unlock.expires = state.unlock.touched + state.unlock.timeout;
+          state.source = "synthetic-expiry";
+          await chrome.alarms.clear("vault-expiry");
+          await chrome.storage.session.set({ unlockSession: state });
+        });
+        await page.reload();
+        await expect(
+          page.getByLabel("Master password", { exact: true }),
+        ).toBeVisible();
+        await expect(
+          two.getByLabel("Master password", { exact: true }),
+        ).toBeVisible();
+        const three = await reopen();
+        await expect(
+          three.getByLabel("Master password", { exact: true }),
+        ).toBeVisible();
+        await expect(three.locator(".account")).toHaveCount(0);
+        await expect
+          .poll(() =>
+            three.evaluate(async () =>
+              Boolean(
+                (await chrome.storage.session.get("unlockSession"))
+                  .unlockSession?.unlock,
+              ),
+            ),
+          )
+          .toBe(false);
+      }),
+  );
+  await check(
+    "password rotation revokes the shared session and reopened views require the new password",
+    () =>
+      sharedProfile(async ({ reopen }) => {
+        const two = await reopen();
+        await expect(
+          two.getByRole("button", { name: "Lock", exact: true }),
+        ).toBeVisible();
+        await click("Settings");
+        await click("Change master password");
+        await page
+          .getByLabel("Current master password", { exact: true })
+          .fill(password);
+        await page
+          .getByLabel("New master password", { exact: true })
+          .fill("new synthetic password");
+        await page
+          .getByLabel("Confirm new master password", { exact: true })
+          .fill("new synthetic password");
+        await click("Change password");
+        await expect(page.getByRole("dialog")).toHaveCount(0);
+        await expect(page.getByRole("status")).toContainText(
+          "Master password changed",
+        );
+        await expect(
+          two.getByLabel("Master password", { exact: true }),
+        ).toBeVisible();
+        await page.close();
+        page = await reopen();
+        await expect(
+          page.getByLabel("Master password", { exact: true }),
+        ).toBeVisible();
+        await page
+          .getByLabel("Master password", { exact: true })
+          .fill(password);
+        await click("Unlock vault");
+        await expect(page.getByRole("status")).toContainText(
+          "Authentication failed",
+        );
+        await expect(
+          page.getByLabel("Master password", { exact: true }),
+        ).toHaveValue("");
+        await page
+          .getByLabel("Master password", { exact: true })
+          .fill("new synthetic password");
+        await click("Unlock vault");
+        await expect(
+          page.getByRole("button", { name: "Lock", exact: true }),
+        ).toBeVisible();
+      }),
   );
   await check("no external requests during vault workflows", async () =>
     expect(network).toEqual([]),

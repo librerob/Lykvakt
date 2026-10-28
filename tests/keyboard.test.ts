@@ -17,19 +17,23 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-it("declares only clipboardWrite and a reserved popup command with platform-specific keys", () => {
+it("declares the minimal session permissions and a reserved popup command with platform-specific keys", () => {
   const manifest = JSON.parse(
     readFileSync(new URL("../public/manifest.json", import.meta.url), "utf8"),
   );
-  expect(manifest.permissions).toEqual(["clipboardWrite"]);
+  expect(manifest.permissions).toEqual(["clipboardWrite", "storage", "alarms"]);
   for (const field of [
     "host_permissions",
     "optional_permissions",
     "optional_host_permissions",
-    "background",
     "content_scripts",
   ])
     expect(manifest[field]).toBeUndefined();
+  expect(manifest.background).toEqual({
+    service_worker: "background.js",
+    type: "module",
+  });
+  expect(manifest.externally_connectable).toBeUndefined();
   expect(manifest.commands).toEqual({
     _execute_action: {
       suggested_key: { default: "Ctrl+Shift+Y", mac: "Command+Shift+Y" },

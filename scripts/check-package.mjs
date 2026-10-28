@@ -2,10 +2,13 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import assert from "node:assert/strict";
 const manifest = JSON.parse(await readFile("dist/manifest.json", "utf8"));
 assert.equal(manifest.manifest_version, 3);
-assert.deepEqual(manifest.permissions, ["clipboardWrite"]);
+assert.deepEqual(manifest.permissions, ["clipboardWrite", "storage", "alarms"]);
 assert.equal(manifest.optional_permissions, undefined);
 assert.equal(manifest.optional_host_permissions, undefined);
-assert.equal(manifest.background, undefined);
+assert.deepEqual(manifest.background, {
+  service_worker: "background.js",
+  type: "module",
+});
 assert.equal(manifest.host_permissions, undefined);
 assert.equal(manifest.content_scripts, undefined);
 assert.equal(manifest.externally_connectable, undefined);
@@ -17,6 +20,7 @@ assert(
 );
 for (const path of [
   "index.html",
+  manifest.background.service_worker,
   manifest.action.default_popup,
   ...Object.values(manifest.icons),
 ])
@@ -52,7 +56,7 @@ async function scan(dir) {
         "Forbidden compiled runtime: " + path,
       );
       assert(
-        !/\beval\s*\(|new Function\s*\(|https?:\/\/[^\s"']+\.js\b|chrome\.storage\.sync/.test(
+        !/\beval\s*\(|new Function\s*\(|https?:\/\/[^\s"']+\.js\b|chrome\.storage\.(?:local|sync)/.test(
           code,
         ),
         "Forbidden runtime behavior: " + path,

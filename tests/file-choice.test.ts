@@ -26,7 +26,7 @@ it.each([true, false])(
     ).toBe(isPopup);
     if (isPopup)
       expect(dialog.textContent).toContain(
-        "The window will ask for your password.",
+        "The window uses your current unlock session.",
       );
   },
 );

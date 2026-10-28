@@ -1,3 +1,4 @@
+import { BrowserSession } from "./browser-session";
 import { DialogLifetime } from "./dialog";
 import { dialogOperation } from "./ui/context";
 import { OldFormatError } from "./format";
@@ -17,7 +18,8 @@ import { createSettings } from "./ui/settings";
 import { createWelcome } from "./ui/welcome";
 import type { AppContext, AppState } from "./ui/context";
 const root = document.querySelector<HTMLDivElement>("#app")!;
-const session = new Session();
+const isExtension = !!globalThis.chrome?.runtime?.id;
+const session = new Session(isExtension ? new BrowserSession() : undefined);
 const state: AppState = {
   exists: false,
   view: "codes",
@@ -27,13 +29,13 @@ let loading = true;
 let dialog: HTMLDialogElement | undefined;
 const dialogLifetime = new DialogLifetime();
 let status: HTMLElement;
-const isExtension = !!globalThis.chrome?.runtime?.id;
 const isPopup = isPopupMode(location.search);
 document.body.classList.add(isPopup ? "popup-mode" : "window-mode");
-session.timeout = preferredAutoLockTimeout();
+session.timeout = preferredAutoLockTimeout(isExtension);
 async function run(action: () => void | Promise<void>): Promise<void> {
   const originDialog = dialog;
   try {
+    if (session.unlocked) await session.validate();
     await action();
   } catch (error) {
     if (
@@ -60,8 +62,9 @@ function announce(message: string, error = false, technical?: string): void {
     (error ? "status error" : "status") + (dialog ? " dialog-status" : "");
 }
 
-function closeDialog(): void {
+function closeDialog(keepDraft = false): void {
   const previous = dialog;
+  if (previous && !keepDraft) session.rememberDraft();
   dialog = undefined;
   dialogLifetime.close();
   previous?.querySelectorAll("form").forEach((form) => form.reset());
@@ -158,15 +161,40 @@ installEscape(document, accounts.clearSearch, () => !!dialog);
 session.onlock = () => {
   state.backupDismissed = false;
   accounts.clear();
-  closeDialog();
+  closeDialog(true);
 
   render();
 };
+let resuming = false;
 function refreshWindow(): void {
-  if (!session.unlocked) return;
+  if (!session.unlocked) {
+    if (
+      isExtension &&
+      !loading &&
+      state.exists &&
+      !state.oldVault &&
+      !state.recovery &&
+      !resuming
+    ) {
+      resuming = true;
+      void session
+        .resume()
+        .then((open) => {
+          if (open) {
+            render();
+            if (session.draft()) void accounts.resumeDraft();
+          }
+        })
+        .finally(() => {
+          resuming = false;
+        });
+    }
+    return;
+  }
   try {
     session.check();
-    if (state.view === "codes" && !document.hidden) void run(accounts.tick);
+    if (state.view === "codes" && !document.hidden)
+      void accounts.tick().catch(() => {});
   } catch {
     // Expiry already rendered the locked view.
   }
@@ -178,6 +206,7 @@ installViewLock(
   window,
   accounts.mask,
   refreshWindow,
+  isExtension,
 );
 
 for (const event of ["pointerdown", "keydown"])
@@ -199,7 +228,8 @@ setInterval(() => {
   if (session.unlocked) {
     try {
       session.check();
-      if (state.view === "codes" && !document.hidden) void run(accounts.tick);
+      if (state.view === "codes" && !document.hidden)
+        void accounts.tick().catch(() => {});
     } catch {
       /* Expired session. */
     }
@@ -289,9 +319,12 @@ void run(async () => {
     state.exists = !!loaded;
     state.oldVault = loaded && isOldVault(loaded) ? loaded : undefined;
     state.recovery = loaded && isRecoveryOffer(loaded) ? loaded : undefined;
+    if (isExtension && loaded && !state.oldVault && !state.recovery)
+      await session.resume();
   } finally {
     loading = false;
     render();
+    if (session.unlocked && session.draft()) await accounts.resumeDraft();
   }
 });
 render();

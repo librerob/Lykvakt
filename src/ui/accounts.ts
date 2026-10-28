@@ -523,5 +523,16 @@ export function createAccounts(ctx: AppContext) {
     );
   }
 
-  return { codesView, tick, clear, mask, clearSearch, preview, importAccounts };
+  const resumeDraft = () =>
+    run(() => enrollment((tools) => tools.resumeDraft()));
+  return {
+    codesView,
+    tick,
+    clear,
+    mask,
+    clearSearch,
+    preview,
+    importAccounts,
+    resumeDraft,
+  };
 }

@@ -314,12 +314,14 @@ export async function createEnvelope(
   data: VaultData,
   kind: Header["kind"] = "vault",
   signal?: AbortSignal,
+  captureKey?: (raw: Uint8Array<ArrayBuffer>) => void,
 ): Promise<{ envelope: Envelope; key: CryptoKey }> {
   const raw = random(32),
     id = crypto.randomUUID();
   try {
     const slot = await makePasswordSlot(raw, password, id, kind, signal);
     const key = await importVaultKey(raw);
+    captureKey?.(raw);
     return {
       envelope: await seal(
         {
@@ -344,6 +346,7 @@ export async function decryptEnvelope(
   password: string,
   kind?: Header["kind"],
   signal?: AbortSignal,
+  captureKey?: (raw: Uint8Array<ArrayBuffer>) => void,
 ): Promise<{ envelope: Envelope; key: CryptoKey; data: VaultData }> {
   const envelope = validateEnvelope(input, kind);
   const raw = await unwrapPassword(envelope, password, signal);
@@ -351,6 +354,7 @@ export async function decryptEnvelope(
     const key = await importVaultKey(raw),
       data = await open(envelope, key);
     signal?.throwIfAborted();
+    captureKey?.(raw);
     return { envelope, key, data };
   } finally {
     raw.fill(0);

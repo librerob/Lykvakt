@@ -4,7 +4,7 @@ Lykvakt is a personal project and has not received an independent security audit
 
 TOTP codes can be phished. Malware or hostile code on your device can read secrets while the vault is unlocked. Nonextractable keys and buffer clearing don't make a compromised device safe, and JavaScript cannot guarantee that all copies have been erased from memory. There is no password reset or server recovery.
 
-The [design guide](docs/design.md) explains the fixed Argon2id settings and their bounds, Web Crypto AES-GCM/AES-KW, strict schemas, authenticated headers, transactional revision checks and keys held only by the open extension page. If you're moving from an earlier preview, export through the old app before updating. Keep those OTP links private and check the import before removing them.
+The [design guide](docs/design.md) explains the fixed Argon2id settings and their bounds, Web Crypto AES-GCM/AES-KW, strict schemas, authenticated headers, transactional revision checks and temporary, memory-only unlock sessions shared between extension views. If you're moving from an earlier preview, export through the old app before updating. Keep those OTP links private and check the import before removing them.
 
 ## Reporting a vulnerability
 

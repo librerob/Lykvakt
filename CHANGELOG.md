@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Keep a timed unlock session across popup closures, with a five-minute default and shared Lock. Small unfinished account-entry forms resume during the session.
+- Add a local background session worker and the storage/alarms permissions; website access and network access remain disabled. Password changes revoke the shared session.
+
 ## 0.5.1 — 27 October 2026
 
 - Restore the quick toolbar popup, with an explicit window for native file selection and a five-minute window timer.

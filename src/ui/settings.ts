@@ -27,8 +27,11 @@ export function createSettings(ctx: AppContext) {
       String(session.timeout),
     );
     timeout.control.addEventListener("change", () => {
-      session.timeout = Number(timeout.control.value);
-      savePreference("timeout", String(session.timeout));
+      void run(async () => {
+        await session.setTimeout(Number(timeout.control.value));
+        savePreference("timeout", String(session.timeout));
+        savePreference("sessionTimeoutConfirmed", "true");
+      });
     });
     return el(
       "section",
@@ -50,9 +53,7 @@ export function createSettings(ctx: AppContext) {
         el(
           "p",
           { class: "hint" },
-          ctx.isPopup
-            ? "This popup locks when it closes or loses focus. The timer applies while it is open and to the separate window."
-            : "This window locks after 5 minutes of inactivity by default. Choose another timer or When this window closes. Switching away keeps it open; closing or reloading it locks it.",
+          "Stay unlocked across popup and window closures until this timer expires. The default is 5 minutes of inactivity. Lock ends the session in every view; restarting Chrome asks for your password again.",
         ),
         ctx.isPopup
           ? button("Open in a window", () => run(openVault), "button text")

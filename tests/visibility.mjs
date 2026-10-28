@@ -124,10 +124,33 @@ try {
   await hideTab(popup);
   await popup.bringToFront();
   await expect(
+    popup.getByRole("button", { name: "Lock", exact: true }),
+  ).toBeVisible();
+  await expect(
     popup.getByRole("heading", { name: "Welcome back." }),
+  ).toHaveCount(0);
+  await popup.close();
+  const reopened = await context.newPage();
+  await reopened.goto(`chrome-extension://${id}/index.html`);
+  await expect(
+    reopened.getByRole("button", { name: "Lock", exact: true }),
+  ).toBeVisible();
+  await expect(
+    reopened.getByLabel("Master password", { exact: true }),
+  ).toHaveCount(0);
+  await page.bringToFront();
+  await expect(
+    page.getByRole("button", { name: "Lock", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Lock", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Welcome back." }),
+  ).toBeVisible();
+  await expect(
+    reopened.getByRole("heading", { name: "Welcome back." }),
   ).toBeVisible();
   console.log(
-    "PASS headed Chromium window switching stays unlocked; popup switching and explicit Lock lock the vault",
+    "PASS headed Chromium switching and popup reopening retain the timed session; explicit Lock locks every view",
   );
 } finally {
   if (browser) {

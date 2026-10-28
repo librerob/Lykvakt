@@ -4,7 +4,6 @@ import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 const files = {};
 const removed = new Set([
-  "background.js",
   "directory.json",
   "directory-meta.json",
   "licenses/2fa-directory-data.txt",

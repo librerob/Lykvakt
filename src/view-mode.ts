@@ -4,18 +4,21 @@ export function isPopupMode(search: string): boolean {
 }
 export function installViewLock(
   isPopup: boolean,
-  session: Pick<Session, "lock">,
+  session: Pick<Session, "lock"> & Partial<Pick<Session, "detach">>,
   page: Pick<Document, "hidden" | "addEventListener">,
   view: Pick<Window, "addEventListener">,
   mask: () => void,
   resume: () => void,
+  shared = false,
 ): void {
-  const leave = () => (isPopup ? session.lock() : mask());
+  const leave = () => (isPopup && !shared ? session.lock() : mask());
   page.addEventListener("visibilitychange", () => {
     if (page.hidden) leave();
     else resume();
   });
   view.addEventListener("blur", leave);
   view.addEventListener("focus", resume);
-  view.addEventListener("pagehide", () => session.lock());
+  view.addEventListener("pagehide", () =>
+    shared && session.detach ? session.detach() : session.lock(),
+  );
 }

@@ -27,7 +27,7 @@ The relevant tests are grouped here so you don't have to find them from scratch:
 
 ## Claims and limits
 
-The design guide explains the claims these checks are intended to support. Passing tests is not an audit. The manifest permissions are exactly ["clipboardWrite"], and runtime code is bundled locally. No WebAssembly or remote code is shipped.
+The design guide explains the claims these checks are intended to support. Passing tests is not an audit. The manifest permissions are exactly ["clipboardWrite", "storage", "alarms"], and runtime code is bundled locally. No WebAssembly or remote code is shipped.
 
 TOTP codes can be phished. A compromised device or hostile extension update can read unlocked data. There is no password reset, escrow or recovery server.
 
@@ -79,3 +79,5 @@ npm run test:browser
 ```
 
 CI also runs axe and the headed focus-switch and manual-lock check. The design guide lists manual and unverified checks; a passing CI run isn't evidence for behavior those checks don't cover.
+
+Review the session broker as a security boundary: sender validation, deadline checks independent of alarms, stale-record binding, cross-view Lock, cancellation, key rotation and temporary enrollment drafts. Browser-session memory retains sensitive unlock material longer than immediate popup locking.
