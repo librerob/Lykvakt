@@ -318,6 +318,11 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
               sourcePassword.control.value = "";
             }
           }),
+        el(
+          "p",
+          { class: "hint" },
+          "OTP setup link drafts can resume during this unlock session. Other pasted export text stays only in this form and is not remembered when you close it.",
+        ),
         sourcePassword.wrapper,
 
         el(
@@ -453,7 +458,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           () =>
             confirmAction(
               "Delete this account?",
-              "Make sure another authenticator or service recovery code works first. This removes the encrypted record without a trash copy. Browser storage cannot guarantee forensic erasure.",
+              "Make sure another authenticator or service recovery code works first. This removes the account from the current vault. The recent encrypted recovery copy may retain it until the next save or a master-password change. Browser storage cannot guarantee forensic erasure.",
               "Delete account",
               async (signal) => {
                 const data = session.accounts();

@@ -46,7 +46,7 @@ Save an encrypted backup somewhere outside the browser, then choose **Verify or 
 
 Imports recognise supported formats and show any skipped entries before you save. The [design and recovery guide](docs/design.md) explains the formats, migration steps and compatibility limits. Steam support covers sign-in codes; it doesn't handle trade or market confirmations.
 
-You can close the popup, copy something from a website and reopen Lykvakt without entering your password again. The shared unlock session expires after five minutes of inactivity by default. Settings offers other timers and **When the browser restarts**. **Lock** ends the session in every open view. Small unfinished Add account and pasted-import forms are remembered only during that session; passwords are never remembered. File and QR-image selection still uses the separate window. Password length is your choice, with a long, unique passphrase recommended. Help & documentation works offline, with an optional [full usage guide](docs/usage.md). Import, export and backups live together in **Backup**.
+You can close the popup, copy something from a website and reopen Lykvakt without entering your password again. The shared unlock session expires after five minutes of inactivity by default. Settings offers other timers and **When the browser restarts**. **Lock** ends the session in every open view. Small unfinished Add account forms and pasted OTP setup links are remembered only during that session. Other pasted exports stay only in the open form; authentication passwords are never remembered. File and QR-image selection still uses the separate window. Password length is your choice, with a long, unique passphrase recommended. Help & documentation works offline, with an optional [full usage guide](docs/usage.md). Import, export and backups live together in **Backup**.
 
 ## Under the hood
 
@@ -61,3 +61,7 @@ TOTP codes can be phished, and a compromised device can read unlocked secrets. T
 I want bugs to have as little browser access as possible. Lykvakt uses three permissions: `clipboardWrite` for copying codes, `storage` for temporary unlock sessions, and `alarms` for expiry. A small background service worker manages that session in Chrome and Edge; Firefox uses an event page. There are no content scripts, host permissions or external-message entry points. It never reads or changes web pages.
 
 All runtime code ships with the extension. A strict CSP blocks remote scripts and external connections, and the build checks those restrictions. There is no WebAssembly, server, telemetry, advertising or subscription. Accounts and imports stay on your device, and optional tools load only when needed. The design guide and [privacy policy](PRIVACY.md) explain what is stored and where.
+
+## License
+
+GPL-3.0-or-later. See [LICENSE](LICENSE).

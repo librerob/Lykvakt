@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Lykvakt",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "Offline authenticator with encrypted storage, Steam support, local imports, verified backups and timed unlock sessions.",
   "minimum_chrome_version": "120",
   "permissions": ["clipboardWrite", "storage", "alarms"],

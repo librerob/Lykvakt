@@ -1,7 +1,6 @@
 name: Other browsers
 on:
-  push:
-  pull_request:
+  workflow_call:
 permissions:
   contents: read
 jobs:

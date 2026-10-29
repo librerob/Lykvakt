@@ -12,7 +12,7 @@ on:
 permissions:
   contents: read
 jobs:
-  validate:
+  chrome:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -67,6 +67,20 @@ jobs:
             artifacts/*.sha256
           if-no-files-found: ignore
           retention-days: 14
+  browsers:
+    uses: ./.github/workflows/browsers.yml
+  validate:
+    if: ${{ always() }}
+    needs: [chrome, browsers]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every browser validation to pass
+        env:
+          CHROME_RESULT: ${{ needs.chrome.result }}
+          BROWSER_RESULT: ${{ needs.browsers.result }}
+        run: |
+          test "$CHROME_RESULT" = success
+          test "$BROWSER_RESULT" = success
   release:
     if: github.event_name == 'workflow_dispatch' && inputs.prepare_release && github.ref == 'refs/heads/main'
     needs: validate
@@ -79,18 +93,31 @@ jobs:
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: synthetic-validation
-          path: release-assets
+          path: release-assets/chrome
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: edge-validation
+          path: release-assets/edge
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: firefox-validation
+          path: release-assets/firefox
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
       - name: Prepare the draft without replacing a published release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          node -e "const fs=require('fs');const text=fs.readFileSync('CHANGELOG.md','utf8').split(/\n## /)[1];fs.writeFileSync('release-notes.md','## '+text)"
+          node scripts/verify-release.mjs release-assets "$GITHUB_SHA"
           version=$(node -p "require('./package.json').version")
           tag="v$version"
           if gh release view "$tag" --json isDraft --jq '.isDraft' > draft-state.txt 2>/dev/null; then
             test "$(cat draft-state.txt)" = true
             gh release edit "$tag" --target "$GITHUB_SHA" --notes-file release-notes.md --prerelease --draft
-            gh release upload "$tag" release-assets/*.zip release-assets/*.sha256 --clobber
+            gh release upload "$tag" release-assets/*/*.zip release-assets/*/*.sha256 --clobber
           else
-            gh release create "$tag" release-assets/*.zip release-assets/*.sha256 --target "$GITHUB_SHA" --title "Lykvakt $version" --notes-file release-notes.md --prerelease --draft
+            gh release create "$tag" release-assets/*/*.zip release-assets/*/*.sha256 --target "$GITHUB_SHA" --title "Lykvakt $version" --notes-file release-notes.md --prerelease --draft
           fi

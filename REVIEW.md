@@ -1,6 +1,6 @@
 # Reviewer brief
 
-Lykvakt is a personal offline Chrome authenticator with TOTP, HOTP and Steam support. It has not received an independent security audit, and I'd welcome a critical look at the encryption, recovery and import paths. Please point out wrong assumptions, unsafe edge cases and instructions that don't make sense.
+Lykvakt is a personal offline authenticator for Chrome, Microsoft Edge and Firefox with TOTP, HOTP and Steam support. It has not received an independent security audit, and I'd welcome a critical look at the encryption, recovery and import paths. Please point out wrong assumptions, unsafe edge cases and instructions that don't make sense.
 
 Much of Lykvakt was developed with AI coding tools. Automated tests and AI-assisted reviews do not replace an independent security audit. Use synthetic accounts when reviewing it, and keep your working authenticator.
 
@@ -66,11 +66,11 @@ Include the version, your browser and operating system, steps using synthetic ac
 
 ## Running the checks
 
-Use Node 24 and Chrome 120 or newer, as described in README.md.
+Use Node 24 and a supported desktop browser, as described in README.md. The browser build guide covers Chrome, Edge and Firefox.
 
 ```sh
 npm ci --ignore-scripts
-npm run build
+npm run build:all
 npm run lint
 npm run format:check
 npm test

@@ -51,16 +51,24 @@ export class Session {
               u.revision !== this.envelope.revision))
         )
           this.detach();
-        else if (this.key) this.accept(u);
+        else if (this.key) {
+          try {
+            this.accept(u);
+          } catch {
+            this.detach();
+            void this.cache?.expire().catch(() => {});
+          }
+        }
       };
   }
   private accept(value: CachedUnlock): void {
-    const remaining = value.expires
-      ? Math.max(0, value.expires - value.checkedAt)
-      : 0;
+    const now = Date.now();
+    const remaining = value.expires ? value.expires - now : 0;
+    if (now < value.checkedAt || (value.expires > 0 && remaining <= 0))
+      throw new Error("Your session ended. Unlock the vault again.");
     const sameDeadline = this.shared?.expires === value.expires;
     const mono = remaining ? performance.now() + remaining : 0;
-    const wall = remaining ? Date.now() + remaining : 0;
+    const wall = value.expires;
     this.sharedDeadline =
       sameDeadline && this.sharedDeadline
         ? Math.min(this.sharedDeadline, mono)
