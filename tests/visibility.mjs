@@ -64,16 +64,14 @@ try {
     .getByRole("button", { name: "Import accounts", exact: true })
     .click();
   await page
-    .getByLabel("OTP URIs or export text")
+    .getByLabel("Setup links or export text")
     .fill(
       "otpauth://totp/Visibility:synthetic?secret=JBSWY3DPEHPK3PXP&issuer=Visibility",
     );
   await page
-    .getByRole("button", { name: "Preview import", exact: true })
+    .getByRole("button", { name: "Review import", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Import 1 account(s)", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Add account", exact: true }).click();
   await hideTab(page);
   await page.bringToFront();
   await expect(

@@ -30,7 +30,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     const draftForm: typeof form = (...args) =>
       enrollmentDraft(ctx, form(...args), "add");
     const issuer = input("issuer", "Service name"),
-      label = input("label", "Account identifier"),
+      label = input("label", "Account name or email"),
       secret = input("secret", "Setup key", "password");
     label.control.required = secret.control.required = true;
     secret.control.autocomplete = "off";
@@ -97,7 +97,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         el(
           "p",
           { class: "muted" },
-          "Enter the setup key supplied by the service.",
+          "Use the secret key shown when you set up two-step verification for a service.",
         ),
 
         issuer.wrapper,
@@ -119,8 +119,12 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
             group.wrapper,
           ),
         ),
-        submit("Preview account"),
-        button("Use a URI or QR image", () => importAccounts(), "button text"),
+        submit("Review account"),
+        button(
+          "Import a link or QR image",
+          () => importAccounts(),
+          "button text",
+        ),
       ),
     );
   }
@@ -166,7 +170,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     if (previewEpoch !== session.epoch()) return;
     signal?.throwIfAborted();
     modal(
-      "Review import",
+      "Review accounts",
       el(
         "div",
         { class: "stack" },
@@ -176,7 +180,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         el(
           "p",
           {},
-          `${result.accounts.length} new account(s). ${result.duplicates} exact duplicate(s) will be skipped. ${skipped.length} skipped entry(s).`,
+          `${result.accounts.length} new account${result.accounts.length === 1 ? "" : "s"}. ${result.duplicates} exact duplicate${result.duplicates === 1 ? "" : "s"} will be skipped. ${skipped.length} skipped entr${skipped.length === 1 ? "y" : "ies"}.`,
         ),
         el(
           "p",
@@ -195,14 +199,16 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         rows,
         result.accounts.length
           ? button(
-              "Import " + result.accounts.length + " account(s)",
+              result.accounts.length === 1
+                ? "Add account"
+                : "Add " + result.accounts.length + " accounts",
               () =>
                 run(async () => {
                   const signal = dialogOperation(ctx);
                   const data = session.accounts();
                   const checked = previewImport(result.accounts, data.accounts);
                   if (checked.conflicts || checked.duplicates)
-                    throw new Error("Vault changed. Preview the import again.");
+                    throw new Error("Vault changed. Review the import again.");
                   data.accounts.push(...checked.accounts);
                   await session.save(data, undefined, undefined, signal);
                   signal.throwIfAborted();
@@ -343,7 +349,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         el(
           "label",
           { class: "field" },
-          el("span", {}, "OTP URIs or export text"),
+          el("span", {}, "Setup links or export text"),
           area,
         ),
         el(
@@ -358,7 +364,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           "All parsing happens on this device. For Google Authenticator, choose Transfer accounts → Export accounts on your phone, then select images of every transfer QR together. Aegis and 2FAS password-protected exports can be opened locally. The file password is used only for this import. Invalid entries are listed for review before saving valid accounts. Incomplete batches and conflicting imports save nothing.",
         ),
 
-        submit("Preview import"),
+        submit("Review import"),
       ),
     );
   }
@@ -366,7 +372,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
   function editAccount(id: string): void {
     const a = session.accounts().accounts.find((x) => x.id === id)!;
     const issuer = input("issuer", "Service name", "text", a.issuer),
-      label = input("label", "Account identifier", "text", a.label),
+      label = input("label", "Account name or email", "text", a.label),
       group = input("group", "Group", "text", a.group);
     modal(
       "Edit account",

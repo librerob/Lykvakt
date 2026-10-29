@@ -157,3 +157,12 @@ it("rejects blank images and clears their pixel data", () => {
   expect(() => decodeQRs(image)).toThrow("No readable QR code");
   expect(image.data.every((n) => n === 0)).toBe(true);
 });
+
+it("rejects a reply delivered after its deadline even when the timer callback was delayed", async () => {
+  const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+  const work = readQRs(file());
+  clock.mockReturnValue(QR_DECODE_TIMEOUT + 1);
+  TestWorker.all[0]!.onmessage!({ data: { values: ["late secret"] } });
+  await expect(work).rejects.toThrow("took too long");
+  expect(TestWorker.all[0]!.terminate).toHaveBeenCalledOnce();
+});

@@ -104,6 +104,13 @@ export function friendlyError(error: unknown): {
         error.message + " Review the selected file or entries, then try again.",
       technical: original,
     };
+  if (
+    error instanceof Error &&
+    /^(QR reading|No readable QR code|Too many QR codes|QR image dimensions|Image decoding unavailable)/.test(
+      error.message,
+    )
+  )
+    return { message: error.message, technical: original };
   return {
     message:
       "We could not finish that action. Check your password and selected file, then try again. Keep your existing vault and backups.",

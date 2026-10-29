@@ -19,6 +19,9 @@ export async function readQRs(
       return;
     }
     let settled = false;
+    const deadline = performance.now() + QR_DECODE_TIMEOUT;
+    const timeoutError = () =>
+      new Error("QR reading took too long. Try a smaller, cropped image.");
     const finish = (values?: string[], error?: unknown) => {
       if (settled) return;
       settled = true;
@@ -34,11 +37,7 @@ export async function readQRs(
         new DOMException("QR reading was cancelled.", "AbortError"),
       );
     const timer = setTimeout(
-      () =>
-        finish(
-          undefined,
-          new Error("QR reading took too long. Try a smaller, cropped image."),
-        ),
+      () => finish(undefined, timeoutError()),
       QR_DECODE_TIMEOUT,
     );
     worker.onmessage = (
@@ -46,6 +45,10 @@ export async function readQRs(
     ) => {
       if (signal?.aborted) {
         abort();
+        return;
+      }
+      if (performance.now() >= deadline) {
+        finish(undefined, timeoutError());
         return;
       }
       const { values, error } = event.data ?? {};

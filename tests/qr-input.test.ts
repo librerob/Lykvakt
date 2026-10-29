@@ -109,7 +109,7 @@ it("pasted images go directly to confirmation without saving accounts or an imag
   );
   await vi.waitFor(() =>
     expect((ui.dialog as unknown as TestElement).textContent).toContain(
-      "1 new account(s)",
+      "1 new account",
     ),
   );
   expect(save).not.toHaveBeenCalled();
@@ -157,4 +157,19 @@ it("locking during an image read prevents a late preview", async () => {
   await vi.waitFor(() => expect(errors).toHaveLength(1));
   expect(ui.dialog).toBe(original);
   expect(save).not.toHaveBeenCalled();
+});
+
+it("manual-account wording names the review step and uses a familiar account label", () => {
+  const { ctx } = setup();
+  ctx.isExtension = false;
+  createEnrollment(ctx, () => {}).addAccount();
+  const node = ui.dialog as unknown as TestElement;
+  expect(node.textContent).toContain("Account name or email");
+  expect(
+    node
+      .querySelectorAll("button")
+      .some((b) => b.textContent === "Review account"),
+  ).toBe(true);
+  expect(node.textContent).toContain("Import a link or QR image");
+  expect(node.textContent).not.toContain("Preview account");
 });

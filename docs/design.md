@@ -19,7 +19,7 @@ Choosing **Erase the old vault and start fresh** asks for a second confirmation.
 
 ## Small, offline architecture
 
-The toolbar button and Ctrl+Shift+Y open a 400 px popup. Open in a window creates or focuses a separate 440 x 700 window, clamped to the available screen. Closing a view cancels its local work and drops its key references; it does not revoke the timed browser session. File imports, QR images and backup-file selection use the separate window; pasted links and text work in either view.
+The toolbar button and Ctrl+Shift+Y open a 400 px popup. Open in a window creates or focuses a separate 440 x 700 window, clamped to the available screen. Closing a view cancels its local work and drops its key references; it does not revoke the timed browser session. File-picker imports and backup-file selection use the separate window; pasted links, text and QR images, and image-file drops work in either view.
 
 The manifest permissions are exactly ["clipboardWrite", "storage", "alarms"]. Chrome and Edge use a module service worker for the local unlock session and expiry; Firefox uses a non-persistent module event page. There are no host or optional permissions, content scripts, developer backend, advertising, subscriptions or telemetry. There is no externally_connectable setting or external-message handler. The extension never reads or changes web page content. Copying requires an explicit click, or a non-empty search followed by Enter. Clipboard history and other apps may retain copied values.
 
@@ -177,3 +177,9 @@ Neither app offers an official export of its sign-in setup secrets. [Authy's sup
 ## Formats that aren't supported
 
 Encrypted andOTP, Bitwarden, Ente, Proton and Stratum exports, native FreeOTP backups, ZIP/HTML archives and Proton Steam entries remain unsupported. The readers don't implement those encryption or serialization formats. Unsupported account kinds are reported rather than silently converted. Bitwarden steam:// fields are rejected; use Aegis or .maFile for Steam instead. There is no Authy or Microsoft secret parser.
+
+## QR image input
+
+User-initiated paste events supply image files through clipboardData; file drops use dataTransfer. No clipboardRead, activeTab, scripting, host or optional permission is added. URL/HTML-only drops are rejected without downloading resources. Images are not saved as enrollment drafts. Existing import validation and explicit confirmation remain mandatory.
+
+The QR reader is lazy-loaded and uses one disposable worker per image for browser image decoding, OffscreenCanvas and the existing jsQR decoder. It accepts PNG/JPEG/WebP up to 18 MB, checks decoded dimensions against 12 million pixels and 6,000 pixels per side, and rejects more than 20 detected QR codes. Browser image allocation occurs before the decoded-dimension check. A ten-second timeout, cancellation or worker failure terminates the worker; the UI never falls back to synchronous decoding. Pixel arrays and canvases are cleared and bitmaps closed on normal completion/error; JavaScript and browser-managed copies cannot be guaranteed erased.

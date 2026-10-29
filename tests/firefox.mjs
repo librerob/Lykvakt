@@ -353,9 +353,9 @@ try {
         "",
       );
       await fill("textarea[name=payload]", text);
-      await click("Preview import");
+      await click("Review import");
       await wait(
-        "document.querySelector('dialog')?.textContent.includes('1 new account(s)')",
+        "document.querySelector('dialog')?.textContent.includes('1 new account')",
       );
       await click("Close");
       assert.equal(
@@ -370,8 +370,8 @@ try {
     await click("Backup");
     await click("Import accounts");
     await fill("textarea[name=payload]", uri);
-    await click("Preview import");
-    await click("Import 1 account(s)");
+    await click("Review import");
+    await click("Add account");
     await wait("document.querySelectorAll('.account').length === 1");
     assert.match(
       await evaluate("document.querySelector('.otp').textContent"),
@@ -429,7 +429,7 @@ try {
             ";document.querySelector('textarea[name=payload]').dispatchEvent(e);})()",
         );
         await wait(
-          "document.querySelector('dialog')?.textContent.includes('1 exact duplicate(s)')",
+          "document.querySelector('dialog')?.textContent.includes('1 exact duplicate')",
         );
         assert.equal(
           await evaluate("document.querySelectorAll('.account').length"),

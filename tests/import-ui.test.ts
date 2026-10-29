@@ -32,7 +32,7 @@ it("detects encrypted format without a dropdown and clears the source password o
   expect(ui.fields.get("sourcePassword")!.value).toBe("");
   expect(JSON.stringify(ui.dialog)).toContain("Detected format: 2FAS");
   expect(session.accounts().accounts).toEqual([]);
-  await click("Import 1 account(s)");
+  await click("Add account");
   expect(session.accounts().accounts).toHaveLength(1);
 }, 60000);
 it("invalid files also clear a previously entered source password", async () => {

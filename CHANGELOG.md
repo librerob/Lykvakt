@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.6 — 29 October 2026
+
+- Paste copied QR images or drop image files into Import accounts in the popup or window, with no new permissions or dependencies. Image-only processing stays local and is not saved as a draft; URL-only drops are explained rather than downloaded.
+- Run QR image decoding in a cancellable worker with a ten-second timeout, retaining the existing file, pixel and code-count limits.
+- Clarify the account flow: Review account, then Add account. Use Account name or email and setup links, and natural singular/plural import counts.
+
 ## 0.5.5 — 28 October 2026
 
 - Reject session replies received after expiry and subtract delivery time from local deadlines.

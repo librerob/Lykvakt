@@ -250,8 +250,8 @@ try {
     "textarea[name=payload]",
     "otpauth://totp/Popup:synthetic?secret=JBSWY3DPEHPK3PXP&issuer=Popup",
   );
-  await popup.click("Preview import");
-  await popup.click("Import 1 account(s)");
+  await popup.click("Review import");
+  await popup.click("Add account");
   await popup.count("dialog", 0);
   await popup.count(".account", 1);
   await mkdir("artifacts/screenshots", { recursive: true });

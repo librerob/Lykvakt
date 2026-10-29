@@ -111,10 +111,10 @@ async function storedVault() {
 }
 async function importURI(value) {
   await click("Import accounts");
-  await page.getByLabel("OTP URIs or export text").fill(value);
-  await click("Preview import");
-  await expect(page.getByRole("dialog")).toContainText("Review import");
-  await click("Import 1 account(s)");
+  await page.getByLabel("Setup links or export text").fill(value);
+  await click("Review import");
+  await expect(page.getByRole("dialog")).toContainText("Review accounts");
+  await click("Add account");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "+ Add account", exact: true }),
@@ -269,7 +269,7 @@ try {
     async () => {
       const manifest = await page.evaluate(() => chrome.runtime.getManifest());
       expect(manifest.name).toBe("Lykvakt");
-      expect(manifest.version).toBe("0.5.5");
+      expect(manifest.version).toBe("0.5.6");
       expect(manifest.version_name).toBeUndefined();
       await expect(page).toHaveTitle("Lykvakt");
       await expect(page.locator("body")).not.toContainText(
@@ -583,17 +583,15 @@ try {
   });
   await check("duplicate import preview", async () => {
     await click("Import accounts");
-    await page.getByLabel("OTP URIs or export text").fill(uri);
-    await click("Preview import");
-    await expect(page.getByRole("dialog")).toContainText(
-      "1 exact duplicate(s)",
-    );
+    await page.getByLabel("Setup links or export text").fill(uri);
+    await click("Review import");
+    await expect(page.getByRole("dialog")).toContainText("1 exact duplicate");
     await closeImport();
   });
   await check("malformed import preserves data", async () => {
     await click("Import accounts");
-    await page.getByLabel("OTP URIs or export text").fill(uri + "\ninvalid");
-    await click("Preview import");
+    await page.getByLabel("Setup links or export text").fill(uri + "\ninvalid");
+    await click("Review import");
     await expect(page.getByRole("status")).toContainText("Account 2");
     await closeImport();
     await expect(page.locator(".account")).toHaveCount(1);
@@ -608,8 +606,8 @@ try {
       mimeType: "image/png",
       buffer: qr,
     });
-    await expect(page.getByRole("dialog")).toContainText("Review import");
-    await click("Import 1 account(s)");
+    await expect(page.getByRole("dialog")).toContainText("Review accounts");
+    await click("Add account");
     await expect(page.locator(".account")).toHaveCount(2);
   });
   await check(
@@ -635,9 +633,9 @@ try {
       expect(await storedVault()).toEqual(beforeImport);
       await page.getByLabel("Read a QR image locally").setInputFiles(images);
       await expect(page.getByRole("dialog")).toContainText(
-        "2 exact duplicate(s)",
+        "2 exact duplicates",
       );
-      await expect(page.getByRole("dialog")).toContainText("0 new account(s)");
+      await expect(page.getByRole("dialog")).toContainText("0 new accounts");
       await closeImport();
       await expect(page.locator(".account")).toHaveCount(2);
     },
@@ -666,11 +664,13 @@ try {
           mimeType: "text/plain",
           buffer: Buffer.from(transfer),
         });
-      await click("Preview import");
+      await click("Review import");
       await expect(page.locator(".dialog-status")).toContainText(
         "Too many transfer fields",
       );
-      await expect(page.getByRole("dialog")).not.toContainText("Review import");
+      await expect(page.getByRole("dialog")).not.toContainText(
+        "Review accounts",
+      );
       await closeImport();
       await expect(page.locator(".account")).toHaveCount(before);
     },
@@ -708,9 +708,7 @@ try {
       mimeType: "image/png",
       buffer: Buffer.from(source.split(",")[1], "base64"),
     });
-    await expect(page.getByRole("dialog")).toContainText(
-      "1 exact duplicate(s)",
-    );
+    await expect(page.getByRole("dialog")).toContainText("1 exact duplicate");
     await closeImport();
   });
   await check(
@@ -1560,7 +1558,7 @@ try {
           await page
             .getByLabel("Or select an export file", { exact: true })
             .setInputFiles(resolve("tests/fixtures/" + name));
-          await click("Preview import");
+          await click("Review import");
         };
         for (const [name, title, count] of [
           ["andotp.json", "andOTP plaintext JSON", 1],
@@ -1579,20 +1577,20 @@ try {
             "Detected format: " + title,
           );
           await expect(page.getByRole("dialog")).toContainText(
-            count + " new account(s)",
+            count + (count === 1 ? " new account" : " new accounts"),
           );
           if (name === "bitwarden.json")
             await expect(page.getByRole("dialog")).toContainText(
-              "1 skipped entry(s)",
+              "1 skipped entry",
             );
           await closeImport();
           await expect(page.locator(".account")).toHaveCount(0);
         }
         await click("Import accounts");
         await page
-          .getByLabel("OTP URIs or export text")
+          .getByLabel("Setup links or export text")
           .fill('{"unrelated":"synthetic"}');
-        await click("Preview import");
+        await click("Review import");
         await expect(page.getByRole("status")).toContainText(
           "couldn't recognise",
         );
@@ -1608,7 +1606,7 @@ try {
           });
           await expect(source).toBeVisible();
           await source.fill("wrong source password");
-          await click("Preview import");
+          await click("Review import");
           await expect(page.getByRole("status")).toContainText(
             "password didn't work",
           );
@@ -1616,8 +1614,10 @@ try {
           expect(await storedVault()).toEqual(beforeRead);
           await expect(page.locator(".account")).toHaveCount(0);
           await source.fill("synthetic source password å");
-          await click("Preview import");
-          await expect(page.getByRole("dialog")).toContainText("Review import");
+          await click("Review import");
+          await expect(page.getByRole("dialog")).toContainText(
+            "Review accounts",
+          );
           await expect(page.getByRole("dialog")).toContainText(
             "Detected format: " + (name === "aegis" ? "Aegis" : "2FAS"),
           );
@@ -1629,7 +1629,7 @@ try {
         await expect(page.getByRole("dialog")).toContainText(
           "Steam · 5 characters · 30 seconds",
         );
-        await click("Import 1 account(s)");
+        await click("Add account");
         const row = page.locator(".account");
         await expect(row).toHaveCount(1);
         await expect(row.locator(".otp")).toHaveText("•• •••");
@@ -1675,11 +1675,9 @@ try {
             buffer: Buffer.from(image.split(",")[1], "base64"),
           });
         await expect(page.getByRole("dialog")).toContainText(
-          "1 exact duplicate(s)",
+          "1 exact duplicate",
         );
-        await expect(page.getByRole("dialog")).toContainText(
-          "0 new account(s)",
-        );
+        await expect(page.getByRole("dialog")).toContainText("0 new accounts");
         await click("Close");
         await click("Lock");
         await unlock();
@@ -1748,9 +1746,11 @@ try {
             `otpauth://${type}/${encodeURIComponent(issuer + ":" + label)}?secret=${"A".repeat(31) + "ABCDE"[index]}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=${digits}&${settings}`,
         );
         await click("Import accounts");
-        await page.getByLabel("OTP URIs or export text").fill(links.join("\n"));
-        await click("Preview import");
-        await click("Import 5 account(s)");
+        await page
+          .getByLabel("Setup links or export text")
+          .fill(links.join("\n"));
+        await click("Review import");
+        await click("Add 5 accounts");
         await click("Settings");
         await page.getByLabel("Show next code", { exact: true }).check();
         await click("Authenticator");
@@ -2060,11 +2060,11 @@ try {
           .getByLabel("Service name", { exact: true })
           .fill("Example: Personal ");
         await page
-          .getByLabel("Account identifier", { exact: true })
+          .getByLabel("Account name or email", { exact: true })
           .fill("alice:work");
         await page.getByLabel("Setup key", { exact: true }).fill(secret);
-        await click("Preview account");
-        await click("Import 1 account(s)");
+        await click("Review account");
+        await click("Add account");
         await click("Backup");
         await click("Export plaintext OTP links…");
         await expect(page.getByRole("dialog")).toContainText(
@@ -2247,12 +2247,12 @@ try {
           (_, i) =>
             `otpauth://totp/Example${i}:synthetic?secret=JBSWY3DPEHPK3PX${String.fromCharCode(65 + i)}&issuer=Example${i}`,
         ).join("\n");
-        await popup.getByLabel("OTP URIs or export text").fill(links);
+        await popup.getByLabel("Setup links or export text").fill(links);
         await popup
-          .getByRole("button", { name: "Preview import", exact: true })
+          .getByRole("button", { name: "Review import", exact: true })
           .click();
         await popup
-          .getByRole("button", { name: "Import 12 account(s)", exact: true })
+          .getByRole("button", { name: "Add 12 accounts", exact: true })
           .click();
         await expect(popup.locator(".account")).toHaveCount(12);
         const headerY = (await popup.locator("header").boundingBox()).y;
@@ -2303,9 +2303,9 @@ try {
         await expect(vault.getByRole("dialog")).toContainText(
           "Import accounts",
         );
-        await expect(vault.getByLabel("OTP URIs or export text")).toHaveValue(
-          "",
-        );
+        await expect(
+          vault.getByLabel("Setup links or export text"),
+        ).toHaveValue("");
         await vault.getByRole("button", { name: "Close", exact: true }).click();
         await vault.screenshot({
           path: "artifacts/screenshots/window-mode.png",
@@ -2530,7 +2530,7 @@ try {
           .getByLabel("Service name", { exact: true })
           .fill("Draft example");
         await page
-          .getByLabel("Account identifier", { exact: true })
+          .getByLabel("Account name or email", { exact: true })
           .fill("synthetic");
         await page
           .getByLabel("Setup key", { exact: true })
@@ -2625,8 +2625,8 @@ try {
           ],
         });
         await click("Import accounts");
-        await page.getByLabel("OTP URIs or export text").fill(text);
-        await expect(page.getByLabel("OTP URIs or export text")).toHaveValue(
+        await page.getByLabel("Setup links or export text").fill(text);
+        await expect(page.getByLabel("Setup links or export text")).toHaveValue(
           text,
         );
         await expect
@@ -2645,15 +2645,13 @@ try {
         ).toBeVisible();
         await expect(page.getByRole("dialog")).toHaveCount(0);
         await click("Import accounts");
-        await expect(page.getByLabel("OTP URIs or export text")).toHaveValue(
+        await expect(page.getByLabel("Setup links or export text")).toHaveValue(
           "",
         );
-        await page.getByLabel("OTP URIs or export text").fill(text);
-        await click("Preview import");
-        await expect(page.getByRole("dialog")).toContainText(
-          "1 new account(s)",
-        );
-        await click("Import 1 account(s)");
+        await page.getByLabel("Setup links or export text").fill(text);
+        await click("Review import");
+        await expect(page.getByRole("dialog")).toContainText("1 new account");
+        await click("Add account");
         await expect(page.locator(".account")).toHaveCount(1);
         expect(
           await page.evaluate(async () =>
@@ -2670,6 +2668,19 @@ try {
         isolated.on("request", (r) => {
           if (/^https?:/.test(r.url())) requests.push(r.url());
         });
+        await click("+ Add account");
+        await expect(
+          page.getByRole("button", { name: "Review account", exact: true }),
+        ).toBeVisible();
+        await page
+          .getByLabel("Service name", { exact: true })
+          .fill("Example service");
+        await page
+          .getByLabel("Account name or email", { exact: true })
+          .fill("alice@example.test");
+        await page.getByLabel("Setup key", { exact: true }).fill(secret);
+        await screenshot("add-account");
+        await click("Close");
         const image = await QRCode.toBuffer(
           "otpauth://totp/Pasted:alice?secret=" + secret + "&issuer=Pasted",
           { width: 240 },
@@ -2685,10 +2696,8 @@ try {
             }),
           ]);
         }, image.toString("base64"));
-        await page.getByLabel("OTP URIs or export text").press("Control+V");
-        await expect(page.getByRole("dialog")).toContainText(
-          "1 new account(s)",
-        );
+        await page.getByLabel("Setup links or export text").press("Control+V");
+        await expect(page.getByRole("dialog")).toContainText("1 new account");
         expect(await stored()).toEqual(before);
         expect(
           await page.evaluate(
@@ -2697,11 +2706,11 @@ try {
                 ?.unlock?.draft,
           ),
         ).toBeUndefined();
-        await click("Import 1 account(s)");
+        await click("Add account");
         await expect(page.locator(".account")).toHaveCount(1);
         await click("Import accounts");
         await page
-          .getByLabel("OTP URIs or export text")
+          .getByLabel("Setup links or export text")
           .evaluate((area, base64) => {
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(
@@ -2720,11 +2729,11 @@ try {
             );
           }, image.toString("base64"));
         await expect(page.getByRole("dialog")).toContainText(
-          "1 exact duplicate(s)",
+          "1 exact duplicate",
         );
         await click("Close");
         await click("Import accounts");
-        await page.getByLabel("OTP URIs or export text").evaluate((area) => {
+        await page.getByLabel("Setup links or export text").evaluate((area) => {
           const dataTransfer = new DataTransfer();
           dataTransfer.setData(
             "text/uri-list",
@@ -2741,10 +2750,12 @@ try {
         await expect(page.getByRole("status")).toContainText(
           "Links are not downloaded",
         );
-        await expect(page.getByLabel("OTP URIs or export text")).toHaveValue(
+        await expect(page.getByLabel("Setup links or export text")).toHaveValue(
           "",
         );
         expect(requests).toEqual([]);
+        await click("Close");
+        await click("Import accounts");
         await helpAxe("qr-image-paste");
         await screenshot("qr-image-paste");
         await click("Close");
