@@ -18,6 +18,16 @@ import type {
   SessionCache,
 } from "./session-cache";
 
+export class VaultCreatedError extends Error {
+  constructor(cause: unknown) {
+    super(
+      "Your vault was created. The unlock session could not start; enter your master password to try again.",
+      { cause },
+    );
+    this.name = "VaultCreatedError";
+  }
+}
+
 export class Session {
   private key?: CryptoKey;
   private envelope?: Envelope;
@@ -250,6 +260,7 @@ export class Session {
         ? AbortSignal.any([this.cancellation.signal, operation])
         : this.cancellation.signal;
     let raw: Uint8Array<ArrayBuffer> | undefined;
+    let saved = false;
     try {
       signal.throwIfAborted();
       if (this.cache) {
@@ -272,6 +283,7 @@ export class Session {
       if (epoch !== this.generation)
         throw new Error("Setup cancelled by locking.");
       await storage.commit(result.envelope, undefined, signal);
+      saved = true;
       if (epoch !== this.generation) return;
       if (operation?.aborted) {
         this.lock();
@@ -294,6 +306,16 @@ export class Session {
       this.envelope = result.envelope;
       this.lastActivity = performance.now();
       this.lastActivityWall = Date.now();
+    } catch (error) {
+      if (saved) {
+        if (epoch === this.generation) {
+          const lease = this.lease;
+          this.detach();
+          if (lease) await this.cache?.clear(lease).catch(() => {});
+        }
+        throw new VaultCreatedError(error);
+      }
+      throw error;
     } finally {
       raw?.fill(0);
     }

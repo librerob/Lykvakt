@@ -1,3 +1,4 @@
+import { VaultCreatedError } from "../session";
 import { transferReview } from "./transfer";
 import { fileChoice } from "./file-choice";
 import { backupCompatibilityMessage, busyCopy } from "../help";
@@ -399,6 +400,13 @@ export function createRecovery(
               announce(
                 `Recovered ${result.count} account(s). Verify their codes before retiring your previous authenticator.`,
               );
+            } catch (error) {
+              if (!(error instanceof VaultCreatedError)) throw error;
+              state.exists = true;
+              state.recovery = undefined;
+              closeDialog();
+              render();
+              announce(error.message, true);
             } finally {
               f.reset();
             }

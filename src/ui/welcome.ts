@@ -1,3 +1,4 @@
+import { VaultCreatedError } from "../session";
 import { busyCopy } from "../help";
 import { OldFormatError, oldFormatMessage } from "../format";
 import { savePreference } from "../preferences";
@@ -74,6 +75,11 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
               savePreference("firstRunTips", "true");
             }
           } catch (error) {
+            if (error instanceof VaultCreatedError) {
+              state.exists = true;
+              state.recovery = undefined;
+              render();
+            }
             if (error instanceof RecoveryRequired) {
               state.recovery = error.offer;
               render();
