@@ -440,16 +440,18 @@ try {
           "document.querySelector('dialog')?.textContent.includes('1 exact duplicate')",
         );
         assert.equal(
-          await evaluate("document.querySelectorAll('.account').length"),
-          1,
-        );
-        assert.equal(
           await evaluate(
             "Boolean((await browser.storage.session.get('unlockSession')).unlockSession?.unlock?.draft)",
           ),
           false,
         );
         await click("Close");
+        await click("Authenticator");
+        await wait("document.querySelectorAll('.account').length === 1");
+        assert.equal(
+          await evaluate("document.querySelectorAll('.account').length"),
+          1,
+        );
       }
       await click("Backup");
       await click("Import accounts");
