@@ -2663,6 +2663,140 @@ try {
       }),
   );
   await check(
+    "QR images paste from the clipboard and drop as files in the popup without a shared image draft",
+    () =>
+      sharedProfile(async ({ isolated }) => {
+        const requests = [];
+        isolated.on("request", (r) => {
+          if (/^https?:/.test(r.url())) requests.push(r.url());
+        });
+        const image = await QRCode.toBuffer(
+          "otpauth://totp/Pasted:alice?secret=" + secret + "&issuer=Pasted",
+          { width: 240 },
+        );
+        await click("Import accounts");
+        const before = await stored();
+        await page.bringToFront();
+        await page.evaluate(async (base64) => {
+          const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              "image/png": new Blob([bytes], { type: "image/png" }),
+            }),
+          ]);
+        }, image.toString("base64"));
+        await page.getByLabel("OTP URIs or export text").press("Control+V");
+        await expect(page.getByRole("dialog")).toContainText(
+          "1 new account(s)",
+        );
+        expect(await stored()).toEqual(before);
+        expect(
+          await page.evaluate(
+            async () =>
+              (await chrome.storage.session.get("unlockSession")).unlockSession
+                ?.unlock?.draft,
+          ),
+        ).toBeUndefined();
+        await click("Import 1 account(s)");
+        await expect(page.locator(".account")).toHaveCount(1);
+        await click("Import accounts");
+        await page
+          .getByLabel("OTP URIs or export text")
+          .evaluate((area, base64) => {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(
+              new File(
+                [Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))],
+                "qr.png",
+                { type: "image/png" },
+              ),
+            );
+            area.dispatchEvent(
+              new DragEvent("drop", {
+                bubbles: true,
+                cancelable: true,
+                dataTransfer,
+              }),
+            );
+          }, image.toString("base64"));
+        await expect(page.getByRole("dialog")).toContainText(
+          "1 exact duplicate(s)",
+        );
+        await click("Close");
+        await click("Import accounts");
+        await page.getByLabel("OTP URIs or export text").evaluate((area) => {
+          const dataTransfer = new DataTransfer();
+          dataTransfer.setData(
+            "text/uri-list",
+            "https://example.test/private-qr.png",
+          );
+          area.dispatchEvent(
+            new DragEvent("drop", {
+              bubbles: true,
+              cancelable: true,
+              dataTransfer,
+            }),
+          );
+        });
+        await expect(page.getByRole("status")).toContainText(
+          "Links are not downloaded",
+        );
+        await expect(page.getByLabel("OTP URIs or export text")).toHaveValue(
+          "",
+        );
+        expect(requests).toEqual([]);
+        await helpAxe("qr-image-paste");
+        await screenshot("qr-image-paste");
+        await click("Close");
+      }),
+  );
+  await check(
+    "closing an image import terminates a pending decoder without a late preview or write",
+    () =>
+      sharedProfile(async () => {
+        await click("Import accounts");
+        const before = await stored();
+        await page.evaluate(() => {
+          const post = Worker.prototype.postMessage;
+          Worker.prototype.postMessage = function (...args) {
+            if (!(args[0] instanceof Blob)) return post.apply(this, args);
+            Worker.prototype.postMessage = post;
+            const worker = this,
+              terminate = this.terminate.bind(this);
+            window.__qrStopped = false;
+            this.terminate = () => {
+              window.__qrStopped = true;
+              terminate();
+            };
+            window.__qrRelease = () => {
+              try {
+                post.apply(worker, args);
+              } catch {}
+            };
+          };
+          const data = new DataTransfer();
+          data.items.add(
+            new File(["pending"], "qr.png", { type: "image/png" }),
+          );
+          document.querySelector('textarea[name="payload"]').dispatchEvent(
+            new ClipboardEvent("paste", {
+              bubbles: true,
+              cancelable: true,
+              clipboardData: data,
+            }),
+          );
+        });
+        await expect
+          .poll(() => page.evaluate(() => typeof window.__qrRelease))
+          .toBe("function");
+        await click("Close");
+        expect(await page.evaluate(() => window.__qrStopped)).toBe(true);
+        await page.evaluate(() => window.__qrRelease());
+        await expect(page.getByRole("dialog")).toHaveCount(0);
+        expect(await stored()).toEqual(before);
+      }),
+  );
+  await check(
     "manual Lock and an overdue deadline block every view without relying on an alarm",
     () =>
       sharedProfile(async ({ reopen }) => {

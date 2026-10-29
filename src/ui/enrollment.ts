@@ -1,3 +1,4 @@
+import { qrImageInput } from "./qr-input";
 import { enrollmentDraft } from "./enrollment-draft";
 import { transferReview } from "./transfer";
 import { fileChoice } from "./file-choice";
@@ -244,33 +245,47 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     const qr = input("qr", "Read a QR image locally", "file");
     qr.control.accept = "image/png,image/jpeg,image/webp";
     qr.control.multiple = true;
-    qr.control.addEventListener("change", () =>
+    let reading = false;
+    const readImages = (files: File[]) =>
       run(async () => {
+        if (reading || area.isConnected === false || !files.length) return;
+        reading = true;
         const epoch = session.epoch(),
           signal = dialogOperation(ctx);
-        const files = [...(qr.control.files ?? [])];
-        if (
-          files.length > 100 ||
-          files.reduce((n, f) => n + f.size, 0) > 24_000_000
-        )
-          throw new Error(
-            "Choose up to 100 QR images, at most 24 MB in total.",
-          );
-        if (files.length) {
+        try {
+          session.check();
+          signal.throwIfAborted();
+          if (
+            files.length > 100 ||
+            files.reduce((n, f) => n + f.size, 0) > 24_000_000
+          )
+            throw new Error(
+              "Choose up to 100 QR images, at most 24 MB in total.",
+            );
+          if (ctx.isExtension) session.rememberDraft();
+          area.disabled = true;
+          announce("Reading QR image on this device…");
           const { readQRs } = await import("../qr");
           const values: string[] = [];
-          for (const f of files) {
+          for (const file of files) {
             signal.throwIfAborted();
-            values.push(...(await readQRs(f, signal)));
+            values.push(...(await readQRs(file, signal)));
           }
           session.check();
           if (epoch !== session.epoch()) return;
           const imported = parseImport(values.join("\n"), "uri");
           signal.throwIfAborted();
           await preview(imported.accounts, imported.skipped, undefined, signal);
+        } finally {
+          reading = false;
+          area.disabled = false;
+          qr.control.value = "";
         }
-      }),
-    );
+      });
+    qrImageInput(area, readImages, announce);
+    qr.control.addEventListener("change", () => {
+      void readImages([...(qr.control.files ?? [])]);
+    });
     modal(
       "Import accounts",
       draftForm(
@@ -330,6 +345,11 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           { class: "field" },
           el("span", {}, "OTP URIs or export text"),
           area,
+        ),
+        el(
+          "p",
+          { class: "hint" },
+          "You can also paste a copied QR image here or drop an image file. Images are read locally and are not saved as drafts. Clipboard history may keep copied images.",
         ),
         fileChoice(ctx, file.wrapper, qr.wrapper),
         el(
