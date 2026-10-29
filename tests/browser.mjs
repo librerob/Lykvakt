@@ -1684,6 +1684,14 @@ try {
       page.on("pageerror", (error) => errors.push(error.message));
       try {
         const start = Date.UTC(2026, 0, 1);
+        const worker =
+          isolated.serviceWorkers()[0] ||
+          (await isolated.waitForEvent("serviceworker"));
+        const setWorkerTime = (time) =>
+          worker.evaluate((now) => {
+            Date.now = () => now;
+          }, time);
+        await setWorkerTime(start + 1000);
         await page.clock.setFixedTime(start + 1000);
 
         await page.goto(base);
@@ -1816,6 +1824,7 @@ try {
         }
         await page.setViewportSize({ width: 400, height: 760 });
         await page.clock.setFixedTime(start + 26000);
+        await setWorkerTime(start + 26000);
         const clock = rows.filter({
           has: page.getByRole("heading", { name: "Clock", exact: true }),
         });

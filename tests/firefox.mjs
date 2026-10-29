@@ -344,6 +344,7 @@ try {
       assert.equal(await evaluate("document.querySelector('dialog')"), null);
       await click("Backup");
       await click("Import accounts");
+      await wait("Boolean(document.querySelector('textarea[name=payload]'))");
       assert.equal(
         await evaluate(
           "document.querySelector('textarea[name=payload]').value",
