@@ -26,7 +26,7 @@ const broker = new SessionBroker({
     await chrome.alarms.clear(SESSION_ALARM);
     if (expires) await chrome.alarms.create(SESSION_ALARM, { when: expires });
   },
-  now: Date.now,
+  now: () => Date.now(),
 });
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (message?.type !== SESSION_MESSAGE) return;
