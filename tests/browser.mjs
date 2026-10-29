@@ -208,6 +208,20 @@ async function screenshot(name) {
   if (old) await page.setViewportSize(old);
 }
 
+// Playwright changes document clocks but not service-worker clocks. Keep the
+// worker on the same synthetic timeline; the one-second lead absorbs transport
+// and virtual-clock scheduling skew. Exact deadline boundaries have unit tests.
+async function syncWorkerClock() {
+  const time = (await page.evaluate(() => Date.now())) - 1000;
+  const worker =
+    context.serviceWorkers()[0] ||
+    (await context.waitForEvent("serviceworker"));
+  await worker.evaluate((now) => {
+    const start = performance.now();
+    Date.now = () => now + Math.floor(performance.now() - start);
+  }, time);
+}
+
 async function sharedProfile(action) {
   const prior = page;
   const isolated = await launch(
@@ -242,6 +256,7 @@ async function sharedProfile(action) {
 
 try {
   await page.clock.install();
+  await syncWorkerClock();
   await page.goto(base);
   await check("MV3 setup screen", async () => {
     await expect(
@@ -404,8 +419,9 @@ try {
       await page.keyboard.press("Enter");
       await expect(more).not.toHaveAttribute("open", "");
       const now = await page.evaluate(() => Date.now()),
-        start = Math.floor(now / 30000) * 30000;
+        start = Math.floor(now / 30000) * 30000 + 30000;
       await page.clock.setSystemTime(start + 25000);
+      await syncWorkerClock();
       await page.clock.runFor(1001);
       await expect(row).toHaveClass(/expiring/);
       await expect(row.locator(".ring-number")).toHaveText("4");
@@ -423,7 +439,8 @@ try {
           .evaluate((node) => getComputedStyle(node).transitionDuration),
       ).toBe("0s");
       await page.emulateMedia({ reducedMotion: "no-preference" });
-      await page.clock.setSystemTime(now + 1001);
+      await page.clock.setSystemTime(start + 31001);
+      await syncWorkerClock();
     },
   );
   await check(
@@ -497,8 +514,10 @@ try {
       await code.click();
       await expect(code).toHaveText(/\d{3} \d{3}/);
       await page.clock.runFor(30_001);
+      await syncWorkerClock();
       await expect(code).toHaveText("••• •••");
       await page.clock.resume();
+      await syncWorkerClock();
     },
   );
   await check(
@@ -1021,6 +1040,7 @@ try {
       context = await launch();
       page = await context.newPage();
       await page.clock.install();
+      await syncWorkerClock();
       await page.goto(base);
       await expect(
         page.getByRole("heading", { name: "Welcome back." }),
@@ -1087,6 +1107,7 @@ try {
     context = await launch(recoveredProfile);
     page = await context.newPage();
     await page.clock.install();
+    await syncWorkerClock();
     page.on("pageerror", (error) => errors.push(error.message));
     context.on("request", (request) => {
       if (/^https?:/.test(request.url())) network.push(request.url());
@@ -2335,6 +2356,7 @@ try {
         )
         .toBe(60000);
       await page.clock.fastForward(61_000);
+      await syncWorkerClock();
       await expect(
         page.getByRole("heading", { name: "Welcome back." }),
       ).toBeVisible();
@@ -2354,6 +2376,7 @@ try {
         )
         .toBe(0);
       await page.clock.fastForward(3_700_000);
+      await syncWorkerClock();
       await expect(
         page.getByRole("button", { name: "Lock", exact: true }),
       ).toBeVisible();
