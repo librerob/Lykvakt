@@ -1,4 +1,8 @@
 import { validateArgon2, type Argon2Policy } from "./kdf-policy";
+export const KDF_TIMEOUT = 120_000;
+const timeoutError = () =>
+  new Error("Password protection took too long. Reload Lykvakt and try again.");
+
 type KdfRunner = (
   password: Uint8Array<ArrayBuffer>,
   salt: Uint8Array<ArrayBuffer>,
@@ -37,12 +41,18 @@ export async function argon2Key(
       reject(startError());
       return;
     }
+    let settled = false;
+    const deadline = performance.now() + KDF_TIMEOUT;
     const finish = () => {
+      if (settled) return false;
+      settled = true;
+      clearTimeout(timer);
       signal?.removeEventListener("abort", abort);
       worker.terminate();
+      return true;
     };
     const abort = () => {
-      finish();
+      if (!finish()) return;
       reject(
         new DOMException(
           "Password protection was cancelled by locking.",
@@ -50,10 +60,14 @@ export async function argon2Key(
         ),
       );
     };
+    const timer = setTimeout(() => {
+      if (signal?.aborted) abort();
+      else if (finish()) reject(timeoutError());
+    }, KDF_TIMEOUT);
     worker.onmessage = (
       event: MessageEvent<{ key?: CryptoKey; error?: string }>,
     ) => {
-      finish();
+      if (!finish()) return;
       if (signal?.aborted) {
         reject(
           new DOMException(
@@ -61,8 +75,10 @@ export async function argon2Key(
             "AbortError",
           ),
         );
+      } else if (performance.now() >= deadline) {
+        reject(timeoutError());
       } else if (
-        event.data.key &&
+        event.data?.key &&
         !event.data.key.extractable &&
         event.data.key.algorithm.name === "AES-GCM"
       ) {
@@ -70,15 +86,15 @@ export async function argon2Key(
       } else {
         reject(
           new Error(
-            event.data.error ||
+            event.data?.error ||
               "Password protection could not finish. Try again.",
           ),
         );
       }
     };
-    worker.onerror = () => {
-      finish();
-      reject(startError());
+    worker.onerror = worker.onmessageerror = () => {
+      if (signal?.aborted) abort();
+      else if (finish()) reject(startError());
     };
     signal?.addEventListener("abort", abort, { once: true });
     if (signal?.aborted) {

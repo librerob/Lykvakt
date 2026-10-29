@@ -2200,6 +2200,63 @@ try {
     },
   );
   await check(
+    "a committed vault remains unlockable after a temporary session-write failure during setup",
+    async () => {
+      const isolated = await launch(
+        await mkdtemp(join(tmpdir(), "lykvakt-setup-failure-")),
+      );
+      try {
+        const startup = await isolated.newPage();
+        await startup.goto(`chrome-extension://${id}/index.html`);
+        const worker =
+          isolated.serviceWorkers()[0] ||
+          (await isolated.waitForEvent("serviceworker"));
+        await worker.evaluate(() => {
+          const write = chrome.storage.session.set.bind(chrome.storage.session);
+          let fail = true;
+          chrome.storage.session.set = async (items) => {
+            if (fail && items.unlockSession?.unlock) {
+              fail = false;
+              throw new Error("Synthetic temporary session-write failure");
+            }
+            return write(items);
+          };
+        });
+        await startup
+          .getByLabel("Create a master password", { exact: true })
+          .fill("x");
+        await startup
+          .getByLabel("Confirm master password", { exact: true })
+          .fill("x");
+        await startup
+          .getByRole("button", { name: "Create encrypted vault", exact: true })
+          .click();
+        await expect(
+          startup.getByLabel("Master password", { exact: true }),
+        ).toBeVisible();
+        await expect(
+          startup.getByRole("button", {
+            name: "Create encrypted vault",
+            exact: true,
+          }),
+        ).toHaveCount(0);
+        await expect(
+          startup.getByText(/Your vault was created\./),
+        ).toBeVisible();
+        await startup.getByLabel("Master password", { exact: true }).fill("x");
+        await startup
+          .getByRole("button", { name: "Unlock vault", exact: true })
+          .click();
+        await expect(
+          startup.getByRole("button", { name: "+ Add account", exact: true }),
+        ).toBeVisible();
+      } finally {
+        await isolated.close();
+        await page.bringToFront();
+      }
+    },
+  );
+  await check(
     "popup pastes imports and shares its timed session with the file-selection window",
     async () => {
       const isolated = await launch(

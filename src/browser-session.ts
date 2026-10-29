@@ -82,7 +82,7 @@ export class BrowserSession implements SessionCache {
       binding: await envelopeBinding(next),
     })) as CachedUnlock;
   }
-  async touch(epoch: string, timeout: number): Promise<CachedUnlock> {
+  async touch(epoch: string, timeout?: number): Promise<CachedUnlock> {
     return (await this.request("touch", { epoch, timeout })) as CachedUnlock;
   }
   async draft(epoch: string, value?: EnrollmentDraft): Promise<void> {

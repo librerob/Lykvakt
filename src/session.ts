@@ -18,6 +18,16 @@ import type {
   SessionCache,
 } from "./session-cache";
 
+export class VaultCreatedError extends Error {
+  constructor(cause: unknown) {
+    super(
+      "Your vault was created. The unlock session could not start; enter your master password to try again.",
+      { cause },
+    );
+    this.name = "VaultCreatedError";
+  }
+}
+
 export class Session {
   private key?: CryptoKey;
   private envelope?: Envelope;
@@ -34,6 +44,7 @@ export class Session {
   private sharedDeadline = 0;
   private sharedWallDeadline = 0;
   private touching = false;
+  private cacheChanges = 0;
   private lastSharedTouch = 0;
   timeout = 0;
   onlock = () => {};
@@ -42,6 +53,7 @@ export class Session {
     if (cache)
       cache.onstate = (state) => {
         if (!this.lease) return;
+        this.cacheChanges++;
         const u = state.unlock;
         if (
           state.epoch !== this.lease ||
@@ -97,11 +109,12 @@ export class Session {
     this.check();
     const epoch = this.generation;
     if (this.cache && this.lease) {
+      const changes = this.cacheChanges;
       const updated = await this.cache.touch(this.lease, value);
       if (epoch !== this.generation) return;
-      this.accept(updated);
-    }
-    this.timeout = value;
+      if (changes === this.cacheChanges) this.accept(updated);
+      else await this.verify();
+    } else this.timeout = value;
   }
   get unlocked(): boolean {
     return !!this.key;
@@ -123,12 +136,14 @@ export class Session {
       Date.now() - this.lastSharedTouch >= 1000
     ) {
       this.touching = true;
-      const epoch = this.generation;
+      const epoch = this.generation,
+        changes = this.cacheChanges;
       this.lastSharedTouch = Date.now();
       void this.cache
-        .touch(this.lease, this.timeout)
+        .touch(this.lease)
         .then((value) => {
-          if (epoch === this.generation) this.accept(value);
+          if (epoch === this.generation && changes === this.cacheChanges)
+            this.accept(value);
         })
         .catch(() => {
           if (epoch === this.generation) this.detach();
@@ -163,11 +178,12 @@ export class Session {
   private async verify(): Promise<void> {
     this.check();
     if (this.cache && this.lease) {
-      const epoch = this.generation;
+      const epoch = this.generation,
+        changes = this.cacheChanges;
       try {
         const value = await this.cache.verify(this.lease, this.envelope!);
         if (epoch !== this.generation) throw new Error("Unlock cancelled.");
-        this.accept(value);
+        if (changes === this.cacheChanges) this.accept(value);
         this.check();
       } catch (error) {
         if (epoch === this.generation) this.detach();
@@ -244,6 +260,7 @@ export class Session {
         ? AbortSignal.any([this.cancellation.signal, operation])
         : this.cancellation.signal;
     let raw: Uint8Array<ArrayBuffer> | undefined;
+    let saved = false;
     try {
       signal.throwIfAborted();
       if (this.cache) {
@@ -266,6 +283,7 @@ export class Session {
       if (epoch !== this.generation)
         throw new Error("Setup cancelled by locking.");
       await storage.commit(result.envelope, undefined, signal);
+      saved = true;
       if (epoch !== this.generation) return;
       if (operation?.aborted) {
         this.lock();
@@ -288,6 +306,16 @@ export class Session {
       this.envelope = result.envelope;
       this.lastActivity = performance.now();
       this.lastActivityWall = Date.now();
+    } catch (error) {
+      if (saved) {
+        if (epoch === this.generation) {
+          const lease = this.lease;
+          this.detach();
+          if (lease) await this.cache?.clear(lease).catch(() => {});
+        }
+        throw new VaultCreatedError(error);
+      }
+      throw error;
     } finally {
       raw?.fill(0);
     }
