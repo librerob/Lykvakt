@@ -419,15 +419,23 @@ try {
         await click("Backup");
         await click("Import accounts");
         await wait("Boolean(document.querySelector('textarea[name=payload]'))");
-        await evaluate(
-          "(()=>{const d=new DataTransfer();d.items.add(new File([Uint8Array.from(atob(" +
-            JSON.stringify(image) +
-            "),c=>c.charCodeAt(0))],'qr.png',{type:'image/png'}));const e=" +
-            (kind === "paste"
-              ? "new ClipboardEvent('paste',{bubbles:true,cancelable:true,clipboardData:d})"
-              : "new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:d})") +
-            ";document.querySelector('textarea[name=payload]').dispatchEvent(e);})()",
-        );
+        if (kind === "paste") {
+          await evaluate(
+            "(async()=>{const bytes=Uint8Array.from(atob(" +
+              JSON.stringify(image) +
+              "),c=>c.charCodeAt(0));await navigator.clipboard.write([new ClipboardItem({'image/png':new Blob([bytes],{type:'image/png'})})]);document.querySelector('textarea[name=payload]').focus();})()",
+          );
+          await system(
+            viewSelection() + "b.focus();w.goDoCommand('cmd_paste');",
+          );
+        } else {
+          const count = await evaluate(
+            "(()=>{const d=new DataTransfer();d.items.add(new File([Uint8Array.from(atob(" +
+              JSON.stringify(image) +
+              "),c=>c.charCodeAt(0))],'qr.png',{type:'image/png'}));const e=new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:d});const area=document.querySelector('textarea[name=payload]');let count=0;area.addEventListener('drop',event=>{count=event.dataTransfer.files.length;},{once:true,capture:true});area.dispatchEvent(e);return count;})()",
+          );
+          assert.equal(count, 1, "Firefox drop supplies image bytes");
+        }
         await wait(
           "document.querySelector('dialog')?.textContent.includes('1 exact duplicate')",
         );

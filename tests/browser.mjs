@@ -2686,7 +2686,7 @@ try {
           { width: 240 },
         );
         await click("Import accounts");
-        const before = await stored();
+        const before = await storedVault();
         await page.bringToFront();
         await page.evaluate(async (base64) => {
           const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
@@ -2698,7 +2698,7 @@ try {
         }, image.toString("base64"));
         await page.getByLabel("Setup links or export text").press("Control+V");
         await expect(page.getByRole("dialog")).toContainText("1 new account");
-        expect(await stored()).toEqual(before);
+        expect(await storedVault()).toEqual(before);
         expect(
           await page.evaluate(
             async () =>
@@ -2766,7 +2766,7 @@ try {
     () =>
       sharedProfile(async () => {
         await click("Import accounts");
-        const before = await stored();
+        const before = await storedVault();
         await page.evaluate(() => {
           const post = Worker.prototype.postMessage;
           Worker.prototype.postMessage = function (...args) {
@@ -2804,7 +2804,7 @@ try {
         expect(await page.evaluate(() => window.__qrStopped)).toBe(true);
         await page.evaluate(() => window.__qrRelease());
         await expect(page.getByRole("dialog")).toHaveCount(0);
-        expect(await stored()).toEqual(before);
+        expect(await storedVault()).toEqual(before);
       }),
   );
   await check(
