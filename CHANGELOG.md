@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.7 — 29 October 2026
+
+- Keep the selected auto-lock timer when another open view sends delayed activity or an older session reply.
+- Show the correct unlock screen if vault creation or backup restoration succeeds but the temporary unlock session cannot start. The saved vault is preserved.
+- Stop password workers on message errors or after two minutes, discard late results, and show clear retry guidance.
+- Keep the existing vault and backup format, dependencies and permissions unchanged.
+
 ## 0.5.6 — 29 October 2026
 
 - Paste copied QR images or drop image files into Import accounts in the popup or window, with no new permissions or dependencies. Image-only processing stays local and is not saved as a draft; URL-only drops are explained rather than downloaded.
