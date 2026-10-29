@@ -1,3 +1,4 @@
+import { qrImageInput } from "./qr-input";
 import { enrollmentDraft } from "./enrollment-draft";
 import { transferReview } from "./transfer";
 import { fileChoice } from "./file-choice";
@@ -29,7 +30,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     const draftForm: typeof form = (...args) =>
       enrollmentDraft(ctx, form(...args), "add");
     const issuer = input("issuer", "Service name"),
-      label = input("label", "Account identifier"),
+      label = input("label", "Account name or email"),
       secret = input("secret", "Setup key", "password");
     label.control.required = secret.control.required = true;
     secret.control.autocomplete = "off";
@@ -96,7 +97,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         el(
           "p",
           { class: "muted" },
-          "Enter the setup key supplied by the service.",
+          "Use the secret key shown when you set up two-step verification for a service.",
         ),
 
         issuer.wrapper,
@@ -118,8 +119,12 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
             group.wrapper,
           ),
         ),
-        submit("Preview account"),
-        button("Use a URI or QR image", () => importAccounts(), "button text"),
+        submit("Review account"),
+        button(
+          "Import a link or QR image",
+          () => importAccounts(),
+          "button text",
+        ),
       ),
     );
   }
@@ -165,7 +170,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     if (previewEpoch !== session.epoch()) return;
     signal?.throwIfAborted();
     modal(
-      "Review import",
+      "Review accounts",
       el(
         "div",
         { class: "stack" },
@@ -175,7 +180,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         el(
           "p",
           {},
-          `${result.accounts.length} new account(s). ${result.duplicates} exact duplicate(s) will be skipped. ${skipped.length} skipped entry(s).`,
+          `${result.accounts.length} new account${result.accounts.length === 1 ? "" : "s"}. ${result.duplicates} exact duplicate${result.duplicates === 1 ? "" : "s"} will be skipped. ${skipped.length} skipped entr${skipped.length === 1 ? "y" : "ies"}.`,
         ),
         el(
           "p",
@@ -194,14 +199,16 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         rows,
         result.accounts.length
           ? button(
-              "Import " + result.accounts.length + " account(s)",
+              result.accounts.length === 1
+                ? "Add account"
+                : "Add " + result.accounts.length + " accounts",
               () =>
                 run(async () => {
                   const signal = dialogOperation(ctx);
                   const data = session.accounts();
                   const checked = previewImport(result.accounts, data.accounts);
                   if (checked.conflicts || checked.duplicates)
-                    throw new Error("Vault changed. Preview the import again.");
+                    throw new Error("Vault changed. Review the import again.");
                   data.accounts.push(...checked.accounts);
                   await session.save(data, undefined, undefined, signal);
                   signal.throwIfAborted();
@@ -244,33 +251,47 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
     const qr = input("qr", "Read a QR image locally", "file");
     qr.control.accept = "image/png,image/jpeg,image/webp";
     qr.control.multiple = true;
-    qr.control.addEventListener("change", () =>
+    let reading = false;
+    const readImages = (files: File[]) =>
       run(async () => {
+        if (reading || area.isConnected === false || !files.length) return;
+        reading = true;
         const epoch = session.epoch(),
           signal = dialogOperation(ctx);
-        const files = [...(qr.control.files ?? [])];
-        if (
-          files.length > 100 ||
-          files.reduce((n, f) => n + f.size, 0) > 24_000_000
-        )
-          throw new Error(
-            "Choose up to 100 QR images, at most 24 MB in total.",
-          );
-        if (files.length) {
+        try {
+          session.check();
+          signal.throwIfAborted();
+          if (
+            files.length > 100 ||
+            files.reduce((n, f) => n + f.size, 0) > 24_000_000
+          )
+            throw new Error(
+              "Choose up to 100 QR images, at most 24 MB in total.",
+            );
+          if (ctx.isExtension) session.rememberDraft();
+          area.disabled = true;
+          announce("Reading QR image on this device…");
           const { readQRs } = await import("../qr");
           const values: string[] = [];
-          for (const f of files) {
+          for (const file of files) {
             signal.throwIfAborted();
-            values.push(...(await readQRs(f, signal)));
+            values.push(...(await readQRs(file, signal)));
           }
           session.check();
           if (epoch !== session.epoch()) return;
           const imported = parseImport(values.join("\n"), "uri");
           signal.throwIfAborted();
           await preview(imported.accounts, imported.skipped, undefined, signal);
+        } finally {
+          reading = false;
+          area.disabled = false;
+          qr.control.value = "";
         }
-      }),
-    );
+      });
+    qrImageInput(area, readImages, announce);
+    qr.control.addEventListener("change", () => {
+      void readImages([...(qr.control.files ?? [])]);
+    });
     modal(
       "Import accounts",
       draftForm(
@@ -328,8 +349,13 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
         el(
           "label",
           { class: "field" },
-          el("span", {}, "OTP URIs or export text"),
+          el("span", {}, "Setup links or export text"),
           area,
+        ),
+        el(
+          "p",
+          { class: "hint" },
+          "You can also paste a copied QR image here or drop an image file. Images are read locally and are not saved as drafts. Clipboard history may keep copied images.",
         ),
         fileChoice(ctx, file.wrapper, qr.wrapper),
         el(
@@ -338,7 +364,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
           "All parsing happens on this device. For Google Authenticator, choose Transfer accounts → Export accounts on your phone, then select images of every transfer QR together. Aegis and 2FAS password-protected exports can be opened locally. The file password is used only for this import. Invalid entries are listed for review before saving valid accounts. Incomplete batches and conflicting imports save nothing.",
         ),
 
-        submit("Preview import"),
+        submit("Review import"),
       ),
     );
   }
@@ -346,7 +372,7 @@ export function createEnrollment(ctx: AppContext, drawAccounts: () => void) {
   function editAccount(id: string): void {
     const a = session.accounts().accounts.find((x) => x.id === id)!;
     const issuer = input("issuer", "Service name", "text", a.issuer),
-      label = input("label", "Account identifier", "text", a.label),
+      label = input("label", "Account name or email", "text", a.label),
       group = input("group", "Group", "text", a.group);
     modal(
       "Edit account",

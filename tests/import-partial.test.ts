@@ -157,6 +157,6 @@ it("preview reports skipped entries and saves valid accounts only after confirma
   expect(JSON.stringify(ui.dialog)).toContain("1 skipped");
   expect(JSON.stringify(ui.dialog)).toContain("Account 2");
   expect(session.accounts().accounts).toHaveLength(0);
-  await click("Import 1 account(s)");
+  await click("Add account");
   expect(session.accounts().accounts).toHaveLength(1);
 }, 60_000);

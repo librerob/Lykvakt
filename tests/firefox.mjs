@@ -1,3 +1,4 @@
+import QRCode from "qrcode";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { readFile, writeFile, mkdir, mkdtemp, readdir } from "node:fs/promises";
@@ -352,9 +353,9 @@ try {
         "",
       );
       await fill("textarea[name=payload]", text);
-      await click("Preview import");
+      await click("Review import");
       await wait(
-        "document.querySelector('dialog')?.textContent.includes('1 new account(s)')",
+        "document.querySelector('dialog')?.textContent.includes('1 new account')",
       );
       await click("Close");
       assert.equal(
@@ -369,8 +370,8 @@ try {
     await click("Backup");
     await click("Import accounts");
     await fill("textarea[name=payload]", uri);
-    await click("Preview import");
-    await click("Import 1 account(s)");
+    await click("Review import");
+    await click("Add account");
     await wait("document.querySelectorAll('.account').length === 1");
     assert.match(
       await evaluate("document.querySelector('.otp').textContent"),
@@ -408,6 +409,58 @@ try {
     await openPopup();
     await wait("document.querySelectorAll('.account').length === 1");
   });
+  await check(
+    "QR image paste and file drop preview locally without saving an image draft",
+    async () => {
+      const image = (await QRCode.toBuffer(uri, { width: 240 })).toString(
+        "base64",
+      );
+      for (const kind of ["paste", "drop"]) {
+        await click("Backup");
+        await click("Import accounts");
+        await wait("Boolean(document.querySelector('textarea[name=payload]'))");
+        if (kind === "paste") {
+          await evaluate(
+            "(async()=>{const bytes=Uint8Array.from(atob(" +
+              JSON.stringify(image) +
+              "),c=>c.charCodeAt(0));await navigator.clipboard.write([new ClipboardItem({'image/png':new Blob([bytes],{type:'image/png'})})]);document.querySelector('textarea[name=payload]').focus();})()",
+          );
+          await system(
+            viewSelection() + "b.focus();w.goDoCommand('cmd_paste');",
+          );
+        } else {
+          const count = await evaluate(
+            "(()=>{const d=new DataTransfer();d.items.add(new File([Uint8Array.from(atob(" +
+              JSON.stringify(image) +
+              "),c=>c.charCodeAt(0))],'qr.png',{type:'image/png'}));const e=new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:d});const area=document.querySelector('textarea[name=payload]');let count=0;area.addEventListener('drop',event=>{count=event.dataTransfer.files.length;},{once:true,capture:true});area.dispatchEvent(e);return count;})()",
+          );
+          assert.equal(count, 1, "Firefox drop supplies image bytes");
+        }
+        await wait(
+          "document.querySelector('dialog')?.textContent.includes('1 exact duplicate')",
+        );
+        assert.equal(
+          await evaluate(
+            "Boolean((await browser.storage.session.get('unlockSession')).unlockSession?.unlock?.draft)",
+          ),
+          false,
+        );
+        await click("Close");
+        await click("Authenticator");
+        await wait("document.querySelectorAll('.account').length === 1");
+        assert.equal(
+          await evaluate("document.querySelectorAll('.account').length"),
+          1,
+        );
+      }
+      await click("Backup");
+      await click("Import accounts");
+      await wait("Boolean(document.querySelector('textarea[name=payload]'))");
+      await accessibility("qr-image-import");
+      await screenshot("qr-image-import");
+      await click("Close");
+    },
+  );
   await check("shared Lock and wrong/right password", async () => {
     await click("Lock");
     await closePopup();

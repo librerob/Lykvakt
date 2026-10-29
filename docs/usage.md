@@ -22,7 +22,7 @@ There is no password reset or developer recovery service. Keep the password and 
 
 Use the setup key or QR image supplied when you enable two-step sign-in on a service. This is different from the short code used to sign in.
 
-Open **Backup → Import accounts**. Pasting setup links or export text works in either mode. File imports, QR images and backup-file selection require the explicit window: choose **Open in a window to choose a file**, then select the file. The window asks for your password only if the shared session has ended. Browsers can close a popup while a native file chooser is open. Review the accounts and every skipped entry before saving. Check the new codes before retiring your existing authenticator. The [design guide](design.md#import-contracts-and-sources) explains format support and limits.
+Open **Backup → Import accounts**. Pasting setup links, export text or QR images works in either mode. Image files can also be dropped into the import text box. Choosing files with a file picker, including QR images and backups, requires the explicit window: choose **Open in a window to choose a file**, then select the file. The window asks for your password only if the shared session has ended. Browsers can close a popup while a native file chooser is open. Review the accounts and every skipped entry before saving. Check the new codes before retiring your existing authenticator. The [design guide](design.md#import-contracts-and-sources) explains format support and limits.
 
 Steam support covers authentication codes, not trade or market confirmations. Its setup secret normally comes from a compatible export or another authenticator. Files containing it can also hold other sensitive data, so keep them private.
 
@@ -63,3 +63,9 @@ A fake sign-in page can steal a code, and compromised software can read unlocked
 The extension uses clipboardWrite for copying, storage for the temporary session, and alarms for expiry. Its small background worker handles local session state only. There are no content scripts, host permissions or automatic uploads. It never reads or changes websites. Open in a window only finds and focuses Lykvakt's own extension window.
 
 The vault and code generation work offline. Essential help is bundled in the app and works offline. The optional full-guide link opens GitHub in a browser tab and needs an internet connection.
+
+## Paste a QR image
+
+Copy the QR image or a cropped screenshot, open **Backup → Import accounts**, focus **Setup links or export text** and paste with Ctrl+V (Command+V on Mac). Review the accounts, then choose **Add account** or **Add N accounts**. Image-file drops use the same review. A dropped website image may supply only a URL; Lykvakt explains this and never downloads it.
+
+On Windows, Win+Shift+S opens Snipping Tool; select the QR and copy the image if needed. On Mac, Control+Shift+Command+4 copies a selected region. Screenshot tools may save files automatically, and clipboard history may retain images containing setup secrets. Check those settings if you want to avoid extra copies. See [Microsoft’s screenshot guide](https://support.microsoft.com/en-us/windows/apps/use-snipping-tool-to-capture-screenshots) and [Apple’s guide](https://support.apple.com/en-gb/102646).

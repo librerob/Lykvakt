@@ -86,16 +86,14 @@ try {
     .getByRole("button", { name: "Import accounts", exact: true })
     .click();
   await setup
-    .getByLabel("OTP URIs or export text")
+    .getByLabel("Setup links or export text")
     .fill(
       "otpauth://totp/Performance:synthetic?secret=JBSWY3DPEHPK3PXP&issuer=Performance",
     );
   await setup
-    .getByRole("button", { name: "Preview import", exact: true })
+    .getByRole("button", { name: "Review import", exact: true })
     .click();
-  await setup
-    .getByRole("button", { name: "Import 1 account(s)", exact: true })
-    .click();
+  await setup.getByRole("button", { name: "Add account", exact: true }).click();
   await setup.getByRole("button", { name: "Lock", exact: true }).click();
   await setup.close();
   const samples = [];

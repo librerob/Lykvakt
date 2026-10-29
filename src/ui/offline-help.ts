@@ -26,7 +26,7 @@ export function offlineHelp(isPopup: boolean): HTMLElement {
     el(
       "p",
       {},
-      "Backup contains Import accounts, export and encrypted backups. Paste setup links or export text here. Choose Open in a window to choose a file for export-file imports, QR images or backup restoration; the window uses your current unlock session.",
+      "Backup contains Import accounts, export and encrypted backups. Paste setup links, export text or copied QR images into Import accounts, or drop an image file. Review the details, then choose Add account. File pickers still use Open in a window to choose a file; the window shares your unlock session.",
     ),
     el("h3", {}, "Keep a way back in"),
     el(
