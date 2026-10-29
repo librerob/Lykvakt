@@ -205,20 +205,19 @@ export class SessionBroker {
         return u;
       }
       if (m.action === "touch") {
-        if (
-          typeof m.timeout !== "number" ||
-          autoLockTimeout(m.timeout) !== m.timeout
-        )
+        // Ordinary activity keeps the current policy; only Settings supplies one.
+        const timeout = m.timeout === undefined ? u.timeout : m.timeout;
+        if (typeof timeout !== "number" || autoLockTimeout(timeout) !== timeout)
           throw failed();
         const now = this.io.now();
         if (now < u.checkedAt || (u.expires > 0 && now >= u.expires))
           throw failed();
         const unlock = {
           ...u,
-          timeout: m.timeout,
+          timeout,
           touched: now,
           checkedAt: now,
-          expires: m.timeout ? now + m.timeout : 0,
+          expires: timeout ? now + timeout : 0,
         };
         await this.io.alarm(unlock.expires);
         await this.io.write({ ...state, source, unlock });

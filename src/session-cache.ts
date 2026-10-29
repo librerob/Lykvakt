@@ -85,7 +85,7 @@ export interface SessionCache {
     previous: Envelope,
     next: Envelope,
   ): Promise<CachedUnlock>;
-  touch(epoch: string, timeout: number): Promise<CachedUnlock>;
+  touch(epoch: string, timeout?: number): Promise<CachedUnlock>;
   draft(epoch: string, value?: EnrollmentDraft): Promise<void>;
   clear(epoch?: string): Promise<void>;
   expire(): Promise<void>;
