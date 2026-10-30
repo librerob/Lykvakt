@@ -611,6 +611,9 @@ try {
     },
   );
   await check("deadline enforced even if an alarm was delayed", async () => {
+    await wait(
+      "document.querySelector('.remaining')?.getAttribute('aria-label')?.includes('seconds remaining')",
+    );
     expiryFixture = await evaluate(
       "(async()=>{const reply=await browser.runtime.sendMessage({type:'lykvakt-session',action:'begin'});if(!reply.ok)throw Error('Could not drain pending session work');const s=JSON.parse(JSON.stringify((await browser.storage.session.get('unlockSession')).unlockSession));s.unlock.touched=Date.now()-300001;s.unlock.expires=s.unlock.touched+s.unlock.timeout;s.unlock.checkedAt=s.unlock.touched;await browser.alarms.clear('vault-expiry');await browser.storage.session.set({unlockSession:s});const {unlockSession:stored}=await browser.storage.session.get('unlockSession');return {now:Date.now(),timeout:s.unlock.timeout,expires:s.unlock.expires,storedExpires:stored?.unlock?.expires};})()",
     );
