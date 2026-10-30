@@ -611,7 +611,7 @@ try {
   );
   await check("deadline enforced even if an alarm was delayed", async () => {
     await evaluate(
-      "(async()=>{const {unlockSession:s}=await browser.storage.session.get('unlockSession');s.unlock.touched=Date.now()-300001;s.unlock.expires=s.unlock.touched+s.unlock.timeout;s.unlock.checkedAt=s.unlock.touched;await browser.alarms.clear('vault-expiry');await browser.storage.session.set({unlockSession:s});})()",
+      "(async()=>{const {unlockSession:s}=await browser.storage.session.get('unlockSession');s.unlock.touched=Date.now()-300001;s.unlock.expires=s.unlock.touched+s.unlock.timeout;s.unlock.checkedAt=s.unlock.touched;await browser.alarms.clear('vault-expiry');await browser.storage.session.set({unlockSession:s});window.__lykvaktExpiryFixture={timeout:s.unlock.timeout,touched:s.unlock.touched,expires:s.unlock.expires,checkedAt:s.unlock.checkedAt};})()",
     );
     await openPopup();
     await wait("Boolean(document.querySelector('input[name=password]'))");
@@ -705,6 +705,16 @@ try {
         senders,
         browser: capabilities?.browserVersion,
         log,
+        deadline: session
+          ? await evaluate(
+              "(()=>{const s=window.__lykvaktExpiryFixture;return {fixture:s,now:Date.now(),text:document.querySelector('#app')?.textContent};})()",
+            ).catch((e) => String(e))
+          : undefined,
+        cachedDeadline: session
+          ? await evaluate(
+              "(async()=>{const s=(await browser.storage.session.get('unlockSession')).unlockSession;const u=s?.unlock;return {epoch:s?.epoch,source:s?.source,unlock:u&&{timeout:u.timeout,touched:u.touched,expires:u.expires,checkedAt:u.checkedAt}};})()",
+            ).catch((e) => String(e))
+          : undefined,
         status: session
           ? await evaluate(
               "[...document.querySelectorAll('.status')].map(n=>n.textContent)",
