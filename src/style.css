@@ -285,6 +285,10 @@ input[type="checkbox"] {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.code-cell > .otp {
+  padding: 0;
+  text-align: right;
+}
 .remaining {
   display: grid;
   place-items: center;
@@ -338,12 +342,15 @@ input[type="checkbox"] {
 }
 .next-code {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   gap: var(--s1);
   color: var(--muted);
   font-size: var(--t1);
   line-height: 12px;
   white-space: nowrap;
+}
+.next-code > .hint {
+  line-height: inherit;
 }
 .next-code-value {
   font-variant-numeric: tabular-nums;

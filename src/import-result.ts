@@ -1,3 +1,4 @@
+import { SetupKeyLengthError } from "./otp";
 import type { Account } from "./model";
 export interface SkippedEntry {
   index: number;
@@ -6,6 +7,12 @@ export interface SkippedEntry {
 export interface ImportResult {
   accounts: Account[];
   skipped: SkippedEntry[];
+}
+export class NoValidAccountsError extends Error {
+  constructor(readonly skipped: SkippedEntry[]) {
+    super("No valid accounts found. Nothing was imported.");
+    this.name = "NoValidAccountsError";
+  }
 }
 export function collectImport<T>(
   entries: T[],
@@ -21,7 +28,7 @@ export function collectImport<T>(
       result.skipped.push({
         index: indexes?.[i] ?? i + 1,
         reason:
-          reason ??
+          (error instanceof SetupKeyLengthError ? error.message : reason) ??
           (error instanceof Error
             ? error.message
             : "Invalid or unsupported account."),
@@ -31,7 +38,6 @@ export function collectImport<T>(
   return result;
 }
 export function requireAccounts(result: ImportResult): ImportResult {
-  if (!result.accounts.length)
-    throw new Error("No valid accounts found. Nothing was imported.");
+  if (!result.accounts.length) throw new NoValidAccountsError(result.skipped);
   return result;
 }
