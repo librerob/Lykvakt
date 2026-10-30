@@ -76,16 +76,24 @@ export function form(
   node.addEventListener("submit", (event) => {
     event.preventDefault();
     if (pending) return;
+    const data = new FormData(node);
     pending = true;
     node.setAttribute("aria-busy", "true");
-    const submits = [
-      ...node.querySelectorAll<HTMLButtonElement>('button[type="submit"]'),
-    ];
-    submits.forEach((b) => (b.disabled = true));
-    void action(new FormData(node), node).finally(() => {
+    const controls = [
+      ...node.querySelectorAll<
+        | HTMLInputElement
+        | HTMLSelectElement
+        | HTMLTextAreaElement
+        | HTMLButtonElement
+      >("input, select, textarea, button"),
+    ].map((control) => ({ control, disabled: control.disabled }));
+    controls.forEach(({ control }) => (control.disabled = true));
+    void action(data, node).finally(() => {
       pending = false;
       node.setAttribute("aria-busy", "false");
-      submits.forEach((b) => (b.disabled = false));
+      controls.forEach(
+        ({ control, disabled }) => (control.disabled = disabled),
+      );
     });
   });
   return node;
