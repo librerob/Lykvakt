@@ -1,5 +1,13 @@
 import type { Account, Algorithm } from "./model";
 
+export class SetupKeyLengthError extends Error {
+  constructor() {
+    super(
+      "This setup key is too short or too long. Lykvakt supports keys from 10 to 640 bytes. Use the service's full setup key; short demonstration keys are not supported.",
+    );
+    this.name = "SetupKeyLengthError";
+  }
+}
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 export function normalizeSecret(input: string): string {
   const s = input.replace(/[ \r\n\t-]/g, "").toUpperCase();
@@ -16,8 +24,7 @@ export function normalizeSecret(input: string): string {
   const bits = (raw.length * 5) % 8;
   if (bits && (ALPHABET.indexOf(raw.at(-1)!) & ((1 << bits) - 1)) !== 0)
     throw new Error("Noncanonical Base32 trailing bits.");
-  if (raw.length < 16 || raw.length > 1024)
-    throw new Error("Use a secret between 10 and 640 bytes.");
+  if (raw.length < 16 || raw.length > 1024) throw new SetupKeyLengthError();
   return raw;
 }
 export function decodeBase32(input: string): Uint8Array<ArrayBuffer> {

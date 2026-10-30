@@ -1,3 +1,5 @@
+import { SetupKeyLengthError } from "./otp";
+import { NoValidAccountsError } from "./import-result";
 import { OldFormatError, oldFormatMessage } from "./format";
 import { StorageConflictError } from "./storage";
 
@@ -17,6 +19,20 @@ export function friendlyError(error: unknown): {
   message: string;
   technical: string;
 } {
+  if (error instanceof SetupKeyLengthError)
+    return { message: error.message, technical: error.name };
+  if (error instanceof NoValidAccountsError)
+    return {
+      message:
+        error.message +
+        " " +
+        error.skipped
+          .slice(0, 3)
+          .map((entry) => `Account ${entry.index}: ${entry.reason}`)
+          .join(" ") +
+        (error.skipped.length > 3 ? " More entries were skipped." : ""),
+      technical: error.name,
+    };
   if (error instanceof Error && error.name === "ImportLimitError")
     return {
       message: error.message,

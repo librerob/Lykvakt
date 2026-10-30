@@ -611,6 +611,38 @@ try {
     await expect(page.locator(".account")).toHaveCount(2);
   });
   await check(
+    "short demonstration keys explain QR and manual rejection without changing the vault",
+    async () => {
+      const before = await storedVault();
+      await click("Import accounts");
+      await page.getByLabel("Read a QR image locally").setInputFiles({
+        name: "public-demo.png",
+        mimeType: "image/png",
+        buffer: await QRCode.toBuffer(
+          "otpauth://totp/2FAS:test?secret=2FASTEST&issuer=2FAS",
+        ),
+      });
+      await expect(page.getByRole("status")).toContainText("10 to 640 bytes");
+      await expect(page.getByRole("status")).not.toContainText(
+        "Check your password",
+      );
+      await expect(page.getByRole("dialog")).toContainText("Import accounts");
+      expect(await storedVault()).toEqual(before);
+      await closeImport();
+      await click("+ Add account");
+      await page.getByLabel("Service name", { exact: true }).fill("2FAS");
+      await page
+        .getByLabel("Account name or email", { exact: true })
+        .fill("test@example.test");
+      await page.getByLabel("Setup key", { exact: true }).fill("2FASTEST");
+      await click("Review account");
+      await expect(page.getByRole("status")).toContainText("10 to 640 bytes");
+      expect(await storedVault()).toEqual(before);
+      await click("Close");
+      await expect(page.locator(".account")).toHaveCount(2);
+    },
+  );
+  await check(
     "Google transfer QR batches require every part before preview",
     async () => {
       const transfers = [
@@ -1773,12 +1805,22 @@ try {
                 range = document.createRange();
               range.selectNodeContents(code);
               const next = row.querySelector(".next-code");
+              const nextRange = document.createRange();
+              if (next && !next.hidden)
+                nextRange.selectNodeContents(
+                  next.querySelector(".next-code-value"),
+                );
               return {
                 parts,
                 row: box(row),
                 code: box(code),
                 text: box(range),
                 next: next && !next.hidden ? box(next) : null,
+                nextText: next && !next.hidden ? box(nextRange) : null,
+                nextLabel:
+                  next && !next.hidden
+                    ? box(next.querySelector(".hint"))
+                    : null,
               };
             });
             expect(geometry.row.height).toBeLessThanOrEqual(56);
@@ -1792,10 +1834,27 @@ try {
             expect(geometry.text.x + geometry.text.width).toBeLessThanOrEqual(
               geometry.parts[1].x + geometry.parts[1].width + 0.5,
             );
-            if (geometry.next)
+            if (geometry.next) {
               expect(geometry.next.width).toBeLessThanOrEqual(
                 geometry.parts[1].width,
               );
+              expect(
+                Math.abs(
+                  geometry.text.x +
+                    geometry.text.width -
+                    geometry.nextText.x -
+                    geometry.nextText.width,
+                ),
+              ).toBeLessThanOrEqual(1);
+              expect(
+                geometry.nextLabel.x + geometry.nextLabel.width + 4,
+              ).toBeLessThanOrEqual(geometry.nextText.x);
+              expect(
+                geometry.next.y + geometry.next.height,
+              ).toBeLessThanOrEqual(
+                geometry.parts[1].y + geometry.parts[1].height + 0.5,
+              );
+            }
             expect(geometry.code.y).toBeGreaterThanOrEqual(geometry.row.y);
             expect(geometry.code.y + geometry.code.height).toBeLessThanOrEqual(
               geometry.row.y + geometry.row.height,
