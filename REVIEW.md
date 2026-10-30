@@ -16,18 +16,18 @@ Much of Lykvakt was developed with AI coding tools. Automated tests and AI-assis
 8. [src/steam.ts](src/steam.ts) generates Steam sign-in codes.
 9. The tests below exercise these paths. They don't prove the whole design safe.
 
-The relevant tests are grouped here so you don't have to find them from scratch:
+These tests are a useful starting point:
 
 - Encryption: tests/crypto.test.ts, tests/canonical.test.ts, tests/password-change.test.ts, tests/rotation-copy.test.ts and tests/large-base64.test.ts.
-- Password work: tests/argon2.test.ts, tests/kdf-worker.test.ts and tests/kdf-buffers.test.ts.
-- State and recovery: tests/session.test.ts, tests/storage.test.ts, tests/recovery-copy.test.ts, tests/old-format.test.ts, tests/dialog-cancel.test.ts and tests/backup-reauth.test.ts.
-- Imports: tests/import-formats.test.ts, tests/import-encrypted.test.ts, tests/import-fuzz.test.ts, tests/fuzz.test.ts, tests/migration-budget.test.ts and tests/transfer-names.test.ts.
+- Password work: tests/argon2.test.ts, tests/kdf-worker.test.ts, tests/kdf-buffers.test.ts and tests/kdf-failures.test.ts.
+- State and recovery: tests/session.test.ts, tests/session-policy.test.ts, tests/setup-failure.test.ts, tests/storage.test.ts, tests/recovery-copy.test.ts, tests/old-format.test.ts, tests/dialog-cancel.test.ts and tests/backup-reauth.test.ts.
+- Imports: tests/import-formats.test.ts, tests/import-encrypted.test.ts, tests/import-fuzz.test.ts, tests/fuzz.test.ts, tests/migration-budget.test.ts, tests/transfer-names.test.ts and tests/setup-key-errors.test.ts.
 - Codes: tests/otp.test.ts, tests/migration.test.ts, tests/steam.test.ts and tests/steam-ui.test.ts.
 - Interface: tests/countdown.test.ts, tests/code-visibility.test.ts, tests/browser.mjs and tests/visibility.mjs.
 
 ## Claims and limits
 
-The design guide explains the claims these checks are intended to support. Passing tests is not an audit. The manifest permissions are exactly ["clipboardWrite", "storage", "alarms"], and runtime code is bundled locally. No WebAssembly or remote code is shipped.
+The design guide explains what these checks cover. Passing them does not establish that the whole design is safe. The manifest permissions are exactly ["clipboardWrite", "storage", "alarms"], and runtime code is bundled locally. No WebAssembly or remote code is shipped.
 
 TOTP codes can be phished. A compromised device or hostile extension update can read unlocked data. There is no password reset, escrow or recovery server.
 
@@ -78,6 +78,6 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-CI also runs axe and the headed focus-switch and manual-lock check. The design guide lists manual and unverified checks; a passing CI run isn't evidence for behavior those checks don't cover.
+CI also runs axe and the headed focus-switch and manual-lock check. The design guide also lists checks that still need manual testing. CI cannot tell us whether those work.
 
 Review the session broker as a security boundary: sender validation, deadline checks independent of alarms, stale-record binding, cross-view Lock, cancellation, key rotation and temporary enrollment drafts. Browser-session memory retains sensitive unlock material longer than immediate popup locking.

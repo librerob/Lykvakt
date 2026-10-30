@@ -1,10 +1,12 @@
 # Security policy
 
-Lykvakt is a personal project and has not received an independent security audit. Keep your service recovery codes and independently verified backups. Tests, pinned dependencies and vulnerability feeds help catch problems, but they are not an independent audit.
+Lykvakt is a personal project and has not received an independent security audit. Automated tests, pinned dependencies and vulnerability alerts help me catch problems, but they do not replace that review. Keep your service recovery codes and independently verified backups.
 
 TOTP codes can be phished. Malware or hostile code on your device can read secrets while the vault is unlocked. Nonextractable keys and buffer clearing don't make a compromised device safe, and JavaScript cannot guarantee that all copies have been erased from memory. There is no password reset or server recovery.
 
-The [design guide](docs/design.md) explains the fixed Argon2id settings and their bounds, Web Crypto AES-GCM/AES-KW, strict schemas, authenticated headers, transactional revision checks and temporary, memory-only unlock sessions shared between extension views. If you're moving from an earlier preview, export through the old app before updating. Keep those OTP links private and check the import before removing them.
+The [design guide](docs/design.md) explains how the vault is encrypted, how saves and recovery work, and what the temporary unlock session retains. It includes the fixed Argon2id settings and bounds, Web Crypto AES-GCM/AES-KW, schema and header validation, and revision checks.
+
+If you're moving from an earlier preview, export through the old app before updating. Keep those OTP links private and check the import before removing them.
 
 ## Reporting a vulnerability
 

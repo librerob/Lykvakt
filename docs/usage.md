@@ -6,7 +6,7 @@ Lykvakt keeps your authenticator accounts in an encrypted vault on this device. 
 
 Closing or switching away from the popup keeps your unlock session available. You can copy a setup key from a website, reopen Lykvakt and continue the Add account form. Small OTP setup-link drafts are remembered too. Other pasted export text stays only in the open form; file selections and authentication passwords are not remembered.
 
-In **Settings → Auto-lock**, choose 1, 5, 15 or 30 minutes, or 1 hour of inactivity. The default is five minutes. The old When this window closes preference becomes five minutes on this update; select the browser-restart choice explicitly if you want no inactivity timer. **When the browser restarts** turns off the inactivity timer. **Lock** ends the session in every view; use it before leaving your computer.
+In **Settings → Auto-lock**, choose 1, 5, 15 or 30 minutes, or 1 hour of inactivity. The default is five minutes. If you previously chose **When this window closes**, the update changes that setting to five minutes. **When the browser restarts** turns off the inactivity timer. **Lock** ends the session in every view; use it before leaving your computer.
 
 The separate window is still used for choosing files and QR images. It uses the current unlock session, so it asks for your password only if the session has ended. Chrome clears the temporary session when it restarts or the extension reloads, updates or is disabled. Closing all Chrome windows does not always quit Chrome if background apps are enabled.
 
@@ -22,7 +22,9 @@ There is no password reset or developer recovery service. Keep the password and 
 
 Use the setup key or QR image supplied when you enable two-step sign-in on a service. This is different from the short code used to sign in.
 
-Open **Backup → Import accounts**. Pasting setup links, export text or QR images works in either mode. Image files can also be dropped into the import text box. Choosing files with a file picker, including QR images and backups, requires the explicit window: choose **Open in a window to choose a file**, then select the file. The window asks for your password only if the shared session has ended. Browsers can close a popup while a native file chooser is open. Review the accounts and every skipped entry before saving. Check the new codes before retiring your existing authenticator. The [design guide](design.md#import-contracts-and-sources) explains format support and limits.
+Open **Backup → Import accounts**. Pasting setup links, export text or QR images works in either mode. Image files can also be dropped into the import text box. To choose an export file, QR image or backup, select **Open in a window to choose a file**. The window uses your current unlock session and asks for your password only if that session has ended. File selection uses a separate window because browsers can close the small popup while a file picker is open.
+
+Review the accounts and every skipped entry before saving. Check the new codes before retiring your existing authenticator. The [design guide](design.md#import-contracts-and-sources) explains format support and limits.
 
 Steam support covers authentication codes, not trade or market confirmations. Its setup secret normally comes from a compatible export or another authenticator. Files containing it can also hold other sensitive data, so keep them private.
 
@@ -42,7 +44,7 @@ In **Backup**, create an encrypted backup with a separate passphrase. You must c
 
 Save the file outside the browser. Then choose **Verify or restore a backup**, open the actual saved file and enter its backup passphrase. Verification tests the file and compares its accounts without replacing your active vault. A matching result does not prove that websites will accept the codes.
 
-To recover into a fresh vault, choose **Restore an encrypted backup** on setup. An existing vault uses a reviewed merge. Keep website recovery codes and independently stored backups.
+To recover into a fresh vault, choose **Restore an encrypted backup** on setup. If a vault already exists, you review the accounts before merging them. Keep website recovery codes and independently stored backups.
 
 ## Moving accounts out
 
@@ -54,7 +56,7 @@ Check that the destination supports your account settings, verify its codes and 
 
 The browser keeps a previous encrypted revision for corruption recovery. If offered, you must choose it and enter its password. It can be missing recent changes; HOTP counters may be behind, so do not reuse submitted codes.
 
-Very old preview formats need export through the working old app. See [migration and recovery](design.md#before-updating) before erasing an old vault. Changing labels or updating the UI does not add a legacy reader.
+Very old preview formats need export through the working old app. See [migration and recovery](design.md#before-updating) before erasing an old vault. Renaming the extension or changing its interface does not make the old format readable.
 
 ## Security and privacy
 

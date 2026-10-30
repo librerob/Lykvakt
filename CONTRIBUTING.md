@@ -2,7 +2,7 @@
 
 Lykvakt is meant to stay small and work offline. Before adding a permission, remote code, WebAssembly or a runtime dependency, please discuss the change first. Keep dependencies pinned to exact versions.
 
-Start with the [design guide](docs/design.md). Changes need to preserve authenticated encryption, typed conflicts, atomic writes, explicit recovery, code masking and verification of the backup file the user actually saved.
+Start with the [design guide](docs/design.md). Changes must preserve authenticated encryption and atomic saves. Reject stale writes, ask before recovering an older copy, keep codes masked until revealed, and verify the backup file the user actually saved. Storage conflicts must remain distinguishable from other errors.
 
 ## Checking a change
 
@@ -16,7 +16,7 @@ npm run format:check
 npm test
 ```
 
-The browser suite needs Playwright Chromium. Install it with `npx playwright install chromium`, then run `npm run test:browser`. These checks use synthetic accounts. CI also runs axe and tests tab locking in a browser with a visible window.
+The browser suite needs Playwright Chromium. Install it with `npx playwright install chromium`, then run `npm run test:browser`. These checks use synthetic accounts. CI also runs axe accessibility checks and checks shared sessions and manual locking in a browser with a visible window.
 
 When fixing a security bug, add a regression test and keep the existing assertions intact. In your PR, say which checks you ran and what happened. Make it clear when a check was manual or hasn't been verified.
 
