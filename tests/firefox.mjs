@@ -611,7 +611,7 @@ try {
   );
   await check("deadline enforced even if an alarm was delayed", async () => {
     await evaluate(
-      "(async()=>{const {unlockSession:s}=await browser.storage.session.get('unlockSession');s.unlock.touched=Date.now()-300001;s.unlock.expires=s.unlock.touched+s.unlock.timeout;s.unlock.checkedAt=s.unlock.touched;await browser.alarms.clear('vault-expiry');await browser.storage.session.set({unlockSession:s});window.__lykvaktExpiryFixture={timeout:s.unlock.timeout,touched:s.unlock.touched,expires:s.unlock.expires,checkedAt:s.unlock.checkedAt};})()",
+      "(async()=>{const reply=await browser.runtime.sendMessage({type:'lykvakt-session',action:'begin'});if(!reply.ok)throw Error('Could not drain pending session work');const {unlockSession:s}=await browser.storage.session.get('unlockSession');s.unlock.touched=Date.now()-300001;s.unlock.expires=s.unlock.touched+s.unlock.timeout;s.unlock.checkedAt=s.unlock.touched;await browser.alarms.clear('vault-expiry');await browser.storage.session.set({unlockSession:s});window.__lykvaktExpiryFixture={timeout:s.unlock.timeout,touched:s.unlock.touched,expires:s.unlock.expires,checkedAt:s.unlock.checkedAt};})()",
     );
     await openPopup();
     await wait("Boolean(document.querySelector('input[name=password]'))");
