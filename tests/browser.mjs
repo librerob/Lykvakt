@@ -1334,6 +1334,75 @@ try {
     },
   );
   await check(
+    "shared Lock still revokes the original view after a password change",
+    async () => {
+      const prior = page,
+        isolated = await launch(
+          await mkdtemp(join(tmpdir(), "lykvakt-rotation-lock-")),
+        );
+      isolated.on("request", (request) => {
+        if (/^https?:/.test(request.url())) network.push(request.url());
+      });
+      page = await isolated.newPage();
+      page.on("pageerror", (error) => errors.push(error.message));
+      try {
+        await page.goto(base);
+        await page
+          .getByLabel("Create a master password", { exact: true })
+          .fill(password);
+        await page
+          .getByLabel("Confirm master password", { exact: true })
+          .fill(password);
+        await click("Create encrypted vault");
+        await expect(
+          page.getByRole("button", { name: "+ Add account", exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+        await click("Settings");
+        await click("Change master password");
+        const nextPassword = "synthetic changed browser password";
+        await page
+          .getByLabel("Current master password", { exact: true })
+          .fill(password);
+        await page
+          .getByLabel("New master password", { exact: true })
+          .fill(nextPassword);
+        await page
+          .getByLabel("Confirm new master password", { exact: true })
+          .fill(nextPassword);
+        await click("Change password");
+        await expect(page.getByRole("dialog")).toHaveCount(0, {
+          timeout: 60000,
+        });
+        const peer = await isolated.newPage();
+        peer.on("pageerror", (error) => errors.push(error.message));
+        await peer.goto(base);
+        await peer
+          .getByLabel("Master password", { exact: true })
+          .fill(nextPassword);
+        await peer
+          .getByRole("button", { name: "Unlock vault", exact: true })
+          .click();
+        await expect(
+          peer.getByRole("button", { name: "Lock", exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+        await peer.getByRole("button", { name: "Lock", exact: true }).click();
+        await expect(
+          peer.getByLabel("Master password", { exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByLabel("Master password", { exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole("button", { name: "Lock", exact: true }),
+        ).toHaveCount(0);
+      } finally {
+        await isolated.close();
+        page = prior;
+        await page.bringToFront();
+      }
+    },
+  );
+  await check(
     "older vault requires explicit recovery confirmation",
     async () => {
       const revision = await page.evaluate(async () => {
