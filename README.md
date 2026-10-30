@@ -18,7 +18,7 @@ You'll need Node 24. Choose the build for your browser:
 | Microsoft Edge    | 120             | `npm run build:edge`    | `dist-edge/`    | `npm run package:edge`    |
 | Firefox (desktop) | 153             | `npm run build:firefox` | `dist-firefox/` | `npm run package:firefox` |
 
-Run `npm run build:all` to build all three. Packages are written to `artifacts/`. See the [browser build and store guide](docs/browsers.md) for the differences between targets. A build does not imply store approval.
+Run `npm run build:all` to build all three. Packages are written to `artifacts/`. See the [browser build and store guide](docs/browsers.md) for the differences between targets. Each browser store reviews submissions separately.
 
 ```sh
 npm ci --ignore-scripts
@@ -40,13 +40,19 @@ CI runs browser checks in Chrome, Edge and Firefox, including native popup reope
 
 Click an account row to copy its current code. Codes stay hidden until you reveal them, and hide again after 30 seconds. The optional **Next** preview follows the same rules. For HOTP accounts, the counter advances only when you confirm it in **More**.
 
-Ctrl+Shift+Y opens the popup, or Command+Shift+Y on Mac. Edge uses Ctrl+Shift+7 (Command+Shift+7 on Mac), and Firefox on Linux uses Ctrl+Shift+7, to avoid browser shortcuts. Choose **Open in a window** in Settings when you want to keep Lykvakt open or select a file. Change it through **Change shortcut** in Settings, which opens your browser's shortcut manager. To copy with Enter, type part of an account name into search first. The confirmation tells you which account was copied.
+Ctrl+Shift+Y opens the popup, or Command+Shift+Y on Mac. Edge uses Ctrl+Shift+7 (Command+Shift+7 on Mac), and Firefox on Linux uses Ctrl+Shift+7, to avoid browser shortcuts. To change the shortcut, choose **Change shortcut** in Settings. This opens your browser's shortcut manager. To copy with Enter, type part of an account name into search first; the confirmation tells you which account was copied.
+
+Choose **Open in a window** in Settings if you want to keep Lykvakt open alongside a website or select a file.
 
 Save an encrypted backup somewhere outside the browser, then choose **Verify or restore a backup** in **Backup** to test the file you saved. Creating a backup, exporting plaintext OTP links and revealing a transfer QR all ask for your master password again.
 
 Imports recognise supported formats and show any skipped entries before you save. The [design and recovery guide](docs/design.md) explains the formats, migration steps and compatibility limits. Steam support covers sign-in codes; it doesn't handle trade or market confirmations.
 
-You can close the popup, copy something from a website and reopen Lykvakt without entering your password again. The shared unlock session expires after five minutes of inactivity by default. Settings offers other timers and **When the browser restarts**. **Lock** ends the session in every open view. Small unfinished Add account forms and pasted OTP setup links are remembered only during that session. Other pasted exports stay only in the open form; authentication passwords are never remembered. Paste a copied QR image into Import accounts, or drop an image file there, in either mode. Choosing a file through the file picker still uses the separate window. Password length is your choice, with a long, unique passphrase recommended. Help & documentation works offline, with an optional [full usage guide](docs/usage.md). Import, export and backups live together in **Backup**.
+You can close the popup, copy something from a website and reopen Lykvakt without entering your password again. The session expires after five minutes of inactivity by default. You can choose a different timer in Settings, or **When the browser restarts**. **Lock** ends the session in every open view. Unfinished Add account forms and pasted OTP setup links are remembered during that session. Other pasted exports stay only in the open form, and authentication passwords are never remembered.
+
+Import, export and backups are together in **Backup**. You can paste a copied QR image or drop an image file into Import accounts in either the popup or the window. File pickers use the separate window.
+
+You choose your password length; I recommend a long, unique passphrase. **Help & documentation** works offline, and the [full usage guide](docs/usage.md) has more detail.
 
 ## Under the hood
 

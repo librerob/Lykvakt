@@ -10,11 +10,17 @@ Lykvakt receives clipboard data only when you paste into an import form. It does
 
 ## What stays in the browser
 
-IndexedDB stores the encrypted vault and its previous revision. localStorage stores your timeout and confirmation of its browser-session meaning, code-visibility, Next preview and first-run-tip preferences. Browser storage.session holds temporary vault-unlock material, its encrypted-record fingerprint and expiry deadline, plus small unfinished Add account forms or pasted OTP-link drafts. Whole pasted export archives are not cached. This memory is shared by Lykvakt's own popup and window, allowing you to switch away and return without another password prompt. It is not written to local or sync storage by Lykvakt. The master password, backup passphrases and import-file passwords are never cached. Closing a view clears its local key and form references; the temporary shared session remains until expiry or Lock. The default is five minutes of inactivity, with other choices including When the browser restarts. The browser clears session storage when it restarts or the extension is reloaded, disabled or updated. JavaScript and the browser cannot promise forensic erasure from memory or OS copies.
+IndexedDB stores the encrypted vault and its previous revision. localStorage stores your auto-lock choice, confirmation if you selected the browser-restart option, code-visibility and Next preview preferences, and whether you dismissed the first-run tips.
+
+Browser storage.session holds temporary unlock material, a fingerprint of the encrypted vault and an expiry deadline. It also holds small unfinished Add account forms or pasted OTP-link drafts. Whole pasted export archives are not cached. The master password, backup passphrases and import-file passwords are never cached.
+
+The popup and window share this temporary session so you can switch away and return without another password prompt. Lykvakt does not write it to local or sync storage. Closing a view clears its local key and form references; the shared session remains until expiry or **Lock**. The default is five minutes of inactivity. Other choices include **When the browser restarts**.
+
+The browser clears session storage when it restarts or the extension is reloaded, disabled or updated. This does not guarantee forensic erasure from browser memory or operating-system copies.
 
 An ordinary save keeps the previous encrypted revision in the same transaction as the new one. Changing your master password rotates the key and deletes the old copy atomically. If the current record is structurally damaged, recovery requires you to choose the older copy and enter its password. Earlier previews cannot be opened or recovered by this version. Confirmed erasure affects only local records, never external files.
 
-Argon2id runs as bundled JavaScript in a worker, with no WebAssembly or remote code. The format and password parameters are public: they are authenticated, but not encrypted. JavaScript cannot guarantee that every copy of sensitive data has been erased.
+Argon2id runs as bundled JavaScript in a worker, with no WebAssembly or remote code. The format and password parameters are public: they are authenticated, but not encrypted. JavaScript cannot guarantee that every copy of sensitive data has been erased from memory.
 
 ## Files you save or transfer
 
