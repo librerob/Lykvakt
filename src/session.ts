@@ -52,7 +52,10 @@ export class Session {
     if (cache) this.timeout = 300_000;
     if (cache)
       cache.onstate = (state) => {
-        if (!this.lease) return;
+        if (!this.lease) {
+          if (this.key) this.detach();
+          return;
+        }
         this.cacheChanges++;
         const u = state.unlock;
         if (

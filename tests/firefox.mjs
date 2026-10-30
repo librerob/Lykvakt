@@ -54,6 +54,7 @@ let endpoint,
   root,
   popup = false,
   capabilities,
+  expiryFixture,
   checks = 0;
 async function request(path, body, method = "POST") {
   const response = await fetch(endpoint + path, {
@@ -461,6 +462,60 @@ try {
       await click("Close");
     },
   );
+  await check(
+    "malformed import links never expose setup secrets in Firefox errors",
+    async () => {
+      const malformed =
+        "otpauth://[PRIVATE_SETUP_MARKER]/test?secret=" + secret;
+      for (const format of ["bitwarden", "proton"]) {
+        const payload = (links) =>
+          JSON.stringify(
+            format === "bitwarden"
+              ? {
+                  encrypted: false,
+                  items: links.map((totp) => ({
+                    type: 1,
+                    name: "Synthetic",
+                    login: { totp },
+                  })),
+                }
+              : {
+                  version: 1,
+                  entries: links.map((uri) => ({
+                    content: { entry_type: "Totp", uri },
+                  })),
+                },
+          );
+        await click("Backup");
+        await click("Import accounts");
+        await fill("textarea[name=payload]", payload([malformed]));
+        await click("Review import");
+        await wait(
+          "document.querySelector('.dialog-status')?.textContent.includes('No valid accounts')",
+        );
+        const failure = await evaluate(
+          "document.querySelector('.dialog-status').textContent",
+        );
+        assert.match(failure, /Invalid OTP URI/);
+        assert.equal(failure.includes("PRIVATE_SETUP_MARKER"), false);
+        assert.equal(failure.includes(secret), false);
+        await fill("textarea[name=payload]", payload([malformed, uri]));
+        await click("Review import");
+        await wait(
+          "document.querySelector('dialog')?.textContent.includes('1 exact duplicate') && document.querySelector('dialog')?.textContent.includes('1 skipped entry')",
+        );
+        const preview = await evaluate(
+          "document.querySelector('dialog').textContent",
+        );
+        assert.equal(preview.includes("PRIVATE_SETUP_MARKER"), false);
+        assert.equal(preview.includes(secret), false);
+        if (format === "proton") await accessibility("import-errors");
+        await click("Close");
+      }
+      await click("Authenticator");
+      await wait("document.querySelectorAll('.account').length === 1");
+    },
+  );
   await check("shared Lock and wrong/right password", async () => {
     await click("Lock");
     await closePopup();
@@ -556,9 +611,16 @@ try {
     },
   );
   await check("deadline enforced even if an alarm was delayed", async () => {
-    await evaluate(
-      "(async()=>{const {unlockSession:s}=await browser.storage.session.get('unlockSession');s.unlock.touched=Date.now()-300001;s.unlock.expires=s.unlock.touched+s.unlock.timeout;s.unlock.checkedAt=s.unlock.touched;await browser.alarms.clear('vault-expiry');await browser.storage.session.set({unlockSession:s});})()",
+    await wait(
+      "document.querySelector('.remaining')?.getAttribute('aria-label')?.includes('seconds remaining')",
     );
+    expiryFixture = await evaluate(
+      "(async()=>{const reply=await browser.runtime.sendMessage({type:'lykvakt-session',action:'begin'});if(!reply.ok)throw Error('Could not drain pending session work');const s=JSON.parse(JSON.stringify((await browser.storage.session.get('unlockSession')).unlockSession));s.unlock.touched=Date.now()-300001;s.unlock.expires=s.unlock.touched+s.unlock.timeout;s.unlock.checkedAt=s.unlock.touched;await browser.alarms.clear('vault-expiry');await browser.storage.session.set({unlockSession:s});const {unlockSession:stored}=await browser.storage.session.get('unlockSession');return {now:Date.now(),timeout:s.unlock.timeout,expires:s.unlock.expires,storedExpires:stored?.unlock?.expires};})()",
+    );
+    assert.equal(expiryFixture.timeout, 300_000);
+    assert(expiryFixture.expires < expiryFixture.now);
+    if (expiryFixture.storedExpires !== undefined)
+      assert.equal(expiryFixture.storedExpires, expiryFixture.expires);
     await openPopup();
     await wait("Boolean(document.querySelector('input[name=password]'))");
     await fill("input[name=password]", password);
@@ -651,6 +713,17 @@ try {
         senders,
         browser: capabilities?.browserVersion,
         log,
+        expiryFixture,
+        deadline: session
+          ? await evaluate(
+              "(()=>{return {now:Date.now(),text:document.querySelector('#app')?.textContent};})()",
+            ).catch((e) => String(e))
+          : undefined,
+        cachedDeadline: session
+          ? await evaluate(
+              "(async()=>{const s=(await browser.storage.session.get('unlockSession')).unlockSession;const u=s?.unlock;return {epoch:s?.epoch,source:s?.source,unlock:u&&{timeout:u.timeout,touched:u.touched,expires:u.expires,checkedAt:u.checkedAt}};})()",
+            ).catch((e) => String(e))
+          : undefined,
         status: session
           ? await evaluate(
               "[...document.querySelectorAll('.status')].map(n=>n.textContent)",

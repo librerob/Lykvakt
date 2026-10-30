@@ -1334,6 +1334,329 @@ try {
     },
   );
   await check(
+    "shared Lock still revokes the original view after a password change",
+    async () => {
+      const prior = page,
+        isolated = await launch(
+          await mkdtemp(join(tmpdir(), "lykvakt-rotation-lock-")),
+        );
+      isolated.on("request", (request) => {
+        if (/^https?:/.test(request.url())) network.push(request.url());
+      });
+      page = await isolated.newPage();
+      page.on("pageerror", (error) => errors.push(error.message));
+      try {
+        await page.goto(base);
+        await page
+          .getByLabel("Create a master password", { exact: true })
+          .fill(password);
+        await page
+          .getByLabel("Confirm master password", { exact: true })
+          .fill(password);
+        await click("Create encrypted vault");
+        await expect(
+          page.getByRole("button", { name: "+ Add account", exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+        await click("Settings");
+        await click("Change master password");
+        const nextPassword = "synthetic changed browser password";
+        await page
+          .getByLabel("Current master password", { exact: true })
+          .fill(password);
+        await page
+          .getByLabel("New master password", { exact: true })
+          .fill(nextPassword);
+        await page
+          .getByLabel("Confirm new master password", { exact: true })
+          .fill(nextPassword);
+        await click("Change password");
+        await expect(page.getByRole("dialog")).toHaveCount(0, {
+          timeout: 60000,
+        });
+        const peer = await isolated.newPage();
+        peer.on("pageerror", (error) => errors.push(error.message));
+        await peer.goto(base);
+        await peer
+          .getByLabel("Master password", { exact: true })
+          .fill(nextPassword);
+        await peer
+          .getByRole("button", { name: "Unlock vault", exact: true })
+          .click();
+        await expect(
+          peer.getByRole("button", { name: "Lock", exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+        await peer.getByRole("button", { name: "Lock", exact: true }).click();
+        await expect(
+          peer.getByLabel("Master password", { exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByLabel("Master password", { exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole("button", { name: "Lock", exact: true }),
+        ).toHaveCount(0);
+      } finally {
+        await isolated.close();
+        page = prior;
+        await page.bringToFront();
+      }
+    },
+  );
+  await check(
+    "password forms freeze submitted values and Generate during setup, rotation and backup",
+    async () => {
+      const prior = page,
+        isolated = await launch(
+          await mkdtemp(join(tmpdir(), "lykvakt-password-freeze-")),
+        );
+      isolated.on("request", (request) => {
+        if (/^https?:/.test(request.url())) network.push(request.url());
+      });
+      page = await isolated.newPage();
+      page.on("pageerror", (error) => errors.push(error.message));
+      const holdPassword = () =>
+        page.evaluate(() => {
+          window.__releasePassword = undefined;
+          const post = Worker.prototype.postMessage;
+          Worker.prototype.postMessage = function (...args) {
+            if (args[0]?.policy?.kdf !== "Argon2id")
+              return post.apply(this, args);
+            Worker.prototype.postMessage = post;
+            window.__releasePassword = () => post.apply(this, args);
+          };
+        });
+      const frozen = async (labels, valueLabel, value) => {
+        await expect
+          .poll(() => page.evaluate(() => typeof window.__releasePassword))
+          .toBe("function");
+        for (const label of labels)
+          await expect(page.getByLabel(label, { exact: true })).toBeDisabled();
+        const generate = page.getByRole("button", {
+          name: "Generate",
+          exact: true,
+        });
+        await expect(generate).toBeDisabled();
+        await generate.evaluate((node) => node.click());
+        await expect(page.getByLabel(valueLabel, { exact: true })).toHaveValue(
+          value,
+        );
+        if (await page.getByRole("dialog").count())
+          await expect(
+            page.getByRole("button", { name: "Close", exact: true }),
+          ).toBeEnabled();
+        await page.evaluate(() => window.__releasePassword());
+      };
+      try {
+        await page.goto(base);
+        await page
+          .getByLabel("Create a master password", { exact: true })
+          .fill(password);
+        await page
+          .getByLabel("Confirm master password", { exact: true })
+          .fill(password);
+        await holdPassword();
+        await click("Create encrypted vault");
+        await frozen(
+          ["Create a master password", "Confirm master password"],
+          "Create a master password",
+          password,
+        );
+        await expect(
+          page.getByRole("button", { name: "+ Add account", exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+        await click("Settings");
+        await click("Change master password");
+        const nextPassword = "synthetic frozen master password",
+          backupPassword = "synthetic frozen backup password";
+        await page
+          .getByLabel("Current master password", { exact: true })
+          .fill(password);
+        await page
+          .getByLabel("New master password", { exact: true })
+          .fill(nextPassword);
+        await page
+          .getByLabel("Confirm new master password", { exact: true })
+          .fill(nextPassword);
+        await holdPassword();
+        await click("Change password");
+        await frozen(
+          [
+            "Current master password",
+            "New master password",
+            "Confirm new master password",
+          ],
+          "New master password",
+          nextPassword,
+        );
+        await expect(page.getByRole("dialog")).toHaveCount(0, {
+          timeout: 60000,
+        });
+        await click("Backup");
+        await click("Create encrypted backup");
+        await page
+          .getByLabel("Master password", { exact: true })
+          .fill(nextPassword);
+        await page
+          .getByLabel("Backup passphrase", { exact: true })
+          .fill(backupPassword);
+        await page
+          .getByLabel("Confirm backup passphrase", { exact: true })
+          .fill(backupPassword);
+        await holdPassword();
+        const pendingDownload = page.waitForEvent("download");
+        await click("Save encrypted file");
+        await frozen(
+          ["Master password", "Backup passphrase", "Confirm backup passphrase"],
+          "Backup passphrase",
+          backupPassword,
+        );
+        const saved = await pendingDownload,
+          file = join(profile, "frozen-password-backup.json");
+        await saved.saveAs(file);
+        await click("Verify or restore a backup");
+        await page
+          .getByLabel("Encrypted backup file", { exact: true })
+          .setInputFiles(file);
+        await page
+          .getByLabel("Backup passphrase", { exact: true })
+          .fill(backupPassword);
+        await click("Decrypt & test restoration");
+        await expect(page.getByRole("dialog")).toContainText(
+          "Exact account snapshot match",
+          { timeout: 60000 },
+        );
+        await click("Done");
+        await click("Lock");
+        await page
+          .getByLabel("Master password", { exact: true })
+          .fill(nextPassword);
+        await click("Unlock vault");
+        await expect(
+          page.getByRole("button", { name: "+ Add account", exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+      } finally {
+        await isolated.close();
+        page = prior;
+        await page.bringToFront();
+      }
+    },
+  );
+  await check(
+    "a stale recovery screen refreshes after another window repairs the vault",
+    async () => {
+      const prior = page,
+        isolated = await launch(
+          await mkdtemp(join(tmpdir(), "lykvakt-recovery-refresh-")),
+        );
+      isolated.on("request", (request) => {
+        if (/^https?:/.test(request.url())) network.push(request.url());
+      });
+      page = await isolated.newPage();
+      page.on("pageerror", (error) => errors.push(error.message));
+      try {
+        await page.goto(base);
+        await page
+          .getByLabel("Create a master password", { exact: true })
+          .fill(password);
+        await page
+          .getByLabel("Confirm master password", { exact: true })
+          .fill(password);
+        await click("Create encrypted vault");
+        await expect(
+          page.getByRole("button", { name: "+ Add account", exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+        await click("Import accounts");
+        await page.getByLabel("Setup links or export text").fill(uri);
+        await click("Review import");
+        await click("Add account");
+        await expect(page.locator(".account")).toHaveCount(1);
+        await page.evaluate(async () => {
+          const db = await new Promise((resolve, reject) => {
+            const req = indexedDB.open("otp-vault", 1);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+          });
+          try {
+            await new Promise((resolve, reject) => {
+              const tx = db.transaction("vault", "readwrite"),
+                store = tx.objectStore("vault"),
+                req = store.get("active");
+              req.onsuccess = () =>
+                store.put(
+                  {
+                    ...req.result,
+                    payload: { ...req.result.payload, key: "broken" },
+                  },
+                  "active",
+                );
+              tx.oncomplete = resolve;
+              tx.onabort = () => reject(tx.error);
+            });
+          } finally {
+            db.close();
+          }
+        });
+        await page.reload();
+        await expect(
+          page.getByRole("button", { name: "Unlock older copy", exact: true }),
+        ).toBeVisible();
+        const peer = await isolated.newPage();
+        peer.on("pageerror", (error) => errors.push(error.message));
+        await peer.goto(base);
+        await peer
+          .getByLabel("Master password", { exact: true })
+          .fill(password);
+        await peer
+          .getByRole("button", { name: "Unlock older copy", exact: true })
+          .click();
+        await expect(
+          peer.getByRole("button", { name: "+ Add account", exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+        await openImportOn(peer);
+        await peer
+          .getByLabel("Setup links or export text")
+          .fill(
+            "otpauth://totp/Repaired:synthetic?secret=JBSWY3DPEHPK3PXP&issuer=Repaired",
+          );
+        await peer
+          .getByRole("button", { name: "Review import", exact: true })
+          .click();
+        await peer
+          .getByRole("button", { name: "Add account", exact: true })
+          .click();
+        await expect(peer.locator(".account")).toHaveCount(1);
+        const winning = await storedVault();
+        await page.bringToFront();
+        await page
+          .getByLabel("Master password", { exact: true })
+          .fill(password);
+        await click("Unlock older copy");
+        await expect(
+          page.getByRole("button", { name: "Unlock vault", exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole("button", { name: "Unlock older copy", exact: true }),
+        ).toHaveCount(0);
+        await expect(page.getByRole("status")).toContainText(
+          "Review the updated screen",
+        );
+        expect(await storedVault()).toEqual(winning);
+        await page
+          .getByLabel("Master password", { exact: true })
+          .fill(password);
+        await click("Unlock vault");
+        await expect(
+          page.getByRole("heading", { name: "Repaired", exact: true }),
+        ).toBeVisible({ timeout: 60000 });
+        expect(await storedVault()).toEqual(winning);
+      } finally {
+        await isolated.close();
+        page = prior;
+        await page.bringToFront();
+      }
+    },
+  );
+  await check(
     "older vault requires explicit recovery confirmation",
     async () => {
       const revision = await page.evaluate(async () => {
