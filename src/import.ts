@@ -20,7 +20,12 @@ import type { VaultData } from "./model";
 export function parseURI(input: string): Account {
   if (input.length > 5000 || /[\r\n\u0000]/.test(input))
     throw new Error("Invalid OTP URI.");
-  const url = new URL(input);
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    throw new Error("Invalid OTP URI.");
+  }
   if (
     url.protocol !== "otpauth:" ||
     !["totp", "hotp", "steam"].includes(url.hostname) ||

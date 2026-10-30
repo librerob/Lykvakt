@@ -461,6 +461,60 @@ try {
       await click("Close");
     },
   );
+  await check(
+    "malformed import links never expose setup secrets in Firefox errors",
+    async () => {
+      const malformed =
+        "otpauth://[PRIVATE_SETUP_MARKER]/test?secret=" + secret;
+      for (const format of ["bitwarden", "proton"]) {
+        const payload = (links) =>
+          JSON.stringify(
+            format === "bitwarden"
+              ? {
+                  encrypted: false,
+                  items: links.map((totp) => ({
+                    type: 1,
+                    name: "Synthetic",
+                    login: { totp },
+                  })),
+                }
+              : {
+                  version: 1,
+                  entries: links.map((uri) => ({
+                    content: { entry_type: "Totp", uri },
+                  })),
+                },
+          );
+        await click("Backup");
+        await click("Import accounts");
+        await fill("textarea[name=payload]", payload([malformed]));
+        await click("Review import");
+        await wait(
+          "document.querySelector('.dialog-status')?.textContent.includes('No valid accounts')",
+        );
+        const failure = await evaluate(
+          "document.querySelector('.dialog-status').textContent",
+        );
+        assert.match(failure, /Invalid OTP URI/);
+        assert.equal(failure.includes("PRIVATE_SETUP_MARKER"), false);
+        assert.equal(failure.includes(secret), false);
+        await fill("textarea[name=payload]", payload([malformed, uri]));
+        await click("Review import");
+        await wait(
+          "document.querySelector('dialog')?.textContent.includes('1 exact duplicate') && document.querySelector('dialog')?.textContent.includes('1 skipped entry')",
+        );
+        const preview = await evaluate(
+          "document.querySelector('dialog').textContent",
+        );
+        assert.equal(preview.includes("PRIVATE_SETUP_MARKER"), false);
+        assert.equal(preview.includes(secret), false);
+        if (format === "proton") await accessibility("import-errors");
+        await click("Close");
+      }
+      await click("Authenticator");
+      await wait("document.querySelectorAll('.account').length === 1");
+    },
+  );
   await check("shared Lock and wrong/right password", async () => {
     await click("Lock");
     await closePopup();

@@ -102,7 +102,12 @@ export interface Transfer {
 export function parseMigration(input: string, partial = false): Transfer {
   if (input.length > MAX_FILE_BYTES || /[\r\n\u0000]/.test(input))
     throw new Error("Invalid Google transfer URI.");
-  const url = new URL(input);
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    throw new Error("Invalid Google transfer URI.");
+  }
   if (
     url.protocol !== "otpauth-migration:" ||
     url.hostname !== "offline" ||
