@@ -4,7 +4,14 @@ import { OldFormatError, oldFormatMessage } from "../format";
 import { savePreference } from "../preferences";
 import { withGenerator } from "./passphrase";
 import { button, el, input, form, submit } from "../dom";
-import { RecoveryRequired, load, isOldVault, eraseOldVault } from "../storage";
+import {
+  RecoveryRequired,
+  StorageConflictError,
+  load,
+  isOldVault,
+  isRecoveryOffer,
+  eraseOldVault,
+} from "../storage";
 import type { AppContext } from "./context";
 
 export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
@@ -75,6 +82,28 @@ export function createWelcome(ctx: AppContext, recoverySetup: () => void) {
               savePreference("firstRunTips", "true");
             }
           } catch (error) {
+            const conflict =
+              error instanceof StorageConflictError
+                ? error
+                : error instanceof Error &&
+                    error.cause instanceof StorageConflictError
+                  ? error.cause
+                  : undefined;
+            if (conflict) {
+              const stored = await load();
+              state.exists = !!stored;
+              state.oldVault =
+                stored && isOldVault(stored) ? stored : undefined;
+              state.recovery =
+                stored && isRecoveryOffer(stored) ? stored : undefined;
+              render();
+              if (error instanceof StorageConflictError)
+                throw new Error(
+                  "Your vault changed in another window. Review the updated screen and unlock again.",
+                  { cause: error },
+                );
+              throw error;
+            }
             if (error instanceof VaultCreatedError) {
               state.exists = true;
               state.recovery = undefined;
