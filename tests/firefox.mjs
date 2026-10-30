@@ -54,6 +54,7 @@ let endpoint,
   root,
   popup = false,
   capabilities,
+  expiryFixture,
   checks = 0;
 async function request(path, body, method = "POST") {
   const response = await fetch(endpoint + path, {
@@ -610,9 +611,13 @@ try {
     },
   );
   await check("deadline enforced even if an alarm was delayed", async () => {
-    await evaluate(
-      "(async()=>{const reply=await browser.runtime.sendMessage({type:'lykvakt-session',action:'begin'});if(!reply.ok)throw Error('Could not drain pending session work');const {unlockSession:s}=await browser.storage.session.get('unlockSession');s.unlock.touched=Date.now()-300001;s.unlock.expires=s.unlock.touched+s.unlock.timeout;s.unlock.checkedAt=s.unlock.touched;await browser.alarms.clear('vault-expiry');await browser.storage.session.set({unlockSession:s});window.__lykvaktExpiryFixture={timeout:s.unlock.timeout,touched:s.unlock.touched,expires:s.unlock.expires,checkedAt:s.unlock.checkedAt};})()",
+    expiryFixture = await evaluate(
+      "(async()=>{const reply=await browser.runtime.sendMessage({type:'lykvakt-session',action:'begin'});if(!reply.ok)throw Error('Could not drain pending session work');const s=JSON.parse(JSON.stringify((await browser.storage.session.get('unlockSession')).unlockSession));s.unlock.touched=Date.now()-300001;s.unlock.expires=s.unlock.touched+s.unlock.timeout;s.unlock.checkedAt=s.unlock.touched;await browser.alarms.clear('vault-expiry');await browser.storage.session.set({unlockSession:s});const {unlockSession:stored}=await browser.storage.session.get('unlockSession');return {now:Date.now(),timeout:s.unlock.timeout,expires:s.unlock.expires,storedExpires:stored?.unlock?.expires};})()",
     );
+    assert.equal(expiryFixture.timeout, 300_000);
+    assert(expiryFixture.expires < expiryFixture.now);
+    if (expiryFixture.storedExpires !== undefined)
+      assert.equal(expiryFixture.storedExpires, expiryFixture.expires);
     await openPopup();
     await wait("Boolean(document.querySelector('input[name=password]'))");
     await fill("input[name=password]", password);
@@ -705,9 +710,10 @@ try {
         senders,
         browser: capabilities?.browserVersion,
         log,
+        expiryFixture,
         deadline: session
           ? await evaluate(
-              "(()=>{const s=window.__lykvaktExpiryFixture;return {fixture:s,now:Date.now(),text:document.querySelector('#app')?.textContent};})()",
+              "(()=>{return {now:Date.now(),text:document.querySelector('#app')?.textContent};})()",
             ).catch((e) => String(e))
           : undefined,
         cachedDeadline: session
